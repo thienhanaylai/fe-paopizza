@@ -69,7 +69,7 @@ export default function IndexPage() {
   const [product, setProduct] = useState<Product | null>(null);
   const [note, setNote] = useState<string>("");
 
-  const filteredMenu = activeCategory === "all" ? products : products.filter(m => m?.category_id.slug === activeCategory);
+  const filteredMenu = activeCategory === "all" ? products : products.filter(m => m?.category.slug === activeCategory);
 
   useEffect(() => {
     const fectData = async () => {
@@ -103,7 +103,7 @@ export default function IndexPage() {
   const hanldeProduct = (selectedProduct: Product) => {
     setProduct(selectedProduct);
     const productInCart = cart?.items.find(i => i.sku === selectedProduct.variants[0].sku);
-    setNote(productInCart.note);
+    setNote(productInCart ? productInCart?.note : "");
   };
 
   const handleCart = async (product_id: string, size: string, quantity: number = 1, sku: string, note: string = "") => {
@@ -398,7 +398,7 @@ export default function IndexPage() {
                         <div className="mt-auto pt-4 border-t border-gray-200 bg-white">
                           <Textarea
                             placeholder="Ghi chú"
-                            className="placeholder:text-[16px]"
+                            className="placeholder:text-[16px] text-[16px]"
                             onChange={e => setNote(e.target.value)}
                             value={note}
                           />
