@@ -1,216 +1,126 @@
 "use client";
-import {
-  ArrowRight,
-  Award,
-  CakeSlice,
-  ChefHat,
-  Clock,
-  Clock1,
-  Minus,
-  Phone,
-  Pizza,
-  Plus,
-  Soup,
-  Star,
-  Truck,
-  UtensilsCrossed,
-  Wine,
-} from "lucide-react";
+import { ArrowRight, Award, ChefHat, Clock, MapPin, Minus, Phone, Plus, Star, Truck, X } from "lucide-react";
 import Image from "next/image";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { getAllProducts } from "@/src/services/product.service";
+import { getAllCategories } from "@/src/services/category.service";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/src/components/ui/tabs";
+import { useAuth } from "@/src/context/authContext";
+import { CartItem, useCart } from "@/src/context/cartContext";
+import { Input } from "@/src/components/ui/input";
+import { Textarea } from "@/src/components/ui/textarea";
 
-type MenuCategory = "all" | "pizza" | "pasta" | "dessert" | "drink";
-
-interface MenuItem {
-  id: number;
-  name: string;
-  desc: string;
-  price: number;
-  image: string;
-  rating: number;
-  bestseller: boolean;
-  category: MenuCategory;
-}
-
-const categories: { key: MenuCategory; label: string; icon: React.ReactNode }[] = [
-  { key: "all", label: "Tất cả", icon: <UtensilsCrossed size={18} /> },
-  { key: "pizza", label: "Pizza", icon: <Pizza size={18} /> },
-  { key: "pasta", label: "Pasta", icon: <Soup size={18} /> },
-  { key: "dessert", label: "Tráng miệng", icon: <CakeSlice size={18} /> },
-  { key: "drink", label: "Đồ uống", icon: <Wine size={18} /> },
-];
 function formatVND(n: number) {
   return new Intl.NumberFormat("vi-VN").format(n) + "đ";
 }
-const menuItems: MenuItem[] = [
-  {
-    id: 1,
-    name: "Pizza Pepperoni",
-    desc: "Pepperoni Ý, phô mai Mozzarella, sốt cà chua đặc biệt",
-    price: 170000,
-    image:
-      "https://images.unsplash.com/photo-1708649360970-1739eb95204b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwZXBwZXJvbmklMjBwaXp6YSUyMGNsb3NldXB8ZW58MXx8fHwxNzczNjEyOTkwfDA&ixlib=rb-4.1.0&q=80&w=1080",
-    rating: 4.9,
-    bestseller: true,
-    category: "pizza",
-  },
-  {
-    id: 2,
-    name: "Pizza Hải Sản",
-    desc: "Tôm, mực, cua cùng rau củ tươi ngon trên nền sốt kem",
-    price: 195000,
-    image:
-      "https://images.unsplash.com/photo-1530632789071-8543f47edb34?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxpdGFsaWFuJTIwcGl6emElMjBmcmVzaCUyMGJhc2lsfGVufDF8fHx8MTc3MzcxMDI2MXww&ixlib=rb-4.1.0&q=80&w=1080",
-    rating: 4.8,
-    bestseller: true,
-    category: "pizza",
-  },
-  {
-    id: 3,
-    name: "Pizza BBQ Chicken",
-    desc: "Gà nướng BBQ, hành tây, ớt chuông và sốt BBQ đặc biệt",
-    price: 185000,
-    image:
-      "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxiYnElMjBjaGlja2VuJTIwcGl6emF8ZW58MXx8fHwxNzczNjIyOTkwfDA&ixlib=rb-4.1.0&q=80&w=1080",
-    rating: 4.7,
-    bestseller: false,
-    category: "pizza",
-  },
-  {
-    id: 4,
-    name: "Pizza Margherita",
-    desc: "Pizza Ý cổ điển với cà chua, mozzarella tươi và basil",
-    price: 120000,
-    image:
-      "https://images.unsplash.com/photo-1772351103036-d107ffab0bbf?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxjaGVlc2UlMjBwaXp6YSUyMHNsaWNlJTIwbWVsdGVkfGVufDF8fHx8MTc3MzcxMDI2Mnww&ixlib=rb-4.1.0&q=80&w=1080",
-    rating: 4.6,
-    bestseller: false,
-    category: "pizza",
-  },
-  {
-    id: 5,
-    name: "Pizza Hawaiian",
-    desc: "Dứa tươi, jambon cao cấp và phô mai mozzarella",
-    price: 155000,
-    image:
-      "https://images.unsplash.com/photo-1671572579366-89bec1184f5e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxoYXdhaWlhbiUyMHBpenphJTIwcGluZWFwcGxlfGVufDF8fHx8MTc3MzY5MjgzNXww&ixlib=rb-4.1.0&q=80&w=1080",
-    rating: 4.5,
-    bestseller: false,
-    category: "pizza",
-  },
-  {
-    id: 6,
-    name: "Spaghetti Bolognese",
-    desc: "Mì Ý sốt thịt bò bằm cà chua truyền thống",
-    price: 135000,
-    image:
-      "https://images.unsplash.com/photo-1632739148811-2b53d07be26f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxzcGFnaGV0dGklMjBib2xvZ25lc2UlMjBwbGF0ZXxlbnwxfHx8fDE3NzM2Mzg5OTZ8MA&ixlib=rb-4.1.0&q=80&w=1080",
-    rating: 4.7,
-    bestseller: true,
-    category: "pasta",
-  },
-  {
-    id: 7,
-    name: "Pasta Carbonara",
-    desc: "Mì Ý sốt kem trứng, thịt xông khói giòn, phô mai Parmesan",
-    price: 145000,
-    image:
-      "https://images.unsplash.com/photo-1655662844229-d2c2a81f09ec?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwYXN0YSUyMGNhcmJvbmFyYSUyMGl0YWxpYW58ZW58MXx8fHwxNzczNjU1MjkxfDA&ixlib=rb-4.1.0&q=80&w=1080",
-    rating: 4.8,
-    bestseller: false,
-    category: "pasta",
-  },
-  {
-    id: 8,
-    name: "Penne Arrabbiata",
-    desc: "Nui ống sốt cà chua cay, tỏi, ớt và húng quế",
-    price: 125000,
-    image:
-      "https://images.unsplash.com/photo-1662478839788-7d2898ca66cf?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwZW5uZSUyMHBhc3RhJTIwdG9tYXRvJTIwYmFzaWx8ZW58MXx8fHwxNzczNzEyNTYxfDA&ixlib=rb-4.1.0&q=80&w=1080",
-    rating: 4.5,
-    bestseller: false,
-    category: "pasta",
-  },
-  {
-    id: 9,
-    name: "Tiramisu",
-    desc: "Bánh Tiramisu Ý cổ điển với cà phê espresso và mascarpone",
-    price: 75000,
-    image:
-      "https://images.unsplash.com/photo-1710106519622-8c49d0bcff2f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx0aXJhbWlzdSUyMGl0YWxpYW4lMjBkZXNzZXJ0fGVufDF8fHx8MTc3MzY3MzIxMXww&ixlib=rb-4.1.0&q=80&w=1080",
-    rating: 4.9,
-    bestseller: true,
-    category: "dessert",
-  },
-  {
-    id: 10,
-    name: "Chocolate Lava Cake",
-    desc: "Bánh chocolate nhân chảy nóng hổi, kèm kem vani",
-    price: 85000,
-    image:
-      "https://images.unsplash.com/photo-1673551490243-f29547426841?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxjaG9jb2xhdGUlMjBsYXZhJTIwY2FrZSUyMGRlc3NlcnR8ZW58MXx8fHwxNzczNjIyOTkyfDA&ixlib=rb-4.1.0&q=80&w=1080",
-    rating: 4.7,
-    bestseller: false,
-    category: "dessert",
-  },
-  {
-    id: 11,
-    name: "Garlic Bread",
-    desc: "Bánh mì bơ tỏi nướng giòn, phủ phô mai Parmesan",
-    price: 55000,
-    image:
-      "https://images.unsplash.com/photo-1558679582-dac5f374f01c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxnYXJsaWMlMjBicmVhZCUyMGFwcGV0aXplcnxlbnwxfHx8fDE3NzM3MTI1NjJ8MA&ixlib=rb-4.1.0&q=80&w=1080",
-    rating: 4.6,
-    bestseller: false,
-    category: "dessert",
-  },
-  {
-    id: 12,
-    name: "Lemonade Đá",
-    desc: "Nước chanh tươi mát, thêm bạc hà và đá viên",
-    price: 35000,
-    image:
-      "https://images.unsplash.com/photo-1679934576534-72d79d027fdc?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxpY2VkJTIwbGVtb25hZGUlMjBkcmluayUyMGZyZXNofGVufDF8fHx8MTc3MzcxMjU2MHww&ixlib=rb-4.1.0&q=80&w=1080",
-    rating: 4.4,
-    bestseller: false,
-    category: "drink",
-  },
-  {
-    id: 13,
-    name: "Coca Cola",
-    desc: "Coca Cola đá lạnh, lon 330ml",
-    price: 25000,
-    image:
-      "https://images.unsplash.com/photo-1763297059500-5810c9142d2c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxjb2xhJTIwc29mdCUyMGRyaW5rJTIwZ2xhc3MlMjBpY2V8ZW58MXx8fHwxNzczNzEyNTYxfDA&ixlib=rb-4.1.0&q=80&w=1080",
-    rating: 4.3,
-    bestseller: false,
-    category: "drink",
-  },
-  {
-    id: 14,
-    name: "Combo Family",
-    desc: "2 Pizza lớn + 4 nước ngọt + Khoai tây chiên lớn",
-    price: 450000,
-    image:
-      "https://images.unsplash.com/photo-1572195577046-2f25894c06fc?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwaXp6YSUyMGRlbGl2ZXJ5JTIwZm9vZCUyMG9yZGVyfGVufDF8fHx8MTc3MzcxMTA1N3ww&ixlib=rb-4.1.0&q=80&w=1080",
-    rating: 4.9,
-    bestseller: true,
-    category: "pizza",
-  },
-];
+
+type MenuCategoryUI = {
+  slug: string;
+  name: string;
+  icon: string;
+};
+export type ProductCategory = {
+  _id: string;
+  name: string;
+  slug: string;
+};
+
+export type ProductImage = {
+  _id: string;
+  url: string;
+  public_id: string;
+};
+
+export type Ingredient = {
+  _id: string;
+  name: string;
+};
+
+export type RecipeIngredient = {
+  ingredient: Ingredient;
+  quantity: number;
+  unit: string;
+};
+
+export type ProductVariant = {
+  sku: string;
+  price: number;
+  size: string;
+  image: ProductImage;
+  recipe: RecipeIngredient[];
+};
+
+type Product = {
+  _id: string;
+  category: ProductCategory;
+  name: string;
+  description: string;
+  is_active: boolean;
+  variants: ProductVariant[];
+  isDeleted: boolean;
+};
+
 export default function IndexPage() {
-  const [activeCategory, setActiveCategory] = useState<MenuCategory>("all");
-  const [cart, setCart] = useState<Record<number, number>>({});
-  const [showCart, setShowCart] = useState(false);
-  const filteredMenu = activeCategory === "all" ? menuItems : menuItems.filter(m => m.category === activeCategory);
-  const addToCart = (id: number) => setCart(prev => ({ ...prev, [id]: (prev[id] || 0) + 1 }));
-  const removeFromCart = (id: number) =>
-    setCart(prev => {
-      const next = { ...prev };
-      if (next[id] > 1) next[id]--;
-      else delete next[id];
-      return next;
-    });
+  const { isAuthenticated, setAuthMode, user } = useAuth();
+  const { addToCart, fetchCart, cart } = useCart();
+  const [activeCategory, setActiveCategory] = useState<string>("all");
+  const [categories, setCategories] = useState<MenuCategoryUI[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [product, setProduct] = useState<Product | null>(null);
+  const [note, setNote] = useState<string>("");
+
+  const filteredMenu = activeCategory === "all" ? products : products.filter(m => m?.category_id.slug === activeCategory);
+
+  useEffect(() => {
+    const fectData = async () => {
+      try {
+        const categories = await getAllCategories();
+        const products = await getAllProducts();
+
+        const mappedCategories: MenuCategoryUI[] = categories
+          .filter(cat => cat.is_active && !cat.isDeleted)
+          .map(cat => ({
+            slug: cat.slug,
+            name: cat.name,
+            icon: cat.icon,
+          }));
+
+        const finalCategories: MenuCategoryUI[] = [
+          {
+            slug: "all",
+            name: "Tất cả",
+            icon: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJsdWNpZGUgbHVjaWRlLXV0ZW5zaWxzLWNyb3NzZWQtaWNvbiBsdWNpZGUtdXRlbnNpbHMtY3Jvc3NlZCI+PHBhdGggZD0ibTE2IDItMi4zIDIuM2EzIDMgMCAwIDAgMCA0LjJsMS44IDEuOGEzIDMgMCAwIDAgNC4yIDBMMjIgOCIvPjxwYXRoIGQ9Ik0xNSAxNSAzLjMgMy4zYTQuMiA0LjIgMCAwIDAgMCA2bDcuMyA3LjNjLjcuNyAyIC43IDIuOCAwTDE1IDE1Wm0wIDAgNyA3Ii8+PHBhdGggZD0ibTIuMSAyMS44IDYuNC02LjMiLz48cGF0aCBkPSJtMTkgNS03IDciLz48L3N2Zz4=",
+          },
+          ...mappedCategories,
+        ];
+        setCategories(finalCategories);
+        setProducts(products);
+      } catch (error) {}
+    };
+    fectData();
+  }, []);
+
+  const hanldeProduct = (selectedProduct: Product) => {
+    setProduct(selectedProduct);
+    const productInCart = cart?.items.find(i => i.sku === selectedProduct.variants[0].sku);
+    setNote(productInCart.note);
+  };
+
+  const handleCart = async (product_id: string, size: string, quantity: number = 1, sku: string, note: string = "") => {
+    if (!isAuthenticated) setAuthMode("login");
+    else {
+      await addToCart(user?.id, product_id, size, quantity, note);
+      const fectCart = await fetchCart(user?.id);
+      const productInCart = fectCart?.items.find(i => i.sku === sku);
+      setNote(productInCart?.note);
+    }
+  };
+
+  const handleChangeSize = async (item: ProductVariant) => {
+    const productInCart = cart?.items.find(i => i.sku === item.sku);
+    setNote(productInCart ? productInCart?.note : "");
+  };
+
   return (
     <>
       <section className="section1 relative overflow-hidden">
@@ -234,7 +144,7 @@ export default function IndexPage() {
                   href="#menu"
                   className="inline-flex items-center justify-center gap-2 bg-primary text-white px-6 py-3 rounded-xl hover:bg-primary/90 transition-colors shadow-lg shadow-primary/25"
                 >
-                  Xem thực đơn <ArrowRight size={18} />
+                  Xem menu <ArrowRight size={18} />
                 </a>
                 <a
                   href="tel:19001234"
@@ -319,69 +229,49 @@ export default function IndexPage() {
           <div className="flex flex-wrap justify-center gap-2 mb-10">
             {categories.map(cat => (
               <button
-                key={cat.key}
-                onClick={() => setActiveCategory(cat.key)}
-                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm transition-all ${activeCategory === cat.key ? "bg-primary text-white shadow-lg shadow-primary/25" : "bg-card border border-border text-muted-foreground hover:border-primary/30 hover:text-primary"}`}
+                key={cat.slug}
+                onClick={() => setActiveCategory(cat.slug)}
+                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm transition-all ${activeCategory === cat.slug ? "bg-primary text-white shadow-lg shadow-primary/25" : "bg-card border border-border text-muted-foreground hover:border-primary/30 hover:text-primary"}`}
               >
-                {cat.icon} {cat.label}
+                <Image src={cat.icon} width={18} height={18} alt={cat.name} /> {cat.name}
               </button>
             ))}
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredMenu.map(item => (
               <div
-                key={item.id}
+                onClick={() => {
+                  hanldeProduct(item);
+                }}
+                key={item._id}
                 className="bg-card rounded-2xl border border-border overflow-hidden hover:shadow-xl transition-all duration-300 group"
               >
                 <div className="relative h-48 overflow-hidden">
                   <Image
-                    src={item.image}
+                    src={item.variants[0].image.url}
                     alt={item.name}
                     fill
                     sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                   />
-                  {item.bestseller && (
-                    <span className="absolute top-3 left-3 px-2.5 py-1 bg-primary text-white text-[11px] rounded-full flex items-center gap-1">
-                      <Star size={10} className="fill-white" /> Bán chạy
-                    </span>
-                  )}
-                  <div className="absolute top-3 right-3 px-2 py-1 bg-white/90 backdrop-blur-sm rounded-full text-xs flex items-center gap-1">
-                    <Star size={10} className="text-yellow-500 fill-yellow-500" /> {item.rating}
-                  </div>
                   <span className="absolute bottom-3 left-3 px-2 py-1 bg-black/60 text-white text-[10px] rounded-full capitalize">
-                    {categories.find(c => c.key === item.category)?.label}
+                    {categories.find(c => c.slug === item.category.slug)?.name}
                   </span>
                 </div>
                 <div className="p-5">
                   <h4 className="text-foreground mb-1">{item.name}</h4>
-                  <p className="text-sm text-muted-foreground mb-4 line-clamp-2">{item.desc}</p>
-                  <div className="flex items-center justify-between">
-                    <span className="text-primary text-lg">{formatVND(item.price)}</span>
-                    {cart[item.id] ? (
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => removeFromCart(item.id)}
-                          className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center hover:bg-primary/10 text-primary transition-colors"
-                        >
-                          <Minus size={14} />
-                        </button>
-                        <span className="w-6 text-center text-sm text-foreground">{cart[item.id]}</span>
-                        <button
-                          onClick={() => addToCart(item.id)}
-                          className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-white hover:bg-primary/90 transition-colors"
-                        >
-                          <Plus size={14} />
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => addToCart(item.id)}
-                        className="flex items-center gap-1.5 px-4 py-2 bg-primary text-white rounded-lg text-sm hover:bg-primary/90 transition-colors"
-                      >
-                        <Plus size={14} /> Thêm
-                      </button>
-                    )}
+                  <span className="text-[14px]">{item.description}</span>
+                  <div className="flex items-center justify-end mt-2">
+                    <button
+                      onClick={() => {
+                        hanldeProduct(item);
+                      }}
+                      className="flex items-center gap-1.5 px-4 py-2 bg-primary text-white rounded-lg text-sm hover:bg-primary/90 transition-colors cursor-pointer"
+                    >
+                      {item.variants.length > 1
+                        ? `Chỉ từ ${formatVND(item.variants[0].price)}`
+                        : `${formatVND(item.variants[0].price)}`}
+                    </button>
                   </div>
                 </div>
               </div>
@@ -389,6 +279,149 @@ export default function IndexPage() {
           </div>
         </div>
       </section>
+      <section id="about" className="py-16 bg-card border-y border-border">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+            <div className="rounded-3xl overflow-hidden shadow-lg">
+              <Image
+                src="https://images.unsplash.com/photo-1594394206170-4ed1c3564417?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwaXp6YSUyMGNoZWYlMjBjb29raW5nJTIwb3ZlbnxlbnwxfHx8fDE3NzM2NDcwNDh8MA&ixlib=rb-4.1.0&q=80&w=1080"
+                alt="Kitchen"
+                fill
+                sizes=""
+                className="relative!"
+              />
+            </div>
+            <div>
+              <h2 className="text-3xl text-foreground mb-4">Câu chuyện PaoPizza</h2>
+              <p className="text-muted-foreground mb-4">
+                Được thành lập vào năm 2020, PaoPizza mang đến hương vị pizza Ý đích thực giữa lòng Việt Nam.
+              </p>
+              <p className="text-muted-foreground mb-6">
+                Với đội ngũ đầu bếp được đào tạo tại Naples, mỗi chiếc pizza đều là một tác phẩm nghệ thuật ẩm thực.
+              </p>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="text-center p-4 bg-background rounded-xl">
+                  <p className="text-2xl text-primary">3+</p>
+                  <p className="text-xs text-muted-foreground mt-1">Năm kinh nghiệm</p>
+                </div>
+                <div className="text-center p-4 bg-background rounded-xl">
+                  <p className="text-2xl text-primary">10</p>
+                  <p className="text-xs text-muted-foreground mt-1">Chi nhánh</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Contact */}
+      <section id="contact" className="py-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl text-foreground mb-3">Liên hệ với chúng tôi</h2>
+            <p className="text-muted-foreground">Đặt hàng hoặc cần hỗ trợ? Liên hệ ngay!</p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-3xl mx-auto">
+            {[
+              { icon: <Phone size={22} />, label: "Hotline", value: "0917580860" },
+              { icon: <MapPin size={22} />, label: "Địa chỉ", value: "180 Cao lỗ, Q.8, TP.HCM" },
+              { icon: <Clock size={22} />, label: "Giờ mở cửa", value: "10:00 - 23:00 hàng ngày" },
+            ].map(c => (
+              <div key={c.label} className="bg-card rounded-2xl border border-border p-6 text-center">
+                <div className="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center mx-auto mb-3">
+                  {c.icon}
+                </div>
+                <p className="text-foreground mb-1">{c.label}</p>
+                <p className="text-sm text-muted-foreground">{c.value}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {product && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => {
+            setProduct(null);
+          }}
+        >
+          <div
+            className="bg-card relative rounded-2xl p-3 w-full max-w-[968px] overflow-hidden shadow-2xl"
+            onClick={e => e.stopPropagation()}
+          >
+            <button
+              onClick={() => {
+                setProduct(null);
+              }}
+              className="absolute p-2 m-2 rounded-lg hover:bg-muted text-muted-foreground top-0 right-0"
+            >
+              <X size={22} />
+            </button>
+            <Tabs defaultValue={product.variants[0].sku} className="p-2 grid grid-cols-2">
+              {product.variants.map(item => (
+                <>
+                  <TabsContent value={item.sku}>
+                    <Image src={item.image.url} alt="Pizza" fill className="relative! rounded-2xl aspect-square" />
+                  </TabsContent>
+                </>
+              ))}
+              <div className="m-3">
+                <h4 className="text-foreground mb-1">{product.name}</h4>
+                <span className="text-[14px]">{product.description}</span>
+
+                <TabsList className={` grid w-full grid-cols-${product.variants.length} grid-rows-1 my-2`}>
+                  {product.variants.map(item => (
+                    <>
+                      <TabsTrigger onClick={() => handleChangeSize(item)} value={item.sku}>
+                        {item.size}
+                      </TabsTrigger>
+                    </>
+                  ))}
+                </TabsList>
+                {product.variants.map(item => {
+                  const recipeProduct = item.recipe.map(item => ({
+                    name: item.ingredient.name,
+                    quantity: item.quantity,
+                    unit: item.unit,
+                  }));
+
+                  return (
+                    <>
+                      <TabsContent value={item.sku} className="flex flex-col h-full max-h-[350px]">
+                        <div className="flex-1 overflow-y-auto pr-2 pb-4">
+                          <div className="text-sm text-gray-700 leading-relaxed white-space">
+                            Nguyên liệu: {recipeProduct.map(item => `${item.name} ${item.quantity}${item.unit}`).join(", ")}
+                          </div>
+                        </div>
+
+                        <div className="mt-auto pt-4 border-t border-gray-200 bg-white">
+                          <Textarea
+                            placeholder="Ghi chú"
+                            className="placeholder:text-[16px]"
+                            onChange={e => setNote(e.target.value)}
+                            value={note}
+                          />
+                          <div className="mt-2">
+                            <button
+                              onClick={() => {
+                                handleCart(product._id, item.size, 1, item.sku, note);
+                              }}
+                              className="w-full flex items-center justify-center px-4 py-3 bg-primary text-white rounded-xl font-semibold text-base hover:bg-primary/90 transition-colors cursor-pointer"
+                            >
+                              Thêm vào giỏ hàng
+                            </button>
+                          </div>
+                        </div>
+                      </TabsContent>
+                    </>
+                  );
+                })}
+              </div>
+            </Tabs>
+          </div>
+        </div>
+      )}
     </>
   );
 }

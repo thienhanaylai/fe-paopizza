@@ -1,64 +1,346 @@
-import React, { createContext, useContext, useState, ReactNode } from "react";
+"use client";
+import React, { createContext, useContext, useMemo, useState, ReactNode } from "react";
 
-export type UserRole = "admin" | "store_manager" | "staff" | "customer";
+export type EmployeeRole = "admin" | "store_manager" | "staff";
+export type AppRole = EmployeeRole | "customer";
 export type EmployeeLevel = "intern" | "fresher" | "junior" | "senior" | "store_manager";
 export type EmployeeStation = "kitchen" | "crs" | "delivery" | "management";
+export type AuthType = "customer" | "employee";
 
-export interface User {
+type AuthMode = null | "login" | "register";
+export interface Customer {
+  id: string;
+  name: string;
+  phone: string;
+  point?: number;
+  address?: string;
+  email?: string;
+  createAt?: Date;
+  role: null;
+}
+
+export interface Employee {
   id: string;
   name: string;
   email: string;
-  role: UserRole;
-  avatar?: string;
+  role: EmployeeRole;
   level?: EmployeeLevel;
   station?: EmployeeStation;
 }
 
+export type AuthUser = Customer | Employee;
+
 interface AuthContextType {
-  user: User | null;
-  login: (email: string, password: string, role: UserRole) => boolean;
+  user: AuthUser | null;
+  authType: AuthType | null;
+  accessToken: string | null;
+  customerRegister: (fullname: string, phone: string, password: string) => Promise<{ success: boolean; message?: string }>;
+  customerLogin: (phone: string, password: string) => Promise<{ success: boolean; message?: string }>;
+  employeeLogin: (
+    username: string,
+    password: string,
+    preferredRole?: EmployeeRole,
+  ) => Promise<{ success: boolean; message?: string }>;
+  getInfo: () => Promise<{ success: boolean; message?: string }>;
   logout: () => void;
   isAuthenticated: boolean;
+  authMode: AuthMode;
+  setAuthMode: React.Dispatch<React.SetStateAction<AuthMode>>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const mockUsers: Record<UserRole, User> = {
-  admin: {
-    id: "1",
-    name: "Admin PaoPizza",
-    email: "admin@paopizza.com",
-    role: "admin",
-    level: "store_manager",
-    station: "management",
-  },
-  store_manager: {
-    id: "2",
-    name: "Nguyen Van A",
-    email: "manager@paopizza.com",
-    role: "store_manager",
-    level: "store_manager",
-    station: "management",
-  },
-  staff: { id: "3", name: "Tran Thi B", email: "staff@paopizza.com", role: "staff", level: "junior", station: "crs" },
-  customer: { id: "4", name: "Le Van C", email: "customer@paopizza.com", role: "customer" },
-};
+interface LoginApiResponse {
+  message?: string;
+  accessToken?: string;
+  user?: {
+    id?: string;
+    name?: string;
+    email?: string;
+    role?: AppRole | null;
+    level?: EmployeeLevel;
+    station?: EmployeeStation;
+  };
+}
+
+const ACCESS_TOKEN_KEY = "access_token";
+const USER_KEY = "user";
+const AUTH_TYPE_KEY = "user_type";
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:4000";
+
+function readStoredToken() {
+  if (typeof window === "undefined") {
+    return null;
+  }
+  return localStorage.getItem(ACCESS_TOKEN_KEY);
+}
+
+function readStoredAuthType(): AuthType | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const value = localStorage.getItem(AUTH_TYPE_KEY);
+  return value === "customer" || value === "employee" ? value : null;
+}
+
+function readStoredUser() {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const raw = localStorage.getItem(USER_KEY);
+  if (!raw) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(raw) as AuthUser;
+  } catch {
+    localStorage.removeItem(USER_KEY);
+    return null;
+  }
+}
+
+function clearStoredAuth() {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  localStorage.removeItem(ACCESS_TOKEN_KEY);
+  localStorage.removeItem(USER_KEY);
+  localStorage.removeItem(AUTH_TYPE_KEY);
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(readStoredUser);
+  const [authType, setAuthType] = useState<AuthType | null>(readStoredAuthType);
+  const [accessToken, setAccessToken] = useState<string | null>(readStoredToken);
+  const [authMode, setAuthMode] = useState<AuthMode>(null);
 
-  const login = (email: string, _password: string, role: UserRole): boolean => {
-    const mockUser = mockUsers[role];
-    if (mockUser) {
-      setUser({ ...mockUser, email });
-      return true;
+  const customerRegister = async (fullname: string, phone: string, password: string) => {
+    const endpoint = "/customers/register";
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/v1${endpoint}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ name: fullname, phone, password }),
+      });
+      const data = await response.json();
+
+      if (response.status === 500) {
+        return {
+          success: false,
+          message: data.error || "Lỗi đăng ký!",
+        };
+      }
+      if (response.status === 400) {
+        return {
+          success: false,
+          message: data.message || "Lỗi đăng ký!",
+        };
+      }
+      return {
+        success: true,
+        message: data.message || "Đăng ký tài khoản thành công!",
+        data,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: "Không thể kết nối tới máy chủ",
+      };
     }
-    return false;
   };
 
-  const logout = () => setUser(null);
+  const customerLogin = async (phone: string, password: string) => {
+    const endpoint = "/auth/CustomerLogin";
 
-  return <AuthContext.Provider value={{ user, login, logout, isAuthenticated: !!user }}>{children}</AuthContext.Provider>;
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/v1${endpoint}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ username: phone, password }),
+      });
+
+      const data = (await response.json()) as LoginApiResponse;
+
+      if (response.status === 401) {
+        return {
+          success: false,
+          message: data.message || "Số điện thoại hoặc mật khẩu không chính xác.",
+        };
+      }
+      if (!response.ok || !data.accessToken || !data.user?.id) {
+        return {
+          success: false,
+          message: data.message || "Đăng nhập thất bại",
+        };
+      }
+
+      setAuthType("customer");
+      setAccessToken(data.accessToken);
+      const resp = await fetch(`${API_BASE_URL}/api/v1/users/me`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${data.accessToken}`,
+        },
+      });
+      const dataCustomer = await resp.json();
+
+      const dataCus: Customer = {
+        id: dataCustomer.data._id,
+        name: dataCustomer.data.ref_id.name,
+        phone: dataCustomer.data.ref_id.phone,
+        point: dataCustomer.data.ref_id.point,
+        address: dataCustomer.data.ref_id.address,
+        email: dataCustomer.data.ref_id.email,
+        createAt: dataCustomer.data.createdAt,
+        role: null,
+      };
+      setUser(dataCus);
+
+      if (typeof window !== "undefined") {
+        localStorage.setItem(ACCESS_TOKEN_KEY, data.accessToken);
+        localStorage.setItem(USER_KEY, JSON.stringify(dataCus));
+        localStorage.setItem(AUTH_TYPE_KEY, "customer");
+      }
+      window.location.reload();
+      return {
+        success: true,
+        message: data.message || "Đăng nhập thành công",
+      };
+    } catch {
+      return {
+        success: false,
+        message: "Không thể kết nối tới máy chủ",
+      };
+    }
+  };
+
+  const employeeLogin = async (username: string, password: string, preferredRole: EmployeeRole = "staff") => {
+    const endpoint = "/auth/EmployeeLogin";
+
+    try {
+      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ username, password }),
+      });
+
+      const data = (await response.json()) as LoginApiResponse;
+
+      if (!response.ok || !data.accessToken || !data.user?.id) {
+        return {
+          success: false,
+          message: data.message || "Đăng nhập nhân viên thất bại",
+        };
+      }
+
+      const normalizedRole: EmployeeRole = data.user.role && data.user.role !== "customer" ? data.user.role : preferredRole;
+
+      const mappedUser: Employee = {
+        id: data.user.id,
+        name: data.user.name || username,
+        email: data.user.email || username,
+        role: normalizedRole,
+        level: data.user.level,
+        station: data.user.station,
+      };
+
+      setUser(mappedUser);
+      setAuthType("employee");
+      setAccessToken(data.accessToken);
+
+      if (typeof window !== "undefined") {
+        localStorage.setItem(ACCESS_TOKEN_KEY, data.accessToken);
+        localStorage.setItem(USER_KEY, JSON.stringify(mappedUser));
+        localStorage.setItem(AUTH_TYPE_KEY, "employee");
+      }
+
+      return {
+        success: true,
+        message: data.message || "Đăng nhập thành công",
+      };
+    } catch {
+      return {
+        success: false,
+        message: "Không thể kết nối tới máy chủ",
+      };
+    }
+  };
+
+  const getInfo = async () => {
+    const endpoint = "/users/me";
+    try {
+      let token;
+      if (typeof window !== "undefined") {
+        token = localStorage.getItem(ACCESS_TOKEN_KEY);
+      }
+      if (!token) {
+        console.warn("Chưa đăng nhập!");
+        return null;
+      }
+      const response = await fetch(`${API_BASE_URL}/api/v1${endpoint}`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json();
+      if (response.status === 401) {
+        console.error("Token đã hết hạn hoặc không hợp lệ. Vui lòng đăng nhập lại.");
+        logout();
+        return null;
+      }
+
+      if (!response.ok) {
+        throw new Error(data.message || "Lỗi khi lấy thông tin người dùng");
+      }
+
+      return data;
+    } catch (error) {
+      console.error("Lỗi hệ thống khi gọi getInfo:", error);
+      return null;
+    }
+  };
+
+  const logout = () => {
+    setUser(null);
+    setAuthType(null);
+    setAccessToken(null);
+    window.location.reload();
+    clearStoredAuth();
+  };
+
+  const value = useMemo(
+    () => ({
+      user,
+      authType,
+      accessToken,
+      authMode,
+      setAuthMode,
+      customerLogin,
+      customerRegister,
+      employeeLogin,
+      getInfo,
+      logout,
+      isAuthenticated: !!user,
+    }),
+    [user, authType, accessToken, authMode],
+  );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {
@@ -67,8 +349,8 @@ export function useAuth() {
   return context;
 }
 
-export function getRoleLabel(role: UserRole): string {
-  const labels: Record<UserRole, string> = {
+export function getRoleLabel(role: AppRole): string {
+  const labels: Record<AppRole, string> = {
     admin: "Admin",
     store_manager: "Quản lý cửa hàng",
     staff: "Nhân viên",
@@ -77,8 +359,8 @@ export function getRoleLabel(role: UserRole): string {
   return labels[role];
 }
 
-export function getRoleColor(role: UserRole): string {
-  const colors: Record<UserRole, string> = {
+export function getRoleColor(role: AppRole): string {
+  const colors: Record<AppRole, string> = {
     admin: "bg-red-100 text-red-700",
     store_manager: "bg-blue-100 text-blue-700",
     staff: "bg-green-100 text-green-700",

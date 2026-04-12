@@ -1,4 +1,5 @@
 import { Pizza, Mail, Facebook, Instagram } from "lucide-react";
+import Link from "next/link";
 const NavMenu = [
   {
     name: "Trang chủ",
@@ -11,6 +12,10 @@ const NavMenu = [
   {
     name: "Về chúng tôi",
     link: "#about",
+  },
+  {
+    name: "Liên hệ",
+    link: "#contact",
   },
 ];
 export default function Footer() {
@@ -39,12 +44,12 @@ export default function Footer() {
           </div>
           <div>
             <h4 className="text-white mb-3">Liên kết</h4>
-            <div className="space-y-2 text-sm text-sidebar-foreground/60">
+            <div className="space-y-2 text-sm text-sidebar-foreground/60 flex flex-col">
               {NavMenu?.map(item => {
                 return (
-                  <p key={item.link} className="hover:text-white cursor-pointer transition-colors">
+                  <Link key={item.link} href={item.link} className={`hover:text-primary font-light transition-colors `}>
                     {item.name}
-                  </p>
+                  </Link>
                 );
               })}
             </div>
