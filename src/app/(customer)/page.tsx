@@ -5,9 +5,8 @@ import { useEffect, useState } from "react";
 import { getAllProducts } from "@/src/services/product.service";
 import { getAllCategories } from "@/src/services/category.service";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/src/components/ui/tabs";
-import { useAuth } from "@/src/context/authContext";
-import { CartItem, useCart } from "@/src/context/cartContext";
-import { Input } from "@/src/components/ui/input";
+import { useCustomerAuth } from "@/src/context/authCustomerContext";
+import { useCart } from "@/src/context/cartContext";
 import { Textarea } from "@/src/components/ui/textarea";
 
 function formatVND(n: number) {
@@ -61,7 +60,7 @@ type Product = {
 };
 
 export default function IndexPage() {
-  const { isAuthenticated, setAuthMode, user } = useAuth();
+  const { isAuthenticated, setAuthMode, user } = useCustomerAuth();
   const { addToCart, fetchCart, cart } = useCart();
   const [activeCategory, setActiveCategory] = useState<string>("all");
   const [categories, setCategories] = useState<MenuCategoryUI[]>([]);
@@ -398,7 +397,7 @@ export default function IndexPage() {
                         <div className="mt-auto pt-4 border-t border-gray-200 bg-white">
                           <Textarea
                             placeholder="Ghi chú"
-                            className="placeholder:text-[16px] text-[16px]"
+                            className="placeholder:text-[16px] text-[16px]!"
                             onChange={e => setNote(e.target.value)}
                             value={note}
                           />

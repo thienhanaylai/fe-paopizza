@@ -17,6 +17,10 @@ const NavMenu = [
     name: "Liên hệ",
     link: "#contact",
   },
+  {
+    name: "Pao IS",
+    link: "/is",
+  },
 ];
 export default function Footer() {
   return (

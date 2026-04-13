@@ -3,7 +3,7 @@
 import { Eye, EyeOff, History, Minus, Pizza, Plus, ShoppingCart, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useAuth } from "@/src/context/authContext";
+import { useCustomerAuth } from "@/src/context/authCustomerContext";
 import { useCart } from "@/src/context/cartContext";
 
 const NavMenu = [
@@ -26,7 +26,7 @@ const NavMenu = [
 ];
 
 export default function Header() {
-  const { isAuthenticated, user, logout, setAuthMode } = useAuth();
+  const { isAuthenticated, user, logout, setAuthMode } = useCustomerAuth();
   const { setShowCart, cartCount } = useCart();
   const pathname = usePathname();
 

@@ -2,15 +2,15 @@
 
 import { Minus, Plus, ShoppingCart, Trash2, X } from "lucide-react";
 import React from "react";
-import { useCart } from "@/src/context/cartContext"; // Import đúng đường dẫn thực tế của bạn
-import { useAuth } from "@/src/context/authContext";
+import { useCart } from "@/src/context/cartContext"; 
+import { useCustomerAuth } from "@/src/context/authCustomerContext";
 import Image from "next/image";
 
 const formatVND = (price: number) => new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(price);
 
 export const CartModal = () => {
   const { cart, showCart, setShowCart, updateQuantity, removeItem, cartCount, cartTotal } = useCart();
-  const { user } = useAuth();
+  const { user } = useCustomerAuth();
 
   if (!showCart) return null;
 

@@ -2,10 +2,10 @@
 
 import React, { useState } from "react";
 import { X, Eye, EyeOff } from "lucide-react";
-import { useAuth } from "@/src/context/authContext";
+import { useCustomerAuth } from "@/src/context/authCustomerContext";
 
 export const AuthModal = () => {
-  const { authMode, setAuthMode, customerLogin, customerRegister } = useAuth();
+  const { authMode, setAuthMode, customerLogin, customerRegister } = useCustomerAuth();
 
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
