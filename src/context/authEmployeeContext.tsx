@@ -1,12 +1,13 @@
 "use client";
 import React, { createContext, useContext, useMemo, useState, ReactNode } from "react";
+import Cookies from "js-cookie";
 
 const ACCESS_TOKEN_KEY = "employee_access_token";
 const USER_KEY = "employee";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:4000";
 
-export type EmployeeRole = "admin" | "manager" | "staff";
+export type EmployeeRole = null | "admin" | "manager" | "staff";
 export type EmployeeLevel = "intern" | "fresher" | "junior" | "senior" | "store_manager";
 export type EmployeeStation = "kitchen" | "crs" | "delivery" | "management";
 
@@ -74,7 +75,7 @@ interface AuthContextType {
   employeeLogin: (
     username: string,
     password: string,
-    preferredRole?: EmployeeRole,
+    preferredRole?: AuthMode,
   ) => Promise<{ success: boolean; message?: string }>;
   getInfo: () => Promise<{ success: boolean; message?: string }>;
   logout: () => void;
@@ -90,11 +91,11 @@ export function EmployeeAuthProvider({ children }: { children: ReactNode }) {
   const [accessToken, setAccessToken] = useState<string | null>(readStoredToken);
   const [authMode, setAuthMode] = useState<AuthMode>(null);
 
-  const employeeLogin = async (username: string, password: string, preferredRole: EmployeeRole = "staff") => {
+  const employeeLogin = async (username: string, password: string, preferredRole: AuthMode = "staff") => {
     const endpoint = "/auth/EmployeeLogin";
 
     try {
-      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      const response = await fetch(`${API_BASE_URL}/api/v1${endpoint}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -103,7 +104,20 @@ export function EmployeeAuthProvider({ children }: { children: ReactNode }) {
       });
 
       const data = (await response.json()) as LoginApiResponse;
+      console.log(data);
+      if (response.status === 401 || response.status === 404) {
+        return {
+          success: false,
+          message: data.message || "Số điện thoại hoặc mật khẩu không chính xác.",
+        };
+      }
 
+      if (response.status === 403) {
+        return {
+          success: false,
+          message: data.message || "Tài khoản bạn không có quyền truy cập.",
+        };
+      }
       if (!response.ok || !data.accessToken || !data.user?.id) {
         return {
           success: false,
@@ -125,7 +139,9 @@ export function EmployeeAuthProvider({ children }: { children: ReactNode }) {
       setUser(mappedUser);
 
       setAccessToken(data.accessToken);
-
+      if (data.accessToken) {
+        Cookies.set("employee_access_token", data.accessToken, { expires: 7, path: "/" });
+      }
       if (typeof window !== "undefined") {
         localStorage.setItem(ACCESS_TOKEN_KEY, data.accessToken);
         localStorage.setItem(USER_KEY, JSON.stringify(mappedUser));
@@ -208,4 +224,64 @@ export function useEmployeeAuth() {
   const context = useContext(AuthContext);
   if (!context) throw new Error("useEmployeeAuth must be used within EmployeeAuthProvider");
   return context;
+}
+
+export function getRoleLabel(role: EmployeeRole): string {
+  const labels: Record<EmployeeRole, string> = {
+    admin: "Admin",
+    manager: "Quản lý cửa hàng",
+    staff: "Nhân viên",
+  };
+  return labels[role];
+}
+
+export function getRoleColor(role: EmployeeRole): string {
+  const colors: Record<EmployeeRole, string> = {
+    admin: "bg-red-100 text-red-700",
+    manager: "bg-blue-100 text-blue-700",
+    staff: "bg-green-100 text-green-700",
+  };
+  return colors[role];
+}
+
+export function getLevelLabel(level: EmployeeLevel): string {
+  const labels: Record<EmployeeLevel, string> = {
+    intern: "Intern",
+    fresher: "Fresher",
+    junior: "Junior",
+    senior: "Senior",
+    store_manager: "Store Manager",
+  };
+  return labels[level];
+}
+
+export function getLevelColor(level: EmployeeLevel): string {
+  const colors: Record<EmployeeLevel, string> = {
+    intern: "bg-gray-100 text-gray-600",
+    fresher: "bg-teal-100 text-teal-700",
+    junior: "bg-blue-100 text-blue-700",
+    senior: "bg-purple-100 text-purple-700",
+    store_manager: "bg-red-100 text-red-700",
+  };
+  return colors[level];
+}
+
+export function getStationLabel(station: EmployeeStation): string {
+  const labels: Record<EmployeeStation, string> = {
+    kitchen: "Bếp",
+    crs: "CRS",
+    delivery: "Delivery",
+    management: "Quản lý",
+  };
+  return labels[station];
+}
+
+export function getStationColor(station: EmployeeStation): string {
+  const colors: Record<EmployeeStation, string> = {
+    kitchen: "bg-orange-100 text-orange-700",
+    crs: "bg-cyan-100 text-cyan-700",
+    delivery: "bg-green-100 text-green-700",
+    management: "bg-indigo-100 text-indigo-700",
+  };
+  return colors[station];
 }

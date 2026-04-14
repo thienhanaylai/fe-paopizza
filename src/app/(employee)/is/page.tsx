@@ -1,10 +1,10 @@
 "use client";
-import { useState } from "react";
-
+import { useEffect, useState } from "react";
 import { useEmployeeAuth } from "@/src/context/authEmployeeContext";
 import { Pizza, Eye, EyeOff, Shield, Store, UserCheck, ArrowLeft } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 export type EmployeeRole = "admin" | "manager" | "staff";
 
@@ -15,30 +15,38 @@ const roleOptions: { role: EmployeeRole; label: string; icon: React.ReactNode; d
 ];
 
 export default function IndexPage() {
-  const { login, isAuthenticated, user } = useEmployeeAuth();
+  const { employeeLogin, isAuthenticated } = useEmployeeAuth();
 
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [selectedRole, setSelectedRole] = useState<EmployeeRole>("staff");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const router = useRouter();
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) {
+    if (!username || !password) {
       setError("Vui lòng nhập đầy đủ thông tin");
       return;
     }
-    const success = login(email, password, selectedRole);
-    if (success) {
+    const res = await employeeLogin(username, password, selectedRole);
+    if (res.success) {
+      router.push("/is/dashboard");
+      router.refresh();
     } else {
-      setError("Đăng nhập thất bại");
+      setError(res.message);
     }
   };
 
+  useEffect(() => {
+    if (isAuthenticated) {
+      router.push("/is/dashboard");
+    }
+  }, [isAuthenticated]);
+
   return (
     <div className="min-h-screen flex">
-      {/* Left side - Image */}
       <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden">
         <Image
           src="https://images.unsplash.com/photo-1594394206170-4ed1c3564417?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwaXp6YSUyMGNoZWYlMjBjb29raW5nJTIwb3ZlbnxlbnwxfHx8fDE3NzM2NDcwNDh8MA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral"
@@ -60,10 +68,8 @@ export default function IndexPage() {
         </div>
       </div>
 
-      {/* Right side - Login Form */}
       <div className="flex-1 flex items-center justify-center p-6 bg-background">
         <div className="w-full max-w-md">
-          {/* Back to homepage */}
           <Link
             href="/"
             className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors mb-6"
@@ -71,7 +77,6 @@ export default function IndexPage() {
             <ArrowLeft size={16} /> Về trang chủ
           </Link>
 
-          {/* Mobile logo */}
           <div className="lg:hidden flex items-center gap-3 mb-8 justify-center">
             <div className="w-11 h-11 rounded-xl bg-primary flex items-center justify-center">
               <Pizza size={24} className="text-white" />
@@ -84,7 +89,6 @@ export default function IndexPage() {
             <p className="text-muted-foreground">Dành cho nhân viên và quản lý nhà hàng</p>
           </div>
 
-          {/* Role selection */}
           <div className="grid grid-cols-3 gap-2 mb-6">
             {roleOptions.map(opt => (
               <button
@@ -110,15 +114,15 @@ export default function IndexPage() {
             {error && <div className="bg-red-50 text-red-600 px-4 py-3 rounded-lg text-sm">{error}</div>}
 
             <div>
-              <label className="block text-sm text-foreground mb-1.5">Email</label>
+              <label className="block text-sm text-foreground mb-1.5">Username</label>
               <input
-                type="email"
-                value={email}
+                type="username"
+                value={username}
                 onChange={e => {
-                  setEmail(e.target.value);
+                  setUsername(e.target.value);
                   setError("");
                 }}
-                placeholder="your@paopizza.com"
+                placeholder="Tài khoản"
                 className="w-full px-4 py-2.5 rounded-xl border border-border bg-card focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
               />
             </div>
@@ -133,7 +137,7 @@ export default function IndexPage() {
                     setPassword(e.target.value);
                     setError("");
                   }}
-                  placeholder="Nhập mật khẩu"
+                  placeholder="Mật khẩu"
                   className="w-full px-4 py-2.5 rounded-xl border border-border bg-card focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all pr-12"
                 />
                 <button

@@ -1,8 +1,7 @@
 "use client";
 
 import { Minus, Plus, ShoppingCart, Trash2, X } from "lucide-react";
-import React from "react";
-import { useCart } from "@/src/context/cartContext"; 
+import { useCart } from "@/src/context/cartContext";
 import { useCustomerAuth } from "@/src/context/authCustomerContext";
 import Image from "next/image";
 
