@@ -70,3 +70,12 @@ export const deleteIngredient = async (payload: { ingredient_id: string }) => {
   });
   return response.data;
 };
+
+export const updateIngredient = async (payload: { ingredient_id: string; name: string; unit: string; category: string }) => {
+  const response = await http("/api/v1/ingredient/update", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+  console.log(response);
+  return response.data;
+};

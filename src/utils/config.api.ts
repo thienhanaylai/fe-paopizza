@@ -6,15 +6,22 @@ export const http = async (endpoint: string, options: RequestInit = {}) => {
   if (typeof window !== "undefined") {
     token = localStorage.getItem(ACCESS_TOKEN_KEY);
   }
-  const headers = {
-    "Content-Type": "application/json",
+
+  const headers: Record<string, string> = {
     Authorization: `Bearer ${token}`,
+  };
+
+  if (options.body && !(options.body instanceof FormData)) {
+    headers["Content-Type"] = "application/json";
+  }
+  const finalHeaders = {
+    ...headers,
     ...options.headers,
   };
 
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
     ...options,
-    headers,
+    headers: finalHeaders,
   });
 
   if (!response.ok) {

@@ -5,6 +5,7 @@ import {
   getAllIngredients,
   getCategoryIngredient,
   getUnitIngredient,
+  updateIngredient,
 } from "@/src/services/ingredient.service";
 import { useEffect, useState } from "react";
 import {
@@ -43,14 +44,9 @@ interface Ingredient {
   isDeleted: boolean;
 }
 
-function formatVND(n: number) {
-  return new Intl.NumberFormat("vi-VN").format(n) + "đ";
-}
-
 export default function IngredientCatalog() {
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
-  const [selectedItem, setSelectedItem] = useState<Ingredient | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [editItem, setEditItem] = useState<Ingredient | null>(null);
   const [ingredients, setIngredients] = useState<Ingredient[]>();
@@ -89,13 +85,21 @@ export default function IngredientCatalog() {
       (i.name.toLowerCase().includes(search.toLowerCase()) || i.category.toLowerCase().includes(search.toLowerCase())),
   );
 
-  // const totalSuppliers = new Set(mockCatalog.flatMap(i => i.suppliers.map(s => s.name))).size;
-  // const totalValue = categories.reduce((s, i) => s + i.defaultPrice, 0);
-
   const hanldeSumbit = async () => {
     try {
-      await addIngredient({ name: fromName, unit: fromUnit, category: fromCategory });
-      toast.success("Thêm thành công !");
+      if (editItem) {
+        await updateIngredient({
+          ingredient_id: editItem._id,
+          name: fromName,
+          unit: fromUnit,
+          category: fromCategory,
+        });
+        toast.success("Cập nhật thành công !");
+      } else {
+        await addIngredient({ name: fromName, unit: fromUnit, category: fromCategory });
+        toast.success("Thêm thành công !");
+      }
+
       const data = await getAllIngredients();
       setIngredients(data);
       setShowForm(false);
@@ -117,7 +121,6 @@ export default function IngredientCatalog() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-foreground flex items-center gap-2">
@@ -136,7 +139,6 @@ export default function IngredientCatalog() {
         </button>
       </div>
 
-      {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         {[
           {
@@ -258,6 +260,9 @@ export default function IngredientCatalog() {
                         onClick={() => {
                           setEditItem(item);
                           setShowForm(true);
+                          setFromName(item.name);
+                          setFromCategory(item.category);
+                          setFromUnit(item.unit);
                         }}
                         className="p-2 rounded-lg hover:bg-primary/10 text-primary transition-colors"
                         title="Chỉnh sửa"
@@ -289,12 +294,21 @@ export default function IngredientCatalog() {
       {showForm && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 mb-0"
-          onClick={() => setShowForm(false)}
+          onClick={() => {
+            setEditItem(null);
+            setShowForm(false);
+          }}
         >
           <div className="bg-card rounded-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between p-6 border-b border-border">
               <h2 className="text-foreground">{editItem ? "Chỉnh sửa nguyên liệu" : "Thêm nguyên liệu mới"}</h2>
-              <button onClick={() => setShowForm(false)} className="p-2 rounded-lg hover:bg-muted text-muted-foreground">
+              <button
+                onClick={() => {
+                  setEditItem(null);
+                  setShowForm(false);
+                }}
+                className="p-2 rounded-lg hover:bg-muted text-muted-foreground"
+              >
                 <X size={20} />
               </button>
             </div>

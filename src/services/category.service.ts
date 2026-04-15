@@ -10,6 +10,7 @@ export const getAllCategories = async () => {
     }
 
     const data = await response.json();
+
     return data.data;
   } catch (error) {
     console.error("Lỗi fetch categories:", error);

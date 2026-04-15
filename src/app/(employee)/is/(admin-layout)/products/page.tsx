@@ -3,10 +3,43 @@ import { useEffect, useState } from "react";
 import { Search, Plus, Edit2, Filter, Pizza, Eye, EyeOff, Tag, Percent } from "lucide-react";
 import { useEmployeeAuth } from "@/src/context/authEmployeeContext";
 import Image from "next/image";
-import { getAllProducts } from "@/src/services/product.service";
+import { addProduct, getAllProducts } from "@/src/services/product.service";
 import { getAllCategories } from "@/src/services/category.service";
+import { ImageInput } from "@/src/components/ui/input";
+import { getAllIngredients } from "@/src/services/ingredient.service";
+import { toast, Toaster } from "sonner";
+
+interface IngredientList {
+  _id: string;
+  name: string;
+  unit: string;
+  category: string;
+  is_active: boolean;
+  isDeleted: boolean;
+}
+export interface RecipeItemPayload {
+  ingredient_id: string;
+  quantity: number;
+  unit: string;
+}
+
+export interface VariantPayload {
+  sku: string;
+  size: string;
+  price: number;
+  recipe: RecipeItemPayload[];
+  imageFile: File;
+}
+
+export interface AddProductPayload {
+  name: string;
+  category: string;
+  description: string;
+  variants: VariantPayload[];
+}
 
 type MenuCategoryUI = {
+  _id: string;
   slug: string;
   name: string;
   icon: string;
@@ -60,21 +93,89 @@ function formatVND(n: number) {
 export default function Products() {
   const { user } = useEmployeeAuth();
   const isAdmin = user?.role === "admin";
+
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [showModal, setShowModal] = useState(false);
   const [editItem, setEditItem] = useState<Product | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
-  const [recipeItems, setRecipeItems] = useState<RecipeIngredient[]>([]);
-  const [variants, setVariants] = useState<ProductVariant[]>([]);
   const [categories, setCategories] = useState<MenuCategoryUI[]>([]);
+  const [ingredients, setIngredients] = useState<IngredientList[]>();
+  const [isLoading, setIsLoading] = useState(false);
+
+  const [basicInfo, setBasicInfo] = useState({
+    name: "",
+    category: "",
+    description: "",
+  });
+
+  const [variantsFrom, setVariantsFrom] = useState<VariantPayload[]>([
+    {
+      sku: "",
+      size: "",
+      price: 0,
+      imageFile: undefined as any,
+      recipe: [],
+    },
+  ]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    let isValidate = true;
+    const missingImage = variantsFrom.some(v => !v.imageFile);
+    if (missingImage) {
+      toast.warning("Vui lòng chọn đầy đủ ảnh cho từng size!");
+      isValidate = false;
+      setIsLoading(false);
+      return;
+    }
+    const formatForSku = (str: string) => str.toUpperCase().trim().replace(/\s+/g, "-");
+    try {
+      const payload: AddProductPayload = {
+        name: basicInfo.name,
+        category: basicInfo.category,
+        description: basicInfo.description,
+        variants: variantsFrom.map(v => {
+          if (v.size === "" || v.price === 0) {
+            toast.warning("Vui lòng nhập đầy đủ size và giá!");
+            isValidate = false;
+          }
+          if (v.recipe.length === 0) {
+            toast.warning("Vui lòng thêm công thức cho sản phẩm!");
+            isValidate = false;
+          }
+
+          const newSku = `${formatForSku(categories?.find(item => item._id === basicInfo.category)?.name.charAt(0) || "")}-${formatForSku(basicInfo.name)}-${formatForSku(v.size)}`;
+          return { sku: newSku, size: v.size, price: v.price, recipe: v.recipe, imageFile: v.imageFile as File };
+        }),
+      };
+
+      if (!isValidate) {
+        setIsLoading(false);
+        return;
+      }
+      const result = await addProduct(payload);
+
+      if (result) {
+        toast.success("Thêm sản phẩm thành công");
+        setShowModal(false);
+        setIsLoading(false);
+      }
+    } catch (error: any) {
+      console.error("Lỗi khi thêm sản phẩm:", error);
+      toast.error(`Tạo thất bại: ${error.message || "Có lỗi xảy ra"}`);
+    }
+  };
 
   useEffect(() => {
     const fectData = async () => {
       try {
         const ListProduct = await getAllProducts();
         const ListCategory = await getAllCategories();
+        const ListIngredients = await getAllIngredients();
         const mappedCategories: MenuCategoryUI[] = ListCategory.filter(cat => cat.is_active && !cat.isDeleted).map(cat => ({
+          _id: cat._id,
           slug: cat.slug,
           name: cat.name,
           icon: cat.icon,
@@ -82,6 +183,7 @@ export default function Products() {
 
         const finalCategories: MenuCategoryUI[] = [
           {
+            _id: "all",
             slug: "all",
             name: "Tất cả",
             icon: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJsdWNpZGUgbHVjaWRlLXV0ZW5zaWxzLWNyb3NzZWQtaWNvbiBsdWNpZGUtdXRlbnNpbHMtY3Jvc3NlZCI+PHBhdGggZD0ibTE2IDItMi4zIDIuM2EzIDMgMCAwIDAgMCA0LjJsMS44IDEuOGEzIDMgMCAwIDAgNC4yIDBMMjIgOCIvPjxwYXRoIGQ9Ik0xNSAxNSAzLjMgMy4zYTQuMiA0LjIgMCAwIDAgMCA2bDcuMyA3LjNjLjcuNyAyIC43IDIuOCAwTDE1IDE1Wm0wIDAgNyA3Ii8+PHBhdGggZD0ibTIuMSAyMS44IDYuNC02LjMiLz48cGF0aCBkPSJtMTkgNS03IDciLz48L3N2Zz4=",
@@ -90,12 +192,13 @@ export default function Products() {
         ];
         setProducts(ListProduct);
         setCategories(finalCategories);
+        setIngredients(ListIngredients);
       } catch (error) {
         return error;
       }
     };
     fectData();
-  });
+  }, []);
 
   const filtered = products.filter(
     p => (categoryFilter === "all" || p.category.slug === categoryFilter) && p.name.toLowerCase().includes(search.toLowerCase()),
@@ -107,62 +210,96 @@ export default function Products() {
 
   const openCreate = () => {
     setEditItem(null);
-    setRecipeItems([]);
     setShowModal(true);
+    setBasicInfo({ name: "", category: categories[1]._id, description: "" });
   };
 
   const openEdit = (product: Product) => {
     setEditItem(product);
-    //setRecipeItems([...product.recipe]);
     setShowModal(true);
   };
 
   const addSize = () => {
     const newVariant = {
       sku: "",
-      price: 0,
       size: "",
-      image: null,
+      price: 0,
+      imageFile: undefined as any,
       recipe: [],
     };
-    setVariants([...variants, newVariant]);
+    setVariantsFrom([...variantsFrom, newVariant]);
   };
 
-  const removeSize = () => {};
-
-  const addIngredientToSize = variantIndex => {
-    // setVariants(prevVariants =>
-    //   prevVariants.map((variant, index) => {
-    //     if (index === variantIndex) {
-    //       return {
-    //         ...variant,
-    //         recipe: [...variant.recipe, { quantity: 0, unit: "" }],
-    //       };
-    //     }
-    //     return variant;
-    //   }),
-    // );
+  const removeSize = (indexToRemove: number) => {
+    const updatedVariants = variantsFrom.filter((_, index) => index !== indexToRemove);
+    setVariantsFrom(updatedVariants);
   };
 
-  const addRecipeItem = () => {
-    // setRecipeItems([...recipeItems, { name: availableIngredients[0].name, amount: "", unit: availableIngredients[0].unit }]);
+  const addIngredientToSize = (variantIndex: number) => {
+    setVariantsFrom(prevVariants =>
+      prevVariants.map((variant, index) => {
+        if (index === variantIndex) {
+          return {
+            ...variant,
+            recipe: [
+              ...variant.recipe,
+              { ingredient_id: ingredients[0]?._id || "", quantity: 0, unit: ingredients[0]?.unit || "" },
+            ],
+          };
+        }
+        return variant;
+      }),
+    );
   };
 
-  const removeRecipeItem = (index: number) => {
-    // setRecipeItems(recipeItems.filter((_, i) => i !== index));
+  const removeIngredientToSize = (variantIndex: number, ingredientIndex: number) => {
+    setVariantsFrom(prevVariants =>
+      prevVariants.map((variant, index) => {
+        if (index === variantIndex) {
+          return {
+            ...variant,
+            recipe: variant.recipe.filter((_, i) => i !== ingredientIndex),
+          };
+        }
+        // Các variant khác giữ nguyên
+        return variant;
+      }),
+    );
   };
 
-  const updateRecipeItem = (index: number, field: string, value: string) => {
-    // setRecipeItems(
-    //     recipeItems.map((item, i) => {
-    //       if (i !== index) return item;
-    //       if (field === "name") {
-    //         const ing = availableIngredients.find(a => a.name === value);
-    //         return { ...item, name: value, unit: ing?.unit || item.unit };
-    //       }
-    //       return { ...item, [field]: value };
-    //     }),
-    //   );
+  const handleVariantChange = (index: number, field: keyof VariantPayload, value: string | number | File | null | any[]) => {
+    setVariantsFrom(prevVariants => {
+      return prevVariants.map((variant, i) => {
+        if (i === index) {
+          return { ...variant, [field]: value };
+        }
+        return variant;
+      });
+    });
+  };
+
+  const handleRecipeChange = (
+    variantIndex: number,
+    ingredientIndex: number,
+    field: keyof RecipeItemPayload,
+    value: string | number,
+  ) => {
+    setVariantsFrom(prevVariants =>
+      prevVariants.map((variant, vIndex) => {
+        if (vIndex === variantIndex) {
+          const updatedRecipe = variant.recipe.map((ingredient, iIndex) => {
+            if (iIndex === ingredientIndex) {
+              return { ...ingredient, [field]: value };
+            }
+            return ingredient;
+          });
+
+          return { ...variant, recipe: updatedRecipe };
+        }
+
+        return variant;
+      }),
+    );
   };
 
   return (
@@ -230,6 +367,8 @@ export default function Products() {
                   src={product.variants[0].image.url}
                   alt={product.name}
                   fill
+                  loading="eager"
+                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                 />
               ) : (
@@ -313,9 +452,12 @@ export default function Products() {
       </div>
 
       {showModal && isAdmin && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowModal(false)}>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 m-0!"
+          onClick={() => setShowModal(false)}
+        >
           <div
-            className="bg-card rounded-2xl p-6 w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto"
+            className="bg-card rounded-2xl p-6 w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto scrollbar-hide"
             onClick={e => e.stopPropagation()}
           >
             <h3 className="text-foreground mb-4">{editItem ? "Chỉnh sửa sản phẩm" : "Thêm sản phẩm mới"}</h3>
@@ -325,6 +467,8 @@ export default function Products() {
                   <label className="block text-sm mb-1">Tên sản phẩm *</label>
                   <input
                     defaultValue={editItem?.name}
+                    value={basicInfo.name}
+                    onChange={e => setBasicInfo({ ...basicInfo, name: e.target.value })}
                     placeholder="VD: Pizza Pepperoni"
                     className="w-full px-4 py-2.5 rounded-xl border border-border bg-background focus:border-primary outline-none"
                   />
@@ -332,7 +476,9 @@ export default function Products() {
                 <div>
                   <label className="block text-sm mb-1">Danh mục *</label>
                   <select
-                    defaultValue={editItem?.category.slug || "Pizza"}
+                    defaultValue={categories[0]._id || editItem?.category.slug}
+                    onChange={e => setBasicInfo({ ...basicInfo, category: e.target.value })}
+                    value={basicInfo.category}
                     className="w-full px-4 py-2.5 rounded-xl border border-border bg-background outline-none"
                   >
                     {categories.map(item =>
@@ -340,7 +486,9 @@ export default function Products() {
                         <></>
                       ) : (
                         <>
-                          <option value={item.slug}>{item.name}</option>
+                          <option key={item.slug} value={item._id}>
+                            {item.name}
+                          </option>
                         </>
                       ),
                     )}
@@ -348,22 +496,12 @@ export default function Products() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 gap-4">
-                <div>
-                  <label className="block col-span-2 text-sm mb-1">Giá bán (đ) *</label>
-                  <input
-                    type="number"
-                    defaultValue={editItem?.variants[0].price || ""}
-                    placeholder="170000"
-                    className="w-full px-4 py-2.5 rounded-xl border border-border bg-background focus:border-primary outline-none"
-                  />
-                </div>
-              </div>
-
               <div>
                 <label className="block text-sm mb-1">Mô tả</label>
                 <textarea
-                  defaultValue={editItem?.description}
+                  defaultValue={editItem?.description || ""}
+                  value={basicInfo.description}
+                  onChange={e => setBasicInfo({ ...basicInfo, description: e.target.value })}
                   rows={2}
                   placeholder="Mô tả sản phẩm..."
                   className="w-full px-4 py-2.5 rounded-xl border border-border bg-background focus:border-primary outline-none resize-none"
@@ -375,50 +513,66 @@ export default function Products() {
                   <label className="block text-sm">Size</label>
                   <button
                     type="button"
-                    onClick={addSize}
-                    className="flex items-center gap-1 text-primary text-sm hover:underline"
+                    onClick={() => addSize()}
+                    className="flex items-center gap-1 text-primary text-sm hover:underline cursor-pointer"
                   >
                     <Plus size={14} /> Thêm size
                   </button>
                 </div>
 
-                {variants.length === 0 ? (
+                {variantsFrom.length === 0 ? (
                   <div className="bg-muted/50 rounded-xl p-4 text-center text-sm text-muted-foreground">
                     {`Chưa có size nào cho sản phẩm này.`}
                   </div>
                 ) : (
                   <div className="space-y-2 ">
-                    {variants.map((variant, i) => (
+                    {variantsFrom.map((variant, i) => (
                       <div key={i} className="flex flex-col gap-2 bg-muted/30 rounded-xl p-3 ">
                         <div className="flex justify-between gap-2 ">
-                          {/* <select
-                          value={item.ingredient.name}
-                          onChange={e => updateRecipeItem(i, "name", e.target.value)}
-                          className="flex-1 px-3 py-2 rounded-lg border border-border bg-background outline-none text-sm"
-                        >
-                           {availableIngredients.map(ing => (
-                            <option key={ing.name} value={ing.name}>
-                              {ing.name}
-                            </option>
-                          ))} 
-                        </select> */}
-                          <input
-                            type="size"
-                            value={""}
-                            placeholder="Size"
-                            className="w-50 px-3 py-2 rounded-lg border border-border bg-background outline-none text-sm text-center"
-                          />
+                          <div className="flex gap-2">
+                            <ImageInput
+                              accept="image/*"
+                              className="h-20 w-20"
+                              required
+                              onChange={e => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  handleVariantChange(i, "imageFile", file);
+                                }
+                              }}
+                            />
+                            <div>
+                              <label className="block col-span-2 text-xs mb-1">Size *</label>
+                              <input
+                                type="text"
+                                value={variant.size}
+                                onChange={e => handleVariantChange(i, "size", e.target.value)}
+                                placeholder="Size"
+                                className="w-30 px-3 py-2 rounded-lg border border-border bg-background outline-none text-sm text-center"
+                              />
+                            </div>
+                            <div>
+                              <label className="block col-span-2 text-xs mb-1">Giá bán (đ) *</label>
+                              <input
+                                type="number"
+                                value={variant.price}
+                                onChange={e => handleVariantChange(i, "price", e.target.value)}
+                                placeholder="170000"
+                                className="w-45 px-4 py-2.5 rounded-xl border border-border bg-background focus:border-primary outline-none"
+                              />
+                            </div>
+                          </div>
                           <div className="flex gap-2">
                             <button
                               type="button"
-                              className="flex items-center gap-1 text-primary text-sm hover:underline"
+                              className="flex items-center gap-1 text-primary text-sm hover:underline cursor-pointer"
                               onClick={() => addIngredientToSize(i)}
                             >
                               <Plus size={14} /> Thêm nguyên liệu
                             </button>
                             <button
-                              onClick={() => removeRecipeItem(i)}
-                              className="p-1.5 rounded-lg hover:bg-red-50 text-red-400 hover:text-red-500 transition-colors text-sm"
+                              onClick={() => removeSize(i)}
+                              className="p-1.5 rounded-lg hover:bg-red-50 text-red-400 hover:text-red-500 transition-colors text-sm cursor-pointer"
                             >
                               ✕
                             </button>
@@ -426,9 +580,49 @@ export default function Products() {
                         </div>
                         <div className="flex flex-col">
                           {variant.recipe.map((ingredient, ingredientIndex) => (
-                            <div key={ingredientIndex}>
-                              {/* Input cho nguyên liệu ở đây */}
-                              <span>Nguyên liệu {ingredientIndex + 1}</span>
+                            <div key={ingredientIndex} className="flex items-center py-1 text-sm">
+                              Nguyên liệu {ingredientIndex + 1}:
+                              <select
+                                value={ingredient.ingredient_id}
+                                onChange={e => {
+                                  handleRecipeChange(i, ingredientIndex, "ingredient_id", e.target.value);
+                                  handleRecipeChange(
+                                    i,
+                                    ingredientIndex,
+                                    "unit",
+                                    ingredients?.find(i => i._id === ingredient.ingredient_id)?.unit || "",
+                                  );
+                                }}
+                                className="flex-1 px-3 py-2 rounded-lg border border-border bg-background outline-none text-sm mx-1"
+                              >
+                                {ingredients?.map(ing => (
+                                  <option key={ing._id} value={ing._id || ""}>
+                                    {ing.name}
+                                  </option>
+                                ))}
+                              </select>
+                              <input
+                                type="number"
+                                value={ingredient.quantity}
+                                onChange={e => handleRecipeChange(i, ingredientIndex, "quantity", e.target.value)}
+                                placeholder="Trọng lượng"
+                                required
+                                min={1}
+                                className="w-35 px-3 py-2 text-sm rounded-lg border border-border bg-background focus:border-primary outline-none mr-1"
+                              />
+                              <input
+                                type="text"
+                                value={ingredient.unit}
+                                placeholder="Đơn vị tính"
+                                readOnly
+                                className="w-25 px-3 py-2 text-sm rounded-lg border border-border bg-background focus:border-primary outline-none"
+                              />
+                              <button
+                                onClick={() => removeIngredientToSize(i, ingredientIndex)}
+                                className=" p-1.5 rounded-lg hover:bg-red-50 text-red-400 hover:text-red-500 transition-colors text-sm cursor-pointer"
+                              >
+                                ✕
+                              </button>
                             </div>
                           ))}
                         </div>
@@ -445,19 +639,29 @@ export default function Products() {
                 >
                   Hủy
                 </button>
-                <button
-                  onClick={() => setShowModal(false)}
-                  className="flex-1 py-2.5 rounded-xl bg-primary text-white hover:bg-primary/90 transition-colors"
-                >
-                  {editItem ? "Cập nhật" : "Thêm mới"}
-                </button>
+                {isLoading ? (
+                  <button
+                    onClick={e => handleSubmit(e)}
+                    className="flex-1 py-2.5 rounded-xl bg-primary text-white bg-primary/50 transition-colors"
+                    disabled
+                  >
+                    Đang thêm vào cơ sở dữ liệu...
+                  </button>
+                ) : (
+                  <button
+                    onClick={e => handleSubmit(e)}
+                    className="flex-1 py-2.5 rounded-xl bg-primary text-white hover:bg-primary/90 transition-colors"
+                  >
+                    {editItem ? "Cập nhật" : "Thêm mới"}
+                  </button>
+                )}
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {showModal && !isAdmin && (
+      {/* {showModal && !isAdmin && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowModal(false)}>
           <div
             className="bg-card rounded-2xl p-6 w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto"
@@ -518,7 +722,17 @@ export default function Products() {
             </button>
           </div>
         </div>
-      )}
+      )} */}
+      <Toaster
+        toastOptions={{
+          classNames: {
+            success: "bg-green-500! text-white! border-green-600!",
+            error: "bg-red-500! text-white! border-red-600!",
+            warning: "bg-yellow-500! text-white! border-yellow-600!",
+            toast: "bg-gray-800! text-white!",
+          },
+        }}
+      />
     </div>
   );
 }
