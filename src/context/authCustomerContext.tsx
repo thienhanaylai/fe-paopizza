@@ -214,7 +214,7 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
         throw new Error(data.message || "Lỗi khi lấy thông tin người dùng");
       }
 
-      return data;
+      return data.data;
     } catch (error) {
       console.error("Lỗi hệ thống khi gọi getInfo:", error);
       return null;

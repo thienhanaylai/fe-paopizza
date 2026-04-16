@@ -8,14 +8,14 @@ import Image from "next/image";
 const formatVND = (price: number) => new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(price);
 
 export const CartModal = () => {
-  const { cart, showCart, setShowCart, updateQuantity, removeItem, cartCount, cartTotal } = useCart();
+  const { cart, showCart, setShowCart, updateQuantity, removeItem, cartCount, cartTotal, checkout, setCheckout } = useCart();
   const { user } = useCustomerAuth();
 
   if (!showCart) return null;
 
   return (
     <div
-      className="fixed inset-0 z-50 flex justify-end bg-black/50 backdrop-blur-sm transition-all"
+      className="fixed inset-0 z-50 flex justify-end bg-black/50 backdrop-blur-sm transition-all animate-fade-left animate-duration-300"
       onClick={() => setShowCart(false)}
     >
       <div className="w-full max-w-md h-full bg-card shadow-2xl flex flex-col" onClick={e => e.stopPropagation()}>
@@ -48,18 +48,18 @@ export const CartModal = () => {
                     className="flex gap-4 bg-muted/30 border border-border rounded-xl p-4 transition-all hover:bg-muted/50"
                   >
                     <Image
-                      src={productSize.image.url}
+                      src={productSize?.image.url || ""}
                       alt="Pizza"
                       width={100}
                       height={100}
-                      className="relative! rounded-2xl aspect-square"
+                      className=" rounded-2xl aspect-square"
                     />
                     <div className="flex-1 min-w-0 flex flex-col justify-between">
                       <div>
                         <div className="flex justify-between items-start gap-2">
                           <p className="font-medium text-foreground line-clamp-2">{product.name}</p>
                           <button
-                            onClick={() => removeItem(user?.id, product._id, item.size)}
+                            onClick={() => removeItem(user?.id || "", product._id, item.size)}
                             className="text-muted-foreground hover:text-destructive shrink-0"
                           >
                             <Trash2 size={16} />
@@ -72,14 +72,14 @@ export const CartModal = () => {
                       <div className="flex items-center justify-between mt-3">
                         <div className="flex items-center gap-3 bg-background border border-border rounded-lg p-1">
                           <button
-                            onClick={() => updateQuantity(user?.id, product._id, item.size, item.quantity, -1)}
+                            onClick={() => updateQuantity(user?.id || "", product._id, item.size, item.quantity, -1)}
                             className="w-6 h-6 rounded flex items-center justify-center hover:bg-muted text-foreground transition-colors"
                           >
                             <Minus size={14} />
                           </button>
                           <span className="text-sm font-medium w-4 text-center">{item.quantity}</span>
                           <button
-                            onClick={() => updateQuantity(user?.id, product._id, item.size, item.quantity, 1)}
+                            onClick={() => updateQuantity(user?.id || "", product._id, item.size, item.quantity, 1)}
                             className="w-6 h-6 rounded bg-primary text-primary-foreground flex items-center justify-center hover:bg-primary/90 transition-colors"
                           >
                             <Plus size={14} />
@@ -102,7 +102,7 @@ export const CartModal = () => {
               <span className="text-primary text-xl font-bold">{formatVND(cartTotal)}</span>
             </div>
             <button
-              onClick={() => console.log("Tiến hành checkout...")}
+              onClick={() => setCheckout(true)}
               className="w-full bg-primary text-primary-foreground py-3.5 rounded-xl font-medium hover:bg-primary/90 transition-all active:scale-[0.98] shadow-lg shadow-primary/20"
             >
               Tiến hành đặt hàng

@@ -7,10 +7,11 @@ import { useCart } from "@/src/context/cartContext";
 import { CartModal } from "@/src/components/modals/CartModal";
 import { useEffect } from "react";
 import { useCustomerAuth } from "@/src/context/authCustomerContext";
+import { CheckoutModal } from "@/src/components/modals/CheckoutModal";
 
 export default function CustomerLayoutContent({ children }: { children: React.ReactNode }) {
   const { authMode, user } = useCustomerAuth();
-  const { showCart, fetchCart } = useCart();
+  const { showCart, fetchCart, checkout } = useCart();
 
   useEffect(() => {
     if (user?.id) {
@@ -25,6 +26,7 @@ export default function CustomerLayoutContent({ children }: { children: React.Re
       <Footer />
       {authMode && <AuthModal />}
       {showCart && <CartModal />}
+      {checkout && <CheckoutModal />}
     </>
   );
 }

@@ -1,5 +1,5 @@
 "use client";
-import { ArrowRight, Award, ChefHat, Clock, MapPin, Minus, Phone, Plus, Star, Truck, X } from "lucide-react";
+import { ArrowRight, Award, ChefHat, Clock, Dot, MapPin, Minus, Phone, Plus, Star, Truck, X } from "lucide-react";
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { getAllProducts } from "@/src/services/product.service";
@@ -177,6 +177,7 @@ export default function IndexPage() {
                   src="https://images.unsplash.com/photo-1697376354276-18942b15de7e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwaXp6YSUyMHJlc3RhdXJhbnQlMjBraXRjaGVufGVufDF8fHx8MTc3MzYwMDU0N3ww&ixlib=rb-4.1.0&q=80&w=1080"
                   alt="PaoPizza"
                   fill
+                  loading="eager"
                   sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                   className=" object-cover"
                 />
@@ -230,9 +231,9 @@ export default function IndexPage() {
               <button
                 key={cat.slug}
                 onClick={() => setActiveCategory(cat.slug)}
-                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm transition-all ${activeCategory === cat.slug ? "bg-primary text-white shadow-lg shadow-primary/25" : "bg-card border border-border text-muted-foreground hover:border-primary/30 hover:text-primary"}`}
+                className={`relative flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm transition-all ${activeCategory === cat.slug ? "bg-primary text-white shadow-lg shadow-primary/25" : "bg-card border border-border text-muted-foreground hover:border-primary/30 hover:text-primary"}`}
               >
-                <Image src={cat.icon} width={18} height={18} alt={cat.name} /> {cat.name}
+                <Image src={cat.icon || ""} width={18} height={18} alt={cat.name} /> {cat.name}
               </button>
             ))}
           </div>
@@ -250,6 +251,7 @@ export default function IndexPage() {
                     src={item.variants[0].image.url}
                     alt={item.name}
                     fill
+                    loading="eager"
                     sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                   />
@@ -281,12 +283,13 @@ export default function IndexPage() {
       <section id="about" className="py-16 bg-card border-y border-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-            <div className="rounded-3xl overflow-hidden shadow-lg">
+            <div className="relative rounded-3xl overflow-hidden shadow-lg">
               <Image
                 src="https://images.unsplash.com/photo-1594394206170-4ed1c3564417?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwaXp6YSUyMGNoZWYlMjBjb29raW5nJTIwb3ZlbnxlbnwxfHx8fDE3NzM2NDcwNDh8MA&ixlib=rb-4.1.0&q=80&w=1080"
                 alt="Kitchen"
                 fill
-                sizes=""
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                loading="eager"
                 className="relative!"
               />
             </div>
@@ -389,7 +392,19 @@ export default function IndexPage() {
                       <TabsContent value={item.sku} className="flex flex-col h-full max-h-[350px]">
                         <div className="flex-1 overflow-y-auto pr-2 pb-4">
                           <div className="text-sm text-gray-700 leading-relaxed white-space">
-                            Nguyên liệu: {recipeProduct.map(item => `${item.name} ${item.quantity}${item.unit}`).join(", ")}
+                            Nguyên liệu:
+                            <ul>
+                              {recipeProduct.map(item => (
+                                <div key={item.name}>
+                                  <li className="flex justify-between items-center p-1 ">
+                                    - {item.name}{" "}
+                                    <div>
+                                      {item.quantity} {item.unit}
+                                    </div>
+                                  </li>
+                                </div>
+                              ))}
+                            </ul>
                           </div>
                         </div>
 
@@ -407,7 +422,7 @@ export default function IndexPage() {
                               }}
                               className="w-full flex items-center justify-center px-4 py-3 bg-primary text-white rounded-xl font-semibold text-base hover:bg-primary/90 transition-colors cursor-pointer"
                             >
-                              Thêm vào giỏ hàng
+                              + {formatVND(item.price)} <Dot /> Thêm vào giỏ hàng
                             </button>
                           </div>
                         </div>

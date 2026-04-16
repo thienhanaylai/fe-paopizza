@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCustomerAuth } from "@/src/context/authCustomerContext";
 import { useCart } from "@/src/context/cartContext";
+import { useEffect, useState } from "react";
 
 const NavMenu = [
   {
@@ -28,8 +29,11 @@ const NavMenu = [
 export default function Header() {
   const { isAuthenticated, user, logout, setAuthMode } = useCustomerAuth();
   const { setShowCart, cartCount } = useCart();
+  const [isMounted, setIsMounted] = useState(false);
   const pathname = usePathname();
-
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
   const handleCart = () => {
     if (!isAuthenticated) setAuthMode("login");
     else setShowCart(true);
@@ -60,10 +64,13 @@ export default function Header() {
                 );
               })}
 
-              {isAuthenticated ? (
-                <button onClick={() => {}} className="transition-colors text-[14px] flex items-center gap-1">
+              {isMounted && isAuthenticated ? (
+                <Link
+                  href={"/orders"}
+                  className="transition-colors text-[14px] flex items-center gap-1 hover:text-primary font-medium"
+                >
                   <History size={15} /> Đơn hàng
-                </button>
+                </Link>
               ) : null}
             </nav>
             <div className="flex items-center gap-3">
@@ -75,9 +82,9 @@ export default function Header() {
                   </span>
                 )}
               </button>
-              {isAuthenticated ? (
+              {isMounted && isAuthenticated ? (
                 <div className="flex items-center gap-2">
-                  <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-primary/5 rounded-lg">
+                  <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-primary/5 rounded-lg cursor-pointer">
                     <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center text-white text-xs"></div>
                     <span className="text-sm text-foreground">{user?.name}</span>
                   </div>

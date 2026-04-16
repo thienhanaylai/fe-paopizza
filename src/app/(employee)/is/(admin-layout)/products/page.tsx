@@ -123,6 +123,7 @@ export default function Products() {
     e.preventDefault();
     setIsLoading(true);
     let isValidate = true;
+    console.log(variantsFrom);
     const missingImage = variantsFrom.some(v => !v.imageFile);
     if (missingImage) {
       toast.warning("Vui lòng chọn đầy đủ ảnh cho từng size!");
@@ -198,7 +199,7 @@ export default function Products() {
       }
     };
     fectData();
-  }, []);
+  }, [isLoading]);
 
   const filtered = products.filter(
     p => (categoryFilter === "all" || p.category.slug === categoryFilter) && p.name.toLowerCase().includes(search.toLowerCase()),
@@ -584,14 +585,12 @@ export default function Products() {
                               Nguyên liệu {ingredientIndex + 1}:
                               <select
                                 value={ingredient.ingredient_id}
+                                defaultValue={ingredients[0]?._id || ""}
                                 onChange={e => {
-                                  handleRecipeChange(i, ingredientIndex, "ingredient_id", e.target.value);
-                                  handleRecipeChange(
-                                    i,
-                                    ingredientIndex,
-                                    "unit",
-                                    ingredients?.find(i => i._id === ingredient.ingredient_id)?.unit || "",
-                                  );
+                                  const newIngredientId = e.target.value;
+                                  const selectedIngredient = ingredients?.find(item => item._id === newIngredientId);
+                                  handleRecipeChange(i, ingredientIndex, "ingredient_id", selectedIngredient?._id || "");
+                                  handleRecipeChange(i, ingredientIndex, "unit", selectedIngredient?.unit || "");
                                 }}
                                 className="flex-1 px-3 py-2 rounded-lg border border-border bg-background outline-none text-sm mx-1"
                               >

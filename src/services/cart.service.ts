@@ -3,9 +3,14 @@ import { http } from "@/src/utils/config.api";
 // Lấy giỏ hàng
 export const getCart = async (user_id: string) => {
   try {
-    const response = await http(`/api/v1/cart/${user_id}`, {
-      next: { revalidate: 3600 },
-    });
+    const response = await http(
+      `/api/v1/cart/${user_id}`,
+      {
+        next: { revalidate: 3600 },
+      },
+      "customer",
+    );
+
     return response.data;
   } catch (error) {
     console.error("Lỗi fetch cart:", error);
@@ -21,19 +26,27 @@ export const addToCartApi = async (payload: {
   quantity?: number;
   note?: string;
 }) => {
-  const response = await http("/api/v1/cart", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
+  const response = await http(
+    "/api/v1/cart",
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+    "customer",
+  );
   return response.data;
 };
 
 // Xóa sản phẩm khỏi giỏ
 export const removeFromCartApi = async (payload: { userId: string; product_id: string; size: string }) => {
-  const response = await http("/api/v1/cart/remove", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
+  const response = await http(
+    "/api/v1/cart/remove",
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+    "customer",
+  );
   return response.data;
 };
 
@@ -45,18 +58,26 @@ export const updateCartItemApi = async (payload: {
   quantity: number;
   note?: string;
 }) => {
-  const response = await http("/api/v1/cart/update", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
+  const response = await http(
+    "/api/v1/cart/update",
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+    "customer",
+  );
   return response.data;
 };
 
 // Xóa toàn bộ giỏ hàng
 export const clearCartApi = async (userId: string) => {
-  const response = await http("/api/v1/cart/clear", {
-    method: "POST",
-    body: JSON.stringify({ userId }),
-  });
+  const response = await http(
+    "/api/v1/cart/clear",
+    {
+      method: "POST",
+      body: JSON.stringify({ userId }),
+    },
+    "customer",
+  );
   return response.data;
 };

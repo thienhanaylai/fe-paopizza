@@ -14,6 +14,6 @@ export const getAllCategories = async () => {
     return data.data;
   } catch (error) {
     console.error("Lỗi fetch categories:", error);
-    return [];
+    throw error;
   }
 };

@@ -104,7 +104,7 @@ export function EmployeeAuthProvider({ children }: { children: ReactNode }) {
       });
 
       const data = (await response.json()) as LoginApiResponse;
-      console.log(data);
+
       if (response.status === 401 || response.status === 404) {
         return {
           success: false,
@@ -124,6 +124,12 @@ export function EmployeeAuthProvider({ children }: { children: ReactNode }) {
           message: data.message || "Đăng nhập nhân viên thất bại",
         };
       }
+      if (data.user.role != preferredRole) {
+        return {
+          success: false,
+          message: "Bạn không có quyền đăng nhập ở vai trò này!",
+        };
+      } else setAuthMode(preferredRole);
 
       const normalizedRole: EmployeeRole = data.user.role ? data.user.role : preferredRole;
 

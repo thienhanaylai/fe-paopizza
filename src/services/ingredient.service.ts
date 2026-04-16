@@ -15,7 +15,7 @@ export const getAllIngredients = async () => {
     return data.result;
   } catch (error) {
     console.error("Lỗi fetch categories:", error);
-    return [];
+    throw error;
   }
 };
 
@@ -33,7 +33,7 @@ export const getCategoryIngredient = async () => {
     return data.result;
   } catch (error) {
     console.error("Lỗi fetch categories:", error);
-    return [];
+    throw error;
   }
 };
 
@@ -51,7 +51,7 @@ export const getUnitIngredient = async () => {
     return data.result;
   } catch (error) {
     console.error("Lỗi fetch categories:", error);
-    return [];
+    throw error;
   }
 };
 

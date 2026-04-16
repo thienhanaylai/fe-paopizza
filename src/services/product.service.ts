@@ -36,7 +36,7 @@ export const getAllProducts = async () => {
     return data.data;
   } catch (error) {
     console.error("Lỗi fetch products:", error);
-    return [];
+    throw error;
   }
 };
 export const addProduct = async (payload: AddProductPayload) => {

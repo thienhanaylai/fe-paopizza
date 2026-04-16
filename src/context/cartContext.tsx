@@ -3,12 +3,11 @@
 import { createContext, useContext, useState, ReactNode, useMemo, useCallback } from "react";
 import { getCart, addToCartApi, updateCartItemApi, removeFromCartApi } from "@/src/services/cart.service";
 
-// Cập nhật type dựa theo Postman response
 export type ProductPopulated = {
   _id: string;
   name: string;
-  variants: { size: string; price: number }[];
-  image?: string; // Giả định thực tế có thêm ảnh
+  variants: { image: { url: string }; size: string; price: number }[];
+  image?: string;
 };
 
 export type CartItem = {
@@ -30,6 +29,8 @@ interface CartContextType {
   cart: Cart | null;
   showCart: boolean;
   setShowCart: (show: boolean) => void;
+  checkout: boolean;
+  setCheckout: (show: boolean) => void;
   fetchCart: (userId: string) => Promise<void>;
   updateQuantity: (userId: string, productId: string, size: string, currentQty: number, change: number) => Promise<void>;
   removeItem: (userId: string, productId: string, size: string) => Promise<void>;
@@ -43,6 +44,7 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 export function CartProvider({ children }: { children: ReactNode }) {
   const [cart, setCart] = useState<Cart | null>(null);
   const [showCart, setShowCart] = useState(false);
+  const [checkout, setCheckout] = useState(false);
 
   const fetchCart = useCallback(async (userId: string) => {
     if (!userId) return;
@@ -111,8 +113,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
       addToCart,
       cartCount,
       cartTotal,
+      checkout,
+      setCheckout,
     }),
-    [cart, showCart, fetchCart, cartCount, cartTotal],
+    [cart, showCart, checkout, fetchCart, cartCount, cartTotal],
   );
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
