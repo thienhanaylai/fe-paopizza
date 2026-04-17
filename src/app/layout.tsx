@@ -23,8 +23,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html suppressHydrationWarning lang="vi" className={`${beVietnamPro.variable} light antialiased`}>
-      <body className="min-h-screen flex flex-col bg-background font-sans">
+    <html
+      data-scroll-behavior="smooth"
+      suppressHydrationWarning
+      lang="vi"
+      className={`${beVietnamPro.variable} light antialiased`}
+    >
+      <body suppressHydrationWarning className="min-h-screen flex flex-col bg-background font-sans">
         <Providers>{children}</Providers>
       </body>
     </html>

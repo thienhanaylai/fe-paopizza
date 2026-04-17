@@ -31,6 +31,7 @@ export default function Header() {
   const { setShowCart, cartCount } = useCart();
   const [isMounted, setIsMounted] = useState(false);
   const pathname = usePathname();
+
   useEffect(() => {
     setIsMounted(true);
   }, []);
@@ -38,18 +39,20 @@ export default function Header() {
     if (!isAuthenticated) setAuthMode("login");
     else setShowCart(true);
   };
-
+  const handleLogout = async () => {
+    await logout();
+  };
   return (
     <>
       <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
-            <button onClick={() => {}} className="flex items-center gap-2.5">
+            <Link href={"/"} className="flex items-center gap-2.5">
               <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center">
                 <Pizza size={20} className="text-white" />
               </div>
               <span className="text-xl text-foreground">PaoPizza</span>
-            </button>
+            </Link>
             <nav className="hidden md:flex items-center gap-6 text-sm text-muted-foreground">
               {NavMenu?.map(item => {
                 const isActive = pathname === item.link; //xử lý sau
@@ -94,8 +97,8 @@ export default function Header() {
                     title="Đơn hàng"
                   ></button>
                   <button
-                    onClick={logout}
-                    className="text-sm px-3 py-1.5 text-muted-foreground hover:text-red-500 transition-colors"
+                    onClick={() => handleLogout()}
+                    className="text-sm px-3 py-1.5 text-muted-foreground hover:text-red-500 transition-colors cursor-pointer"
                   >
                     Đăng xuất
                   </button>
@@ -106,7 +109,7 @@ export default function Header() {
                     onClick={() => {
                       setAuthMode("login");
                     }}
-                    className="text-sm px-4 py-2 text-foreground hover:text-primary transition-colors"
+                    className="text-sm px-4 py-2 text-foreground hover:text-primary transition-colors cursor-pointer"
                   >
                     Đăng nhập
                   </button>
@@ -114,7 +117,7 @@ export default function Header() {
                     onClick={() => {
                       setAuthMode("register");
                     }}
-                    className="text-sm px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+                    className="text-sm px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors cursor-pointer"
                   >
                     Đăng ký
                   </button>

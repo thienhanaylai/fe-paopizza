@@ -42,7 +42,7 @@ const navItems: NavItem[] = [
   { label: "Nhà cung cấp", path: "/is/suppliers", icon: <Truck size={20} />, roles: ["admin"] },
   { label: "Kho nguyên liệu", path: "/is/ingredients", icon: <Package size={20} />, roles: ["manager"] },
   { label: "Quản lý nhân viên", path: "/is/employees", icon: <Users size={20} />, roles: ["manager"] },
-  { label: "Quản lý ca", path: "/is/shifts", icon: <Clock size={20} />, roles: ["manager", "staff"] },
+  // { label: "Quản lý ca", path: "/is/shifts", icon: <Clock size={20} />, roles: ["manager", "staff"] },
   { label: "Lương dự kiến", path: "/is/my-salary", icon: <DollarSign size={20} />, roles: ["staff"] },
   { label: "Đồng nghiệp", path: "/is/contacts", icon: <Contact size={20} />, roles: ["staff"] },
   { label: "Quản lý đơn hàng", path: "/is/orders", icon: <ShoppingCart size={20} />, roles: ["manager", "staff"] },
@@ -59,7 +59,7 @@ const navItems: NavItem[] = [
 ];
 
 export function Sidebar() {
-  const { user, logout } = useEmployeeAuth();
+  const { user, logout, getInfo } = useEmployeeAuth();
   const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);

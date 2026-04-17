@@ -224,8 +224,9 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
   const logout = () => {
     setUser(null);
     setAccessToken(null);
-    window.location.reload();
     clearStoredAuth();
+    window.location.reload();
+    window.location.replace("/");
   };
 
   const value = useMemo(

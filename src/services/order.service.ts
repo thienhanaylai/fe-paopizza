@@ -1,7 +1,9 @@
 import { http } from "../utils/config.api";
+import { store_status } from "./store.service";
 
-type OrderMethod = "carry_out" | "delivery" | "dining";
-type PaymentMethod = "cash" | "bank_transfer" | "card" | "momo";
+export type OrderMethod = "carry_out" | "delivery" | "dine_in";
+export type PaymentMethod = "cash" | "bank_transfer" | "card" | "momo";
+export type OrderStatus = "pending" | "confirmed" | "preparing" | "completed" | "cancelled" | "delivering";
 export interface CartItem {
   product_id: string;
   size: string;
@@ -35,21 +37,28 @@ export interface OrderHistory extends Order {
   items: CartItemHistory[] | [];
   discount_amount: number;
   total: number;
-  status: string;
+  status: OrderStatus;
+  store_id: {
+    _id: string;
+    name: string;
+    address: string;
+    phone: string;
+    email: string;
+  };
   employee_id: string | null;
-  createAt: string;
+  createdAt: string;
 }
 
-export const getAllOrder = async (typeUser: string) => {
+export const getAllOrder = async (query: string | null, typeUser: string) => {
   try {
     const response = await http(
-      "/api/v1/orders/history",
+      `/api/v1/orders?${query}`,
       {
         method: "GET",
       },
       typeUser,
     );
-
+    console.log(query);
     return response.data;
   } catch (error) {
     console.error("Lỗi fetch :", error);
@@ -64,6 +73,24 @@ export const createOrder = async (payload: Order, typeUser: string) => {
       {
         method: "POST",
         body: JSON.stringify(payload),
+      },
+      typeUser,
+    );
+
+    return response.data;
+  } catch (error) {
+    console.error("Lỗi fetch :", error);
+    throw error;
+  }
+};
+
+export const updateStatusOrder = async (status: OrderStatus, orderID: string, typeUser: string) => {
+  try {
+    const response = await http(
+      `/api/v1/orders/${orderID}/status`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({ status: status }),
       },
       typeUser,
     );
