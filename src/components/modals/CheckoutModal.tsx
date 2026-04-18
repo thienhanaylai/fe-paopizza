@@ -35,7 +35,8 @@ export const CheckoutModal = () => {
     const fecthData = async () => {
       try {
         const stores = await getAllStore();
-        setListStore(stores);
+        const finalList = stores.filter(item => item.status != "maintenance");
+        setListStore(finalList);
         setStoreId(stores[0]._id);
       } catch (error) {
         console.log(error);
@@ -53,7 +54,7 @@ export const CheckoutModal = () => {
     setCustAddress("");
     setCustNote("");
     setOrderMethod("carry_out");
-    setPaymentMethod("card");
+    setPaymentMethod("cash");
     await clearCartApi(user?.id);
     await fetchCart(user?.id);
   };
@@ -92,7 +93,6 @@ export const CheckoutModal = () => {
     if (res) {
       setCheckoutStep("success");
       setIdOrder(res._id);
-      clearData();
     }
   };
 
@@ -130,8 +130,7 @@ export const CheckoutModal = () => {
             </div>
             <h3 className="text-xl text-foreground mb-2">Đặt hàng thành công!</h3>
             <p className="text-muted-foreground mb-1">
-              Mã đơn hàng: {idOrder}
-              <span className="text-primary"></span>
+              Mã đơn hàng: <span className="text-primary"> {idOrder}</span>
             </p>
             <p className="text-sm text-muted-foreground mb-6">
               {orderMethod === "carry_out"
@@ -155,6 +154,7 @@ export const CheckoutModal = () => {
             <button
               onClick={() => {
                 setCheckout(false);
+                clearData();
               }}
               className="bg-primary text-white px-8 py-3 rounded-xl hover:bg-primary/90 transition-colors"
             >
@@ -328,7 +328,9 @@ export const CheckoutModal = () => {
                       {paymentOptions.map(opt => (
                         <button
                           key={opt.key}
-                          onClick={() => setPaymentMethod(opt.key)}
+                          onClick={() => {
+                            setPaymentMethod(opt.key);
+                          }}
                           className={`w-full flex items-center gap-4 p-4 rounded-xl border-2 transition-all text-left ${paymentMethod === opt.key ? "border-primary bg-primary/5" : "border-border hover:border-primary/30"}`}
                         >
                           <div

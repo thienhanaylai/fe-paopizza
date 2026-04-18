@@ -58,7 +58,7 @@ export const getAllOrder = async (query: string | null, typeUser: string) => {
       },
       typeUser,
     );
-    console.log(query);
+
     return response.data;
   } catch (error) {
     console.error("Lỗi fetch :", error);

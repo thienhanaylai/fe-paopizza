@@ -8,7 +8,7 @@ import Image from "next/image";
 const formatVND = (price: number) => new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(price);
 
 export const CartModal = () => {
-  const { cart, showCart, setShowCart, updateQuantity, removeItem, cartCount, cartTotal, checkout, setCheckout } = useCart();
+  const { cart, showCart, setShowCart, updateQuantity, removeItem, cartCount, cartTotal,  setCheckout } = useCart();
   const { user } = useCustomerAuth();
 
   if (!showCart) return null;

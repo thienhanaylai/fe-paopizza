@@ -2,7 +2,6 @@
 
 import { Eye, EyeOff, History, Minus, Pizza, Plus, ShoppingCart, X } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { useCustomerAuth } from "@/src/context/authCustomerContext";
 import { useCart } from "@/src/context/cartContext";
 import { useEffect, useState } from "react";
@@ -14,15 +13,15 @@ const NavMenu = [
   },
   {
     name: "Menu",
-    link: "#menu",
+    link: "/#menu",
   },
   {
     name: "Về chúng tôi",
-    link: "#about",
+    link: "/#about",
   },
   {
     name: "Liên hệ",
-    link: "#contact",
+    link: "/#contact",
   },
 ];
 
@@ -30,8 +29,6 @@ export default function Header() {
   const { isAuthenticated, user, logout, setAuthMode } = useCustomerAuth();
   const { setShowCart, cartCount } = useCart();
   const [isMounted, setIsMounted] = useState(false);
-  const pathname = usePathname();
-
   useEffect(() => {
     setIsMounted(true);
   }, []);
@@ -51,16 +48,18 @@ export default function Header() {
               <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center">
                 <Pizza size={20} className="text-white" />
               </div>
-              <span className="text-xl text-foreground">PaoPizza</span>
+              <span className="text-xl font-medium text-foreground">PaoPizza</span>
             </Link>
             <nav className="hidden md:flex items-center gap-6 text-sm text-muted-foreground">
               {NavMenu?.map(item => {
-                const isActive = pathname === item.link; //xử lý sau
                 return (
                   <Link
                     key={item.link}
                     href={item.link}
-                    className={`hover:text-primary font-medium transition-colors ${isActive ? "text-primary" : ""}`}
+                    onClick={() => {
+                      window.location.hash = item.link;
+                    }}
+                    className={`hover:text-primary font-medium transition-colors`}
                   >
                     {item.name}
                   </Link>

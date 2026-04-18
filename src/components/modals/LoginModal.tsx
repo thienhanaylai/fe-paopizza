@@ -56,7 +56,7 @@ export const AuthModal = () => {
       setTimeout(() => {
         setAuthMode("login");
         clearNotice();
-      }, 1500);
+      }, 1000);
       return;
     }
 
@@ -85,12 +85,15 @@ export const AuthModal = () => {
               {authMode === "login" ? "Đăng nhập để đặt hàng ngay" : "Tạo tài khoản mới"}
             </p>
           </div>
-          <button onClick={handleClose} className="p-2 rounded-lg hover:bg-muted text-muted-foreground transition-colors">
+          <button
+            onClick={handleClose}
+            className="p-2 rounded-lg hover:bg-muted text-muted-foreground transition-colors cursor-pointer"
+          >
             <X size={18} />
           </button>
         </div>
 
-        <form onSubmit={handleAuth} className="space-y-4">
+        <form onSubmit={handleAuth} className="space-y-4 ">
           {error && <div className="bg-red-50 text-red-600 px-4 py-3 rounded-lg text-sm">{error}</div>}
           {success && <div className="bg-green-50 text-green-600 px-4 py-3 rounded-lg text-sm">{success}</div>}
 
@@ -139,7 +142,7 @@ export const AuthModal = () => {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                className="absolute  right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
               >
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
@@ -149,13 +152,13 @@ export const AuthModal = () => {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full bg-primary text-white py-3 rounded-xl hover:bg-primary/90 transition-colors shadow-lg shadow-primary/25 font-semibold mt-2 disabled:opacity-70"
+            className="w-full cursor-pointer bg-primary text-white py-3 rounded-xl hover:bg-primary/90 transition-colors shadow-lg shadow-primary/25 font-semibold mt-2 disabled:opacity-70"
           >
             {isSubmitting ? "Đang xử lý..." : authMode === "login" ? "Đăng nhập" : "Đăng ký"}
           </button>
         </form>
 
-        <p className="text-center text-muted-foreground text-sm mt-6">
+        <p className="text-center text-muted-foreground text-sm mt-6 ">
           {authMode === "login" ? (
             <>
               Chưa có tài khoản?{" "}
@@ -165,7 +168,7 @@ export const AuthModal = () => {
                   setAuthMode("register");
                   clearNotice();
                 }}
-                className="text-primary hover:underline font-medium"
+                className="text-primary hover:underline font-medium cursor-pointer"
               >
                 Đăng ký ngay
               </button>
@@ -179,7 +182,7 @@ export const AuthModal = () => {
                   setAuthMode("login");
                   clearNotice();
                 }}
-                className="text-primary hover:underline font-medium"
+                className="text-primary hover:underline font-medium cursor-pointer"
               >
                 Đăng nhập
               </button>

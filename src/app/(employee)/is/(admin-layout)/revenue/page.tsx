@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   DollarSign,
   TrendingUp,
@@ -27,239 +27,12 @@ import {
   Legend,
 } from "recharts";
 import { useEmployeeAuth } from "@/src/context/authEmployeeContext";
+import { getRevenueDashboard } from "@/src/services/revenue.service";
+import { getAllStore } from "@/src/services/store.service";
 
 type Period = "day" | "month" | "quarter" | "year";
 
-interface StoreRevenue {
-  id: string;
-  name: string;
-  day: { totalRevenue: number; totalOrders: number; customers: number; change: string };
-  month: { totalRevenue: number; totalOrders: number; customers: number; change: string };
-  quarter: { totalRevenue: number; totalOrders: number; customers: number; change: string };
-  year: { totalRevenue: number; totalOrders: number; customers: number; change: string };
-  hourly: { hour: string; revenue: number; orders: number }[];
-  daily: { name: string; revenue: number }[];
-  quarterly: { name: string; revenue: number }[];
-  yearly: { name: string; revenue: number }[];
-  categories: { name: string; value: number; color: string }[];
-  payments: { name: string; value: number; color: string }[];
-  topProducts: { name: string; qty: number; revenue: number }[];
-}
-
-const storeData: StoreRevenue[] = [
-  {
-    id: "store-1",
-    name: "Chi nhánh Quận 1",
-    day: { totalRevenue: 24450000, totalOrders: 134, customers: 98, change: "+18.5%" },
-    month: { totalRevenue: 175000000, totalOrders: 2340, customers: 1580, change: "+12.5%" },
-    quarter: { totalRevenue: 520000000, totalOrders: 7200, customers: 4800, change: "+10.2%" },
-    year: { totalRevenue: 2100000000, totalOrders: 28800, customers: 19200, change: "+22.1%" },
-    hourly: [
-      { hour: "10h", revenue: 450000, orders: 3 },
-      { hour: "11h", revenue: 1200000, orders: 8 },
-      { hour: "12h", revenue: 2800000, orders: 18 },
-      { hour: "13h", revenue: 1900000, orders: 12 },
-      { hour: "14h", revenue: 800000, orders: 5 },
-      { hour: "15h", revenue: 650000, orders: 4 },
-      { hour: "16h", revenue: 950000, orders: 6 },
-      { hour: "17h", revenue: 1500000, orders: 10 },
-      { hour: "18h", revenue: 3200000, orders: 20 },
-      { hour: "19h", revenue: 3800000, orders: 24 },
-      { hour: "20h", revenue: 2500000, orders: 16 },
-      { hour: "21h", revenue: 1200000, orders: 8 },
-    ],
-    daily: [
-      { name: "01/03", revenue: 18500000 },
-      { name: "05/03", revenue: 25600000 },
-      { name: "10/03", revenue: 23400000 },
-      { name: "15/03", revenue: 28700000 },
-      { name: "17/03", revenue: 24450000 },
-      { name: "20/03", revenue: 26800000 },
-      { name: "25/03", revenue: 31200000 },
-      { name: "30/03", revenue: 29500000 },
-    ],
-    quarterly: [
-      { name: "Tháng 1", revenue: 180000000 },
-      { name: "Tháng 2", revenue: 195000000 },
-      { name: "Tháng 3", revenue: 145000000 },
-    ],
-    yearly: [
-      { name: "Q1/25", revenue: 480000000 },
-      { name: "Q2/25", revenue: 550000000 },
-      { name: "Q3/25", revenue: 520000000 },
-      { name: "Q4/25", revenue: 550000000 },
-      { name: "Q1/26", revenue: 520000000 },
-    ],
-    categories: [
-      { name: "Pizza", value: 15200000, color: "#e85d04" },
-      { name: "Pasta", value: 4800000, color: "#f97316" },
-      { name: "Tráng miệng", value: 2800000, color: "#fb923c" },
-      { name: "Đồ uống", value: 1950000, color: "#fdba74" },
-    ],
-    payments: [
-      { name: "Tiền mặt", value: 40, color: "#e85d04" },
-      { name: "Chuyển khoản", value: 30, color: "#3b82f6" },
-      { name: "Thẻ tín dụng", value: 15, color: "#8b5cf6" },
-      { name: "Ví MoMo", value: 15, color: "#ec4899" },
-    ],
-    topProducts: [
-      { name: "Pizza Pepperoni", qty: 32, revenue: 5440000 },
-      { name: "Pizza Hải Sản", qty: 28, revenue: 5460000 },
-      { name: "Pizza BBQ Chicken", qty: 22, revenue: 4070000 },
-      { name: "Combo Family", qty: 15, revenue: 4500000 },
-      { name: "Pasta Carbonara", qty: 20, revenue: 2900000 },
-      { name: "Tiramisu", qty: 25, revenue: 1875000 },
-    ],
-  },
-  {
-    id: "store-2",
-    name: "Chi nhánh Quận 7",
-    day: { totalRevenue: 18200000, totalOrders: 98, customers: 72, change: "+8.3%" },
-    month: { totalRevenue: 130000000, totalOrders: 1780, customers: 1200, change: "+8.3%" },
-    quarter: { totalRevenue: 380000000, totalOrders: 5300, customers: 3500, change: "+7.1%" },
-    year: { totalRevenue: 1550000000, totalOrders: 21200, customers: 14000, change: "+15.8%" },
-    hourly: [
-      { hour: "10h", revenue: 320000, orders: 2 },
-      { hour: "11h", revenue: 900000, orders: 6 },
-      { hour: "12h", revenue: 2100000, orders: 14 },
-      { hour: "13h", revenue: 1400000, orders: 9 },
-      { hour: "14h", revenue: 600000, orders: 4 },
-      { hour: "15h", revenue: 500000, orders: 3 },
-      { hour: "16h", revenue: 750000, orders: 5 },
-      { hour: "17h", revenue: 1200000, orders: 8 },
-      { hour: "18h", revenue: 2600000, orders: 16 },
-      { hour: "19h", revenue: 3100000, orders: 18 },
-      { hour: "20h", revenue: 2000000, orders: 12 },
-      { hour: "21h", revenue: 900000, orders: 5 },
-    ],
-    daily: [
-      { name: "01/03", revenue: 14200000 },
-      { name: "05/03", revenue: 18900000 },
-      { name: "10/03", revenue: 17800000 },
-      { name: "15/03", revenue: 21200000 },
-      { name: "17/03", revenue: 18200000 },
-      { name: "20/03", revenue: 20500000 },
-      { name: "25/03", revenue: 23800000 },
-      { name: "30/03", revenue: 22100000 },
-    ],
-    quarterly: [
-      { name: "Tháng 1", revenue: 135000000 },
-      { name: "Tháng 2", revenue: 142000000 },
-      { name: "Tháng 3", revenue: 103000000 },
-    ],
-    yearly: [
-      { name: "Q1/25", revenue: 350000000 },
-      { name: "Q2/25", revenue: 400000000 },
-      { name: "Q3/25", revenue: 380000000 },
-      { name: "Q4/25", revenue: 420000000 },
-      { name: "Q1/26", revenue: 380000000 },
-    ],
-    categories: [
-      { name: "Pizza", value: 11500000, color: "#e85d04" },
-      { name: "Pasta", value: 3200000, color: "#f97316" },
-      { name: "Tráng miệng", value: 1800000, color: "#fb923c" },
-      { name: "Đồ uống", value: 1700000, color: "#fdba74" },
-    ],
-    payments: [
-      { name: "Tiền mặt", value: 35, color: "#e85d04" },
-      { name: "Chuyển khoản", value: 35, color: "#3b82f6" },
-      { name: "Thẻ tín dụng", value: 18, color: "#8b5cf6" },
-      { name: "Ví MoMo", value: 12, color: "#ec4899" },
-    ],
-    topProducts: [
-      { name: "Pizza Hải Sản", qty: 25, revenue: 4875000 },
-      { name: "Pizza Pepperoni", qty: 22, revenue: 3740000 },
-      { name: "Combo Family", qty: 18, revenue: 5400000 },
-      { name: "Pizza Hawaiian", qty: 16, revenue: 2720000 },
-      { name: "Pasta Bolognese", qty: 14, revenue: 1960000 },
-      { name: "Cheesecake", qty: 20, revenue: 1400000 },
-    ],
-  },
-  {
-    id: "store-3",
-    name: "Chi nhánh Thủ Đức",
-    day: { totalRevenue: 15800000, totalOrders: 82, customers: 60, change: "-2.1%" },
-    month: { totalRevenue: 110000000, totalOrders: 1520, customers: 1020, change: "-2.1%" },
-    quarter: { totalRevenue: 330000000, totalOrders: 4500, customers: 3000, change: "+3.5%" },
-    year: { totalRevenue: 1320000000, totalOrders: 18000, customers: 12000, change: "+10.2%" },
-    hourly: [
-      { hour: "10h", revenue: 280000, orders: 2 },
-      { hour: "11h", revenue: 750000, orders: 5 },
-      { hour: "12h", revenue: 1800000, orders: 12 },
-      { hour: "13h", revenue: 1200000, orders: 8 },
-      { hour: "14h", revenue: 500000, orders: 3 },
-      { hour: "15h", revenue: 400000, orders: 3 },
-      { hour: "16h", revenue: 650000, orders: 4 },
-      { hour: "17h", revenue: 1100000, orders: 7 },
-      { hour: "18h", revenue: 2300000, orders: 14 },
-      { hour: "19h", revenue: 2800000, orders: 16 },
-      { hour: "20h", revenue: 1800000, orders: 10 },
-      { hour: "21h", revenue: 800000, orders: 4 },
-    ],
-    daily: [
-      { name: "01/03", revenue: 12100000 },
-      { name: "05/03", revenue: 15800000 },
-      { name: "10/03", revenue: 14500000 },
-      { name: "15/03", revenue: 18300000 },
-      { name: "17/03", revenue: 15800000 },
-      { name: "20/03", revenue: 17200000 },
-      { name: "25/03", revenue: 19500000 },
-      { name: "30/03", revenue: 18100000 },
-    ],
-    quarterly: [
-      { name: "Tháng 1", revenue: 115000000 },
-      { name: "Tháng 2", revenue: 118000000 },
-      { name: "Tháng 3", revenue: 97000000 },
-    ],
-    yearly: [
-      { name: "Q1/25", revenue: 300000000 },
-      { name: "Q2/25", revenue: 340000000 },
-      { name: "Q3/25", revenue: 320000000 },
-      { name: "Q4/25", revenue: 360000000 },
-      { name: "Q1/26", revenue: 330000000 },
-    ],
-    categories: [
-      { name: "Pizza", value: 9800000, color: "#e85d04" },
-      { name: "Pasta", value: 2800000, color: "#f97316" },
-      { name: "Tráng miệng", value: 1600000, color: "#fb923c" },
-      { name: "Đồ uống", value: 1600000, color: "#fdba74" },
-    ],
-    payments: [
-      { name: "Tiền mặt", value: 45, color: "#e85d04" },
-      { name: "Chuyển khoản", value: 28, color: "#3b82f6" },
-      { name: "Thẻ tín dụng", value: 12, color: "#8b5cf6" },
-      { name: "Ví MoMo", value: 15, color: "#ec4899" },
-    ],
-    topProducts: [
-      { name: "Pizza Pepperoni", qty: 20, revenue: 3400000 },
-      { name: "Pizza Margherita", qty: 18, revenue: 2700000 },
-      { name: "Pizza BBQ Chicken", qty: 15, revenue: 2775000 },
-      { name: "Combo Couple", qty: 12, revenue: 2880000 },
-      { name: "Pasta Carbonara", qty: 10, revenue: 1450000 },
-      { name: "Tiramisu", qty: 15, revenue: 1125000 },
-    ],
-  },
-];
-
 // Data for store comparison (admin "all" view)
-const storeComparisonColors = ["#e85d04", "#3b82f6", "#10b981"];
-
-const storeComparisonMonthly = [
-  { name: "01/03", "Chi nhánh Quận 1": 18500000, "Chi nhánh Quận 7": 14200000, "Chi nhánh Thủ Đức": 12100000 },
-  { name: "05/03", "Chi nhánh Quận 1": 25600000, "Chi nhánh Quận 7": 18900000, "Chi nhánh Thủ Đức": 15800000 },
-  { name: "10/03", "Chi nhánh Quận 1": 23400000, "Chi nhánh Quận 7": 17800000, "Chi nhánh Thủ Đức": 14500000 },
-  { name: "15/03", "Chi nhánh Quận 1": 28700000, "Chi nhánh Quận 7": 21200000, "Chi nhánh Thủ Đức": 18300000 },
-  { name: "17/03", "Chi nhánh Quận 1": 24450000, "Chi nhánh Quận 7": 18200000, "Chi nhánh Thủ Đức": 15800000 },
-  { name: "20/03", "Chi nhánh Quận 1": 26800000, "Chi nhánh Quận 7": 20500000, "Chi nhánh Thủ Đức": 17200000 },
-  { name: "25/03", "Chi nhánh Quận 1": 31200000, "Chi nhánh Quận 7": 23800000, "Chi nhánh Thủ Đức": 19500000 },
-  { name: "30/03", "Chi nhánh Quận 1": 29500000, "Chi nhánh Quận 7": 22100000, "Chi nhánh Thủ Đức": 18100000 },
-];
-
-const storeRevenueBar = [
-  { name: "Quận 1", revenue: 175000000, orders: 2340, color: "#e85d04" },
-  { name: "Quận 7", revenue: 130000000, orders: 1780, color: "#3b82f6" },
-  { name: "Thủ Đức", revenue: 110000000, orders: 1520, color: "#10b981" },
-];
 
 function formatVND(n: number) {
   return new Intl.NumberFormat("vi-VN").format(n) + "đ";
@@ -270,6 +43,61 @@ function formatShort(n: number) {
   if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
   return new Intl.NumberFormat("vi-VN").format(n);
 }
+const formatDateTime = (isoString: string) => {
+  if (!isoString) return "";
+
+  const date = new Date(isoString);
+  const pad = (num: number) => String(num).padStart(2, "0");
+
+  const hours = pad(date.getHours());
+  const minutes = pad(date.getMinutes());
+  const day = pad(date.getDate());
+  const month = pad(date.getMonth() + 1);
+  const year = date.getFullYear();
+
+  return `${hours}:${minutes} ${day}-${month}-${year}`;
+};
+const getDateNow = () => {
+  const now = new Date();
+  const date = now.getDate().toString().padStart(2, "0");
+  const month = (now.getMonth() + 1).toString().padStart(2, "0");
+  const year = now.getFullYear().toString();
+  return `${year}-${month}-${date}`;
+};
+
+const getCurrenYearRange = () => {
+  const now = new Date();
+  const date = now.getDate().toString().padStart(2, "0");
+  const month = (now.getMonth() + 1).toString().padStart(2, "0");
+  const yearEnd = now.getFullYear().toString();
+  const yearStart = (now.getFullYear() - 1).toString();
+
+  return {
+    start: `${yearStart}-${month}-${date}`,
+    end: `${yearEnd}-${month}-${date}`,
+  };
+};
+
+const getCurrentQuarterRange = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const currentMonth = now.getMonth();
+  const startMonthIndex = Math.floor(currentMonth / 3) * 3;
+
+  const startDate = new Date(year, startMonthIndex, 1);
+  const endDate = new Date(year, startMonthIndex + 3, 0);
+  const formatDate = dateObj => {
+    const y = dateObj.getFullYear();
+    const m = (dateObj.getMonth() + 1).toString().padStart(2, "0");
+    const d = dateObj.getDate().toString().padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  };
+
+  return {
+    start: formatDate(startDate),
+    end: formatDate(endDate),
+  };
+};
 
 const periodLabels: Record<Period, string> = { day: "Ngày", month: "Tháng", quarter: "Quý", year: "Năm" };
 const periodDisplay: Record<Period, string> = {
@@ -280,19 +108,78 @@ const periodDisplay: Record<Period, string> = {
 };
 
 export default function Revenue() {
-  const { user } = useEmployeeAuth();
-  const isAdmin = user?.role === "admin";
+  const { user, getInfo } = useEmployeeAuth();
   const [period, setPeriod] = useState<Period>("day");
+  const [storeData, setStoreData] = useState([]);
+  const [revenue, setRevenue] = useState({});
   const [selectedStore, setSelectedStore] = useState<string>("all");
   const [showStoreDropdown, setShowStoreDropdown] = useState(false);
+  const [dateRanger, setDateRanger] = useState(getDateNow());
+  const [empoylee, setmployee] = useState({});
+  const [stores, setStores] = useState([]);
+  const isAdmin = user?.role === "admin";
+  // const [storeComparisonColors, setStoreComparisonColors] = useState([]);
+  // const [storeComparisonMonthly, setStoreComparisonMonthly] = useState([]);
+  // const [storeRevenueBar, setStoreRevenueBar] = useState([]);
+  useEffect(() => {
+    const fecthData = async () => {
+      const empInfo = await getInfo();
+      const today = getDateNow();
+      const stores = await getAllStore();
+      setStores(stores);
+      setmployee(empInfo);
+      const res = await getRevenueDashboard(`${today}`, "", `${isAdmin ? "" : `${empInfo?.ref_id?.store_id}`}`, "", "", ""); //doanh thu trong ngày
+      setRevenue(res);
+    };
+    fecthData();
+  }, []);
 
   // For store_manager, lock to their store
-  const effectiveStore = isAdmin ? selectedStore : user?.storeId || "store-1";
+  const effectiveStore = isAdmin ? selectedStore : empoylee?.ref_id?.store_id || "store-1";
   const isAllStores = isAdmin && effectiveStore === "all";
 
   const currentStoreData = storeData.find(s => s.id === effectiveStore);
-  const currentStoreName = isAllStores ? "Tất cả cửa hàng" : currentStoreData?.name || user?.storeName || "";
+  const curentStore = stores.find(item => item._id === empoylee?.ref_id?.store_id);
 
+  const currentStoreName = isAllStores ? "Tất cả cửa hàng" : curentStore?.name || "";
+
+  const handleDate = async (date: Period, type: string) => {
+    setPeriod(date);
+    if (date === "day") {
+      const today = getDateNow();
+      const res = await getRevenueDashboard(`${today}`, "", `${isAdmin ? "" : `${empoylee?.ref_id?.store_id}`}`, "", "", "");
+      setDateRanger(today);
+      setRevenue(res);
+    } else if (date === "quarter") {
+      const quarterRange = getCurrentQuarterRange();
+      const res = await getRevenueDashboard(
+        `${quarterRange.start}`,
+        `${quarterRange.end}`,
+        `${isAdmin ? "" : `${empoylee?.ref_id?.store_id}`}`,
+        "",
+        "",
+        "",
+      );
+      setRevenue(res);
+      setDateRanger(`${formatDateTime(res.range?.start_date)} - ${formatDateTime(res.range?.end_date)}`);
+    } else if (date === "year") {
+      const yearRange = getCurrenYearRange();
+      const res = await getRevenueDashboard(
+        `${yearRange.start}`,
+        `${yearRange.end}`,
+        `${isAdmin ? "" : `${empoylee?.ref_id?.store_id}`}`,
+        "",
+        "",
+        "",
+      );
+      setRevenue(res);
+      setDateRanger(`${formatDateTime(res.range?.start_date)} - ${formatDateTime(res.range?.end_date)}`);
+    } else {
+      const res = await getRevenueDashboard(``, "", `${isAdmin ? "" : `${empoylee?.ref_id?.store_id}`}`, "", "", "");
+      setRevenue(res);
+      setDateRanger(`${formatDateTime(res.range?.start_date)} - ${formatDateTime(res.range?.end_date)}`);
+    }
+  };
   // Aggregate stats for "all"
   const getStats = () => {
     if (isAllStores) {
@@ -312,24 +199,25 @@ export default function Revenue() {
   };
 
   const stats = getStats();
+
   const avgOrderValue = stats.totalOrders > 0 ? Math.round(stats.totalRevenue / stats.totalOrders) : 0;
   const changeUp = stats.change.startsWith("+");
 
-  const getChartData = () => {
-    if (!currentStoreData) return { data: [], dataKey: "revenue", xKey: "hour", label: "" };
-    switch (period) {
-      case "day":
-        return { data: currentStoreData.hourly, dataKey: "revenue", xKey: "hour", label: "Doanh thu theo giờ" };
-      case "month":
-        return { data: currentStoreData.daily, dataKey: "revenue", xKey: "name", label: "Doanh thu theo ngày" };
-      case "quarter":
-        return { data: currentStoreData.quarterly, dataKey: "revenue", xKey: "name", label: "Doanh thu theo tháng" };
-      case "year":
-        return { data: currentStoreData.yearly, dataKey: "revenue", xKey: "name", label: "Doanh thu theo quý" };
-    }
-  };
+  // const getChartData = () => {
+  //   if (!currentStoreData) return { data: [], dataKey: "revenue", xKey: "hour", label: "" };
+  //   switch (period) {
+  //     case "day":
+  //       return { data: currentStoreData.hourly, dataKey: "revenue", xKey: "hour", label: "Doanh thu theo giờ" };
+  //     case "month":
+  //       return { data: currentStoreData.daily, dataKey: "revenue", xKey: "name", label: "Doanh thu theo ngày" };
+  //     case "quarter":
+  //       return { data: currentStoreData.quarterly, dataKey: "revenue", xKey: "name", label: "Doanh thu theo tháng" };
+  //     case "year":
+  //       return { data: currentStoreData.yearly, dataKey: "revenue", xKey: "name", label: "Doanh thu theo quý" };
+  //   }
+  // };
 
-  const chart = getChartData();
+  // const chart = getChartData();
 
   return (
     <div className="space-y-6">
@@ -338,14 +226,16 @@ export default function Revenue() {
         <div>
           <h1 className="text-foreground">Doanh thu</h1>
           <p className="text-muted-foreground mt-1">
-            {isAdmin ? "Thống kê doanh thu toàn hệ thống và từng cửa hàng" : `Thống kê doanh thu - ${user?.storeName || ""}`}
+            {isAdmin ? "Thống kê doanh thu toàn hệ thống và từng cửa hàng" : `Thống kê doanh thu - ${currentStoreName || ""}`}
           </p>
         </div>
         <div className="flex items-center gap-1 bg-card border border-border rounded-xl p-1">
           {(["day", "month", "quarter", "year"] as Period[]).map(p => (
             <button
               key={p}
-              onClick={() => setPeriod(p)}
+              onClick={() => {
+                handleDate(p);
+              }}
               className={`px-4 py-2 rounded-lg text-sm transition-all ${period === p ? "bg-primary text-white shadow-sm" : "text-muted-foreground hover:bg-muted"}`}
             >
               {periodLabels[p]}
@@ -401,20 +291,20 @@ export default function Revenue() {
         )}
         {!isAdmin && (
           <div className="flex items-center gap-2 text-sm text-muted-foreground bg-card px-4 py-2.5 rounded-xl border border-border">
-            <Store size={16} className="text-primary" /> {user?.storeName}
+            <Store size={16} className="text-primary" /> {currentStoreName}
           </div>
         )}
         <div className="flex items-center gap-2 text-sm text-muted-foreground bg-card px-4 py-2.5 rounded-xl border border-border">
-          <Calendar size={16} /> {periodDisplay[period]}
+          <Calendar size={16} /> {dateRanger}
         </div>
       </div>
 
       {/* Stats cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
         {[
           {
             label: "Tổng doanh thu",
-            value: formatVND(stats.totalRevenue),
+            value: formatVND(revenue.metrics?.total_revenue || 0),
             change: stats.change,
             up: changeUp,
             icon: <DollarSign size={20} />,
@@ -422,7 +312,7 @@ export default function Revenue() {
           },
           {
             label: "Tổng đơn hàng",
-            value: stats.totalOrders.toLocaleString(),
+            value: revenue.metrics?.total_orders.toLocaleString(),
             change: "+12.3%",
             up: true,
             icon: <ShoppingCart size={20} />,
@@ -430,19 +320,11 @@ export default function Revenue() {
           },
           {
             label: "Giá trị TB/đơn",
-            value: formatVND(avgOrderValue),
+            value: formatVND(revenue.metrics?.average_order_value),
             change: "+5.7%",
             up: true,
             icon: <TrendingUp size={20} />,
             color: "bg-green-50 text-green-600",
-          },
-          {
-            label: "Khách hàng",
-            value: stats.customers.toLocaleString(),
-            change: changeUp ? "+8.2%" : "-2.1%",
-            up: changeUp,
-            icon: <Users size={20} />,
-            color: "bg-purple-50 text-purple-600",
           },
         ].map(stat => (
           <div key={stat.label} className="bg-card rounded-2xl p-5 border border-border">
@@ -451,7 +333,7 @@ export default function Revenue() {
               <span
                 className={`flex items-center gap-1 text-xs px-2 py-1 rounded-full ${stat.up ? "bg-green-50 text-green-600" : "bg-red-50 text-red-600"}`}
               >
-                {stat.up ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />} {stat.change}
+                {/* {stat.up ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />} {stat.change} */}
               </span>
             </div>
             <p className="text-muted-foreground text-sm">{stat.label}</p>
@@ -464,7 +346,7 @@ export default function Revenue() {
       {isAllStores ? (
         <>
           {/* Store comparison chart */}
-          <div className="bg-card rounded-2xl p-5 border border-border">
+          {/* <div className="bg-card rounded-2xl p-5 border border-border">
             <h3 className="text-foreground mb-4">So sánh doanh thu giữa các cửa hàng</h3>
             {period === "month" || period === "day" ? (
               <ResponsiveContainer width="100%" height={320}>
@@ -509,10 +391,10 @@ export default function Revenue() {
                 </BarChart>
               </ResponsiveContainer>
             )}
-          </div>
+          </div> */}
 
           {/* Store ranking table */}
-          <div className="bg-card rounded-2xl border border-border overflow-hidden">
+          {/* <div className="bg-card rounded-2xl border border-border overflow-hidden">
             <div className="px-5 py-4 border-b border-border">
               <h3 className="text-foreground">Bảng xếp hạng cửa hàng - {periodDisplay[period]}</h3>
             </div>
@@ -569,10 +451,10 @@ export default function Revenue() {
                 </tbody>
               </table>
             </div>
-          </div>
+          </div> */}
 
           {/* Revenue share pie */}
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+          {/* <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
             <div className="bg-card rounded-2xl p-5 border border-border">
               <h3 className="text-foreground mb-4">Tỷ trọng doanh thu theo cửa hàng</h3>
               <div className="flex justify-center">
@@ -636,12 +518,12 @@ export default function Revenue() {
                 </BarChart>
               </ResponsiveContainer>
             </div>
-          </div>
+          </div> */}
         </>
       ) : (
         <>
           {/* Single store view - area chart */}
-          <div className="bg-card rounded-2xl p-5 border border-border">
+          {/* <div className="bg-card rounded-2xl p-5 border border-border">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-foreground">
                 {chart.label} - {currentStoreName}
@@ -665,10 +547,10 @@ export default function Revenue() {
                 <Area type="monotone" dataKey={chart.dataKey} stroke="#e85d04" strokeWidth={2.5} fill="url(#colorRev)" />
               </AreaChart>
             </ResponsiveContainer>
-          </div>
+          </div> */}
 
           {/* Bottom row */}
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+          {/* <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
             <div className="bg-card rounded-2xl p-5 border border-border">
               <h3 className="text-foreground mb-4">Doanh thu theo danh mục</h3>
               <ResponsiveContainer width="100%" height={220}>
@@ -751,7 +633,7 @@ export default function Revenue() {
                 ))}
               </div>
             </div>
-          </div>
+          </div> */}
         </>
       )}
     </div>

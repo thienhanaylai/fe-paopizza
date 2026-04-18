@@ -57,7 +57,6 @@ export default function Orders() {
 
   return (
     <>
-      {" "}
       <div className="py-8">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3 mb-6">
@@ -70,35 +69,45 @@ export default function Orders() {
             </div>
           </div>
           <div className="space-y-4">
+            {ordersHistory?.length === 0 && (
+              <p className="text-xl p-5 text-center text-muted-foreground">Chưa có đơn hàng nào!</p>
+            )}
             {ordersHistory?.map(order => {
               const st = orderStatusConfig[order.status];
 
               return (
                 <div key={order._id} className="bg-card rounded-2xl border border-border p-5 hover:shadow-md transition-shadow">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 ">
-                    <div className="flex items-center gap-3">
-                      <span
-                        title="Nhấn để copy toàn bộ ID"
-                        onClick={async () => {
-                          try {
-                            await navigator.clipboard.writeText(order._id);
-                            toast.success("Đã sao chép ID!");
-                          } catch (err) {
-                            toast.error("Không thể sao chép ID");
-                          }
-                        }}
-                        className="hover:underline text-primary  cursor-pointer "
-                      >
-                        ...{order._id.slice(-9)}
-                      </span>
-                      <span className="text-sm text-muted-foreground">{formatDateTime(order.createdAt)}</span>
-                      <span className="text-sm px-2 py-1 rounded-full bg-primary/20 text-primary ">{order.store_id.name}</span>
+                  <div className="flex  sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 ">
+                    <div className="flex gap-2">
+                      <div className=" flex flex-col gap-2">
+                        <span
+                          title="Nhấn để copy toàn bộ ID"
+                          onClick={async () => {
+                            try {
+                              await navigator.clipboard.writeText(order._id);
+                              toast.success("Đã sao chép ID!");
+                            } catch (err) {
+                              toast.error("Không thể sao chép ID");
+                            }
+                          }}
+                          className="hover:underline text-primary cursor-pointer "
+                        >
+                          ...{order._id.slice(-9)}
+                        </span>
+                        <span className="text-sm text-muted-foreground">{formatDateTime(order.createdAt)}</span>
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <span className="text-sm w-fit px-2 py-1 rounded-full bg-primary/10 text-primary ">
+                          {order.store_id.name}
+                        </span>
+                        <span className="text-sm text-muted-foreground underline">{order.store_id.address}</span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-col items-center gap-2">
+                      <span className={`px-2 py-1 rounded-full text-xs ${st.color}`}>{st.label}</span>
                       <span className="px-2 py-1 rounded-full text-xs bg-muted text-foreground">
                         {orderTypeLabels[order.order_type]}
                       </span>
-                      <span className={`px-2 py-1 rounded-full text-xs ${st.color}`}>{st.label}</span>
                     </div>
                   </div>
                   <div className="space-y-2 mb-4">
