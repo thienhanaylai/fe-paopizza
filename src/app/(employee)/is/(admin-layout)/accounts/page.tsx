@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Search,
   Filter,
@@ -28,172 +28,13 @@ import {
   getStationLabel,
   getStationColor,
 } from "@/src/context/authEmployeeContext";
+import { createUser, getAllUser, User } from "@/src/services/user.service";
+import { getAllStore } from "@/src/services/store.service";
+type UserRole = "admin" | "manager" | "staff";
 
-type UserRole = "customer" | "admin" | "manager" | "staff";
-
-interface Account {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-  role: UserRole;
-  level?: EmployeeLevel;
-  station?: EmployeeStation;
-  status: "active" | "locked" | "inactive";
-  joinDate: string;
-  lastLogin: string;
-}
-
-const mockAccounts: Account[] = [
-  {
-    id: "U001",
-    name: "Admin PaoPizza",
-    email: "admin@paopizza.com",
-    phone: "0900000001",
-    role: "admin",
-    level: "store_manager",
-    station: "management",
-    status: "active",
-    joinDate: "01/01/2024",
-    lastLogin: "17/03/2026 14:30",
-  },
-  {
-    id: "U002",
-    name: "Nguyễn Văn An",
-    email: "an@paopizza.com",
-    phone: "0901234567",
-    role: "manager",
-    level: "store_manager",
-    station: "management",
-    status: "active",
-    joinDate: "01/01/2024",
-    lastLogin: "17/03/2026 13:20",
-  },
-  {
-    id: "U003",
-    name: "Trần Thị Bình",
-    email: "binh@paopizza.com",
-    phone: "0912345678",
-    role: "staff",
-    level: "senior",
-    station: "crs",
-    status: "active",
-    joinDate: "15/03/2024",
-    lastLogin: "17/03/2026 10:15",
-  },
-  {
-    id: "U004",
-    name: "Lê Minh Cường",
-    email: "cuong@paopizza.com",
-    phone: "0923456789",
-    role: "staff",
-    level: "junior",
-    station: "kitchen",
-    status: "active",
-    joinDate: "01/06/2024",
-    lastLogin: "17/03/2026 09:00",
-  },
-  {
-    id: "U005",
-    name: "Phạm Thu Dung",
-    email: "dung@paopizza.com",
-    phone: "0934567890",
-    role: "staff",
-    level: "fresher",
-    station: "crs",
-    status: "active",
-    joinDate: "10/08/2024",
-    lastLogin: "16/03/2026 18:45",
-  },
-  {
-    id: "U006",
-    name: "Hoàng Đức Em",
-    email: "em@paopizza.com",
-    phone: "0945678901",
-    role: "staff",
-    level: "intern",
-    station: "delivery",
-    status: "inactive",
-    joinDate: "20/10/2024",
-    lastLogin: "01/03/2026 12:00",
-  },
-  {
-    id: "U007",
-    name: "Đỗ Quốc Bảo",
-    email: "bao@paopizza.com",
-    phone: "0967890123",
-    role: "staff",
-    level: "junior",
-    station: "delivery",
-    status: "active",
-    joinDate: "15/09/2024",
-    lastLogin: "17/03/2026 12:30",
-  },
-  {
-    id: "U008",
-    name: "Ngô Thanh Tâm",
-    email: "tam@paopizza.com",
-    phone: "0978901234",
-    role: "staff",
-    level: "intern",
-    station: "crs",
-    status: "active",
-    joinDate: "01/02/2025",
-    lastLogin: "17/03/2026 08:00",
-  },
-  {
-    id: "U009",
-    name: "Lê Văn C",
-    email: "levanc@gmail.com",
-    phone: "0989012345",
-    role: "customer",
-    status: "active",
-    joinDate: "05/01/2025",
-    lastLogin: "17/03/2026 14:00",
-  },
-  {
-    id: "U010",
-    name: "Trần Thị D",
-    email: "tranthid@gmail.com",
-    phone: "0990123456",
-    role: "customer",
-    status: "active",
-    joinDate: "12/02/2025",
-    lastLogin: "16/03/2026 20:00",
-  },
-  {
-    id: "U011",
-    name: "Nguyễn Văn E",
-    email: "nguyenvane@gmail.com",
-    phone: "0901122334",
-    role: "customer",
-    status: "locked",
-    joinDate: "20/12/2024",
-    lastLogin: "10/03/2026 15:00",
-  },
-  {
-    id: "U012",
-    name: "Phạm Thị F",
-    email: "phamthif@gmail.com",
-    phone: "0912233445",
-    role: "customer",
-    status: "active",
-    joinDate: "08/03/2025",
-    lastLogin: "17/03/2026 11:30",
-  },
-];
-
-const roleIcons: Record<UserRole, React.ReactNode> = {
-  admin: <ShieldAlert size={16} />,
-  manager: <ShieldCheck size={16} />,
-  staff: <Shield size={16} />,
-  customer: <UserCircle size={16} />,
-};
-
-const statusConfig: Record<string, { label: string; color: string }> = {
-  active: { label: "Hoạt động", color: "bg-green-100 text-green-700" },
-  locked: { label: "Bị khóa", color: "bg-red-100 text-red-600" },
-  inactive: { label: "Không hoạt động", color: "bg-gray-100 text-gray-600" },
+const statusConfig: Record<boolean, { label: string; color: string }> = {
+  true: { label: "Hoạt động", color: "bg-green-100 text-green-700" },
+  false: { label: "Bị khóa", color: "bg-red-100 text-red-600" },
 };
 
 const avatarColors = [
@@ -209,25 +50,67 @@ const avatarColors = [
 
 export default function Accounts() {
   const [search, setSearch] = useState("");
-  const [roleFilter, setRoleFilter] = useState<"all" | UserRole>("all");
-  const [statusFilter, setStatusFilter] = useState<"all" | string>("all");
+  const [roleFilter, setRoleFilter] = useState<"all" | UserRole | null>("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | boolean>("all");
   const [showModal, setShowModal] = useState(false);
-  const [editAccount, setEditAccount] = useState<Account | null>(null);
+  const [editAccount, setEditAccount] = useState<User | null>(null);
   const [actionMenu, setActionMenu] = useState<string | null>(null);
+  const [listUser, setListUser] = useState<User[]>();
+  const [listStore, setListStore] = useState([]);
 
-  const filtered = mockAccounts.filter(
+  const [formData, setFormData] = useState({
+    role: "staff",
+    name: "",
+    email: "",
+    phone: "",
+    address: "",
+    birthday: "",
+    station: "",
+    salary: 0,
+    salary_type: "",
+    store_id: "",
+    username: "",
+    password: "",
+  });
+
+  const handleChange = e => {
+    const { name, value } = e.target;
+    setFormData(prevData => ({
+      ...prevData,
+      [name]: value,
+    }));
+  };
+
+  useEffect(() => {
+    const fecthData = async () => {
+      const res = await getAllUser();
+      const res2 = await getAllStore();
+      setListStore(res2);
+      setListUser(res);
+    };
+    fecthData();
+  }, []);
+  const handleSubmit = async () => {
+    try {
+      await createUser(formData);
+    } catch (error) {
+      console.log(error);
+    }
+  };
+  const filtered = listUser?.filter(
     a =>
       (roleFilter === "all" || a.role === roleFilter) &&
       (statusFilter === "all" || a.status === statusFilter) &&
-      (a.name.toLowerCase().includes(search.toLowerCase()) || a.email.toLowerCase().includes(search.toLowerCase())),
+      (a.ref_id.name?.toLowerCase().includes(search.toLowerCase()) ||
+        a.ref_id.email?.toLowerCase().includes(search.toLowerCase())),
   );
 
   const counts = {
-    total: mockAccounts.length,
-    admin: mockAccounts.filter(a => a.role === "admin").length,
-    staff: mockAccounts.filter(a => a.role === "staff" || a.role === "manager").length,
-    customer: mockAccounts.filter(a => a.role === "customer").length,
-    locked: mockAccounts.filter(a => a.status === "locked").length,
+    total: listUser?.length,
+    admin: listUser?.filter(a => a.role === "admin").length,
+    staff: listUser?.filter(a => a.role === "staff" || a.role === "manager").length,
+    customer: listUser?.filter(a => a.role === null).length,
+    locked: listUser?.filter(a => a.status === false).length,
   };
 
   return (
@@ -304,27 +187,36 @@ export default function Accounts() {
             <Shield size={16} className="text-muted-foreground" />
             <select
               value={roleFilter}
-              onChange={e => setRoleFilter(e.target.value as any)}
+              onChange={e => {
+                if (e.target.value === "null") setRoleFilter(null);
+                else setRoleFilter(e.target.value as any);
+              }}
               className="bg-transparent py-2.5 text-sm outline-none text-foreground"
             >
               <option value="all">Tất cả vai trò</option>
               <option value="admin">Admin</option>
-              <option value="store_manager">Quản lý</option>
+              <option value="manager">Quản lý</option>
               <option value="staff">Nhân viên</option>
-              <option value="customer">Khách hàng</option>
+              <option value="null">Khách hàng</option>
             </select>
           </div>
           <div className="flex items-center gap-2 bg-card border border-border rounded-xl px-3">
             <Filter size={16} className="text-muted-foreground" />
             <select
               value={statusFilter}
-              onChange={e => setStatusFilter(e.target.value)}
+              onChange={e => {
+                if (e.target.value === "all") {
+                  setStatusFilter("all");
+                  return;
+                }
+                if (e.target.value === "true") setStatusFilter(true);
+                else setStatusFilter(false);
+              }}
               className="bg-transparent py-2.5 text-sm outline-none text-foreground"
             >
               <option value="all">Tất cả trạng thái</option>
-              <option value="active">Hoạt động</option>
-              <option value="locked">Bị khóa</option>
-              <option value="inactive">Không hoạt động</option>
+              <option value="true">Hoạt động</option>
+              <option value="false">Bị khóa</option>
             </select>
           </div>
         </div>
@@ -341,47 +233,52 @@ export default function Accounts() {
                 <th className="px-4 py-3 hidden md:table-cell">Level / Station</th>
                 <th className="px-4 py-3 hidden lg:table-cell">Liên hệ</th>
                 <th className="px-4 py-3">Trạng thái</th>
-                <th className="px-4 py-3 hidden lg:table-cell">Lần đăng nhập cuối</th>
+                {/* <th className="px-4 py-3 hidden lg:table-cell">Lần đăng nhập cuối</th> */}
                 <th className="px-4 py-3 text-right">Thao tác</th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map((account, i) => {
+              {filtered?.map((account, i) => {
                 const st = statusConfig[account.status];
                 return (
-                  <tr key={account.id} className="border-t border-border/50 hover:bg-muted/30">
+                  <tr key={account._id} className="border-t border-border/50 hover:bg-muted/30">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
                         <div
                           className={`w-9 h-9 rounded-full ${avatarColors[i % avatarColors.length]} flex items-center justify-center text-white text-xs`}
                         >
-                          {account.name
+                          {account.ref_id.name
                             .split(" ")
                             .map(w => w[0])
                             .slice(-2)
                             .join("")}
                         </div>
                         <div>
-                          <p className="text-foreground">{account.name}</p>
-                          <p className="text-xs text-muted-foreground">{account.email}</p>
+                          <p className="text-foreground">{account.ref_id.name}</p>
+                          <p className="text-xs text-muted-foreground">{account.ref_id.email}</p>
                         </div>
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      <span
-                        className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs ${getRoleColor(account.role)}`}
-                      >
-                        {roleIcons[account.role]} {getRoleLabel(account.role)}
-                      </span>
+                      {account.role ? (
+                        <span
+                          className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs ${getRoleColor(account.role)}`}
+                        >
+                          {getRoleLabel(account.role)}
+                        </span>
+                      ) : (
+                        <span
+                          className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs ${getRoleColor(account.role)}`}
+                        >
+                          Khách hàng
+                        </span>
+                      )}
                     </td>
                     <td className="px-4 py-3 hidden md:table-cell">
-                      {account.level && account.station ? (
+                      {account.ref_id.station ? (
                         <div className="flex items-center gap-1">
-                          <span className={`px-1.5 py-0.5 rounded text-[10px] ${getLevelColor(account.level)}`}>
-                            {getLevelLabel(account.level)}
-                          </span>
-                          <span className={`px-1.5 py-0.5 rounded text-[10px] ${getStationColor(account.station)}`}>
-                            {getStationLabel(account.station)}
+                          <span className={`px-1.5 py-0.5 rounded text-[10px] ${getStationColor(account.ref_id.station)}`}>
+                            {getStationLabel(account.ref_id.station)}
                           </span>
                         </div>
                       ) : (
@@ -390,22 +287,22 @@ export default function Accounts() {
                     </td>
                     <td className="px-4 py-3 hidden lg:table-cell">
                       <div className="flex items-center gap-1.5 text-muted-foreground text-xs">
-                        <Phone size={12} /> {account.phone}
+                        <Phone size={12} /> {account.ref_id.phone}
                       </div>
                     </td>
                     <td className="px-4 py-3">
                       <span className={`px-2 py-1 rounded-full text-[11px] ${st.color}`}>{st.label}</span>
                     </td>
-                    <td className="px-4 py-3 text-muted-foreground text-xs hidden lg:table-cell">{account.lastLogin}</td>
+                    {/* <td className="px-4 py-3 text-muted-foreground text-xs hidden lg:table-cell">{account.lastLogin}</td> */}
                     <td className="px-4 py-3 text-right">
                       <div className="relative">
                         <button
-                          onClick={() => setActionMenu(actionMenu === account.id ? null : account.id)}
+                          onClick={() => setActionMenu(actionMenu === account._id ? null : account._id)}
                           className="p-2 rounded-lg hover:bg-muted text-muted-foreground transition-colors"
                         >
                           <MoreVertical size={16} />
                         </button>
-                        {actionMenu === account.id && (
+                        {actionMenu === account._id && (
                           <div className="absolute right-0 mt-1 w-44 bg-card rounded-xl border border-border shadow-xl z-10 py-1">
                             <button
                               onClick={() => {
@@ -418,7 +315,7 @@ export default function Accounts() {
                               <Edit2 size={14} /> Chỉnh sửa
                             </button>
                             <button className="w-full flex items-center gap-2 px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors">
-                              {account.status === "locked" ? (
+                              {account.status === false ? (
                                 <>
                                   <Unlock size={14} /> Mở khóa
                                 </>
@@ -449,7 +346,7 @@ export default function Accounts() {
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowModal(false)}>
           <div
-            className="bg-card rounded-2xl p-6 w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto"
+            className="bg-card rounded-2xl p-6 w-full max-w-3xl shadow-2xl max-h-[90vh] overflow-y-auto"
             onClick={e => e.stopPropagation()}
           >
             <h3 className="text-foreground mb-4">{editAccount ? "Chỉnh sửa tài khoản" : "Tạo tài khoản mới"}</h3>
@@ -457,7 +354,10 @@ export default function Accounts() {
               <div>
                 <label className="block text-sm mb-1">Họ tên *</label>
                 <input
-                  defaultValue={editAccount?.name}
+                  defaultValue={editAccount?.ref_id.name}
+                  name="name"
+                  value={formData.name}
+                  onChange={handleChange}
                   placeholder="Nhập họ tên"
                   className="w-full px-4 py-2.5 rounded-xl border border-border bg-background focus:border-primary outline-none"
                 />
@@ -466,24 +366,58 @@ export default function Accounts() {
                 <div>
                   <label className="block text-sm mb-1">Email *</label>
                   <input
-                    defaultValue={editAccount?.email}
+                    name="email"
+                    value={formData.email}
+                    onChange={handleChange}
+                    defaultValue={editAccount?.ref_id.email}
                     placeholder="email@paopizza.com"
                     className="w-full px-4 py-2.5 rounded-xl border border-border bg-background focus:border-primary outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm mb-1">Số điện thoại</label>
+                  <label className="block text-sm mb-1">
+                    Số điện thoại * {formData.role === "customer" ? "(Dùng để đăng nhập)" : ""}
+                  </label>
                   <input
-                    defaultValue={editAccount?.phone}
+                    name="phone"
+                    value={formData.phone}
+                    onChange={handleChange}
+                    defaultValue={editAccount?.ref_id.phone}
                     placeholder="0901234567"
                     className="w-full px-4 py-2.5 rounded-xl border border-border bg-background focus:border-primary outline-none"
                   />
                 </div>
               </div>
               <div>
+                <label className="block text-sm mb-1">Địa chỉ *</label>
+                <input
+                  name="address"
+                  value={formData.address}
+                  onChange={handleChange}
+                  defaultValue={editAccount?.ref_id.address}
+                  type="text"
+                  placeholder="43 Pham nhu tang, p4, q8, HCM"
+                  className="w-full px-4 py-2.5 rounded-xl border border-border bg-background focus:border-primary outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-sm mb-1">Ngày sinh *</label>
+                <input
+                  name="birthday"
+                  value={formData.birthday}
+                  onChange={handleChange}
+                  defaultValue={editAccount?.ref_id.address}
+                  type="date"
+                  placeholder="43 Pham nhu tang, p4, q8, HCM"
+                  className="w-full px-4 py-2.5 rounded-xl border border-border bg-background focus:border-primary outline-none"
+                />
+              </div>
+              <div>
                 <label className="block text-sm mb-1">Vai trò *</label>
                 <select
-                  defaultValue={editAccount?.role || "staff"}
+                  name="role"
+                  value={formData.role}
+                  onChange={handleChange}
                   className="w-full px-4 py-2.5 rounded-xl border border-border bg-background outline-none"
                 >
                   <option value="admin">Admin</option>
@@ -492,37 +426,87 @@ export default function Accounts() {
                   <option value="customer">Khách hàng</option>
                 </select>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm mb-1">Cấp bậc</label>
-                  <select
-                    defaultValue={editAccount?.level || "intern"}
-                    className="w-full px-4 py-2.5 rounded-xl border border-border bg-background outline-none"
-                  >
-                    <option value="intern">Intern</option>
-                    <option value="fresher">Fresher</option>
-                    <option value="junior">Junior</option>
-                    <option value="senior">Senior</option>
-                    <option value="store_manager">Store Manager</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm mb-1">Station</label>
-                  <select
-                    defaultValue={editAccount?.station || "crs"}
-                    className="w-full px-4 py-2.5 rounded-xl border border-border bg-background outline-none"
-                  >
-                    <option value="kitchen">Bếp</option>
-                    <option value="crs">CRS</option>
-                    <option value="delivery">Delivery</option>
-                    <option value="management">Quản lý</option>
-                  </select>
-                </div>
-              </div>
+              {(formData.role === "staff" || formData.role === "store_manager" || formData.role === "admin") && (
+                <>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm mb-1">Loại nhân viên</label>
+                      <select
+                        name="salary_type"
+                        value={formData.salary_type}
+                        onChange={handleChange}
+                        className="w-full px-4 py-2.5 rounded-xl border border-border bg-background outline-none"
+                      >
+                        <option value="monthly">Fulltime</option>
+                        <option value="hourly">Partime</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm mb-1">Mức lương</label>
+                      <input
+                        name="salary"
+                        value={formData.salary}
+                        onChange={handleChange}
+                        type="number"
+                        placeholder="Mức lương"
+                        className="w-full px-4 py-2.5 rounded-xl border border-border bg-background focus:border-primary outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm mb-1">Station</label>
+                      <select
+                        name="station"
+                        value={formData.station}
+                        onChange={handleChange}
+                        defaultValue={editAccount?.ref_id.station || "cashier"}
+                        className="w-full px-4 py-2.5 rounded-xl border border-border bg-background outline-none"
+                      >
+                        <option value="kitchen">Bếp</option>
+                        <option value="cashier">Cashier</option>
+                        <option value="delivery">Delivery</option>
+                        <option value="barista">Barista</option>
+                        <option value="manager">Quản lý</option>
+                        <option value="store_manager">Cừa hàng trưởng</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm mb-1">Cửa hàng làm việc</label>
+                    <select
+                      name="store_id"
+                      value={formData.store_id}
+                      onChange={handleChange}
+                      className="w-full px-4 py-2.5 rounded-xl border border-border bg-background outline-none"
+                    >
+                      <option value="">Chọn cửa hàng làm việc</option>
+                      {listStore?.map(store => (
+                        <>
+                          <option value={store._id}>{store.name}</option>
+                        </>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm mb-1">Tên đăng nhập *</label>
+                    <input
+                      name="username"
+                      value={formData.username}
+                      onChange={handleChange}
+                      type="text"
+                      placeholder="Tài khoản"
+                      className="w-full px-4 py-2.5 rounded-xl border border-border bg-background focus:border-primary outline-none"
+                    />
+                  </div>
+                </>
+              )}
+
               {!editAccount && (
                 <div>
                   <label className="block text-sm mb-1">Mật khẩu *</label>
                   <input
+                    name="password"
+                    value={formData.password}
+                    onChange={handleChange}
                     type="password"
                     placeholder="Nhập mật khẩu"
                     className="w-full px-4 py-2.5 rounded-xl border border-border bg-background focus:border-primary outline-none"
@@ -537,7 +521,7 @@ export default function Accounts() {
                   Hủy
                 </button>
                 <button
-                  onClick={() => setShowModal(false)}
+                  onClick={() => handleSubmit()}
                   className="flex-1 py-2.5 rounded-xl bg-primary text-white hover:bg-primary/90 transition-colors"
                 >
                   {editAccount ? "Cập nhật" : "Tạo mới"}

@@ -106,9 +106,9 @@ export function Sidebar() {
         ))}
       </nav>
 
-      {/* <div className="px-3 pb-2">
+      <div className="px-3 pb-2">
         <Link
-          href="/pos"
+          href="/is/pos"
           onClick={() => setMobileOpen(false)}
           className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 bg-primary/10 text-primary hover:bg-primary hover:text-white border border-primary/20 hover:border-primary ${collapsed ? "justify-center" : ""}`}
         >
@@ -117,7 +117,7 @@ export function Sidebar() {
           </span>
           {!collapsed && <span className="text-sm truncate">POS Bán hàng</span>}
         </Link>
-      </div> */}
+      </div>
 
       <div className="border-t border-sidebar-border p-4">
         <div className={`flex items-center ${collapsed ? "justify-center" : "gap-3"}`}>
@@ -156,12 +156,14 @@ export function Sidebar() {
 
   return (
     <>
-      <button
-        onClick={() => setMobileOpen(true)}
-        className="lg:hidden fixed top-4 left-4 z-50 bg-sidebar text-white p-2 rounded-lg shadow-lg"
-      >
-        <Menu size={20} />
-      </button>
+      {!mobileOpen && (
+        <button
+          onClick={() => setMobileOpen(true)}
+          className="lg:hidden fixed top-4 left-4 z-50 bg-sidebar text-white p-2 rounded-lg shadow-lg"
+        >
+          <Menu size={20} />
+        </button>
+      )}
       {mobileOpen && (
         <div className="lg:hidden fixed inset-0 z-40 bg-black/50" onClick={() => setMobileOpen(false)}>
           <div className="w-64 h-full bg-sidebar" onClick={e => e.stopPropagation()}>

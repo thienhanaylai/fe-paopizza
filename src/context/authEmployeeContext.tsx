@@ -9,7 +9,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:4
 
 export type EmployeeRole = null | "admin" | "manager" | "staff";
 export type EmployeeLevel = "intern" | "fresher" | "junior" | "senior" | "store_manager";
-export type EmployeeStation = "kitchen" | "crs" | "delivery" | "management";
+export type EmployeeStation = "store_manager" | "manager" | "cashier" | "kitchen" | "delivery" | "barista";
 
 //auth mode dùng để xác định đăng nhập chế độ nào
 type AuthMode = null | "admin" | "manager" | "staff";
@@ -275,9 +275,11 @@ export function getLevelColor(level: EmployeeLevel): string {
 export function getStationLabel(station: EmployeeStation): string {
   const labels: Record<EmployeeStation, string> = {
     kitchen: "Bếp",
-    crs: "CRS",
+    cashier: "Cashier",
     delivery: "Delivery",
-    management: "Quản lý",
+    manager: "Quản lý",
+    barista: "Barista",
+    store_manager: "Cừa hàng trưởng",
   };
   return labels[station];
 }
@@ -285,9 +287,11 @@ export function getStationLabel(station: EmployeeStation): string {
 export function getStationColor(station: EmployeeStation): string {
   const colors: Record<EmployeeStation, string> = {
     kitchen: "bg-orange-100 text-orange-700",
-    crs: "bg-cyan-100 text-cyan-700",
+    cashier: "bg-cyan-100 text-cyan-700",
     delivery: "bg-green-100 text-green-700",
-    management: "bg-indigo-100 text-indigo-700",
+    manager: "bg-indigo-100 text-indigo-700",
+    barista: "bg-teal-100 text-teal-700",
+    store_manager: "bg-red-100 text-red-700",
   };
   return colors[station];
 }

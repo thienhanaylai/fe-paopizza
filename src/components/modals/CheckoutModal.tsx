@@ -1,19 +1,59 @@
 "use client";
 
 import { ArrowLeft, Banknote, CheckCircle2, CreditCard, LoaderCircle, QrCode, ShoppingBag, Truck, Wallet, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useCart } from "@/src/context/cartContext";
 import { getAllStore, StoreData1 } from "@/src/services/store.service";
 import { Order, createOrder } from "@/src/services/order.service";
 import { useCustomerAuth } from "@/src/context/authCustomerContext";
 import { toast } from "sonner";
 import { clearCartApi } from "@/src/services/cart.service";
-type CheckoutStep = "info" | "payment" | "success";
-type OrderMethod = "carry_out" | "delivery" | "dining";
-type PaymentMethod = "cash" | "bank_transfer" | "card" | "momo";
+import Image from "next/image";
+import { checkPaymentStatus } from "@/src/services/payment.service";
+
+type CheckoutStep = "info" | "payment" | "success" | "failed";
+type OrderMethod = "carry_out" | "delivery" | "dine_in";
+type PaymentMethod = "cash" | "qrCode" | "card" | "momo";
 
 function formatVND(n: number) {
   return new Intl.NumberFormat("vi-VN").format(n) + "đ";
+}
+
+export function CountdownTimer({ expiresAt, onExpire }) {
+  const [timeLeft, setTimeLeft] = useState(null);
+
+  useEffect(() => {
+    const target = new Date(expiresAt).getTime();
+
+    const interval = setInterval(() => {
+      const now = new Date().getTime();
+      const distance = target - now;
+
+      if (distance <= 0) {
+        clearInterval(interval);
+        setTimeLeft(0);
+        onExpire();
+      } else {
+        setTimeLeft(distance);
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [expiresAt]);
+
+  if (timeLeft === null) return null;
+
+  const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+  const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
+
+  return (
+    <div>
+      <p>Thời gian thanh toán còn lại: </p>
+      <p className="text-red-500 text-center">
+        {minutes}:{seconds < 10 ? `0${seconds}` : seconds}
+      </p>
+    </div>
+  );
 }
 
 export const CheckoutModal = () => {
@@ -25,12 +65,41 @@ export const CheckoutModal = () => {
   const [idOrder, setIdOrder] = useState("");
   const [orderMethod, setOrderMethod] = useState<OrderMethod>("carry_out");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
+
+  const [isPayment, setIsPayment] = useState(false);
   const [custName, setCustName] = useState("");
   const [custPhone, setCustPhone] = useState("");
   const [storeId, setStoreId] = useState("");
   const [custAddress, setCustAddress] = useState("");
   const [custNote, setCustNote] = useState("");
+  const [imgQr, setImgQr] = useState("");
 
+  const [testtime, setTestime] = useState<Date>();
+
+  const pollingRef = useRef(null);
+
+  const stopPolling = () => {
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current);
+      pollingRef.current = null;
+    }
+  };
+  const startPolling = (orderId: string) => {
+    stopPolling();
+
+    pollingRef.current = setInterval(async () => {
+      try {
+        const res = await checkPaymentStatus(orderId);
+
+        if (res.data.paymentStatus === "success") {
+          stopPolling();
+          setCheckoutStep("success");
+        }
+      } catch (err) {
+        console.error("Lỗi khi check status:", err);
+      }
+    }, 3000);
+  };
   useEffect(() => {
     const fecthData = async () => {
       try {
@@ -44,6 +113,7 @@ export const CheckoutModal = () => {
       }
     };
     fecthData();
+    stopPolling();
   }, []);
 
   const clearData = async () => {
@@ -89,10 +159,35 @@ export const CheckoutModal = () => {
       toast.warning("Vui lòng nhập địa chỉ giao hàng!");
       return;
     }
-    const res = await createOrder(order, "customer");
-    if (res) {
+    const result = await createOrder(order, "customer");
+    const res = result.data;
+    const payment = result.payment;
+
+    if (res.paymentMethod != "cash" && res.paymentStatus != "success") {
+      setIsPayment(true);
+      setTestime(new Date(Date.now() + 5 * 60 * 1000));
+      startPolling(payment.orderId);
+      setImgQr(payment.qrUrl);
+      setIdOrder(res._id);
+    }
+    if (res.paymentMethod === "cash") {
       setCheckoutStep("success");
       setIdOrder(res._id);
+      clearData();
+    }
+  };
+
+  const handleCheckConfirm = async () => {
+    try {
+      const res = await checkPaymentStatus(idOrder);
+
+      if (res.data.paymentStatus === "success") {
+        stopPolling();
+        setCheckoutStep("success");
+        clearData();
+      }
+    } catch (err) {
+      console.error("Lỗi khi check status:", err);
     }
   };
 
@@ -101,7 +196,7 @@ export const CheckoutModal = () => {
 
   const paymentOptions: { key: PaymentMethod; label: string; icon: React.ReactNode; desc: string }[] = [
     { key: "cash", label: "Tiền mặt", icon: <Banknote size={20} />, desc: "Thanh toán khi nhận hàng" },
-    { key: "bank_transfer", label: "Chuyển khoản", icon: <QrCode size={20} />, desc: "Quét mã QR ngân hàng" },
+    { key: "qrCode", label: "Chuyển khoản", icon: <QrCode size={20} />, desc: "Quét mã QR ngân hàng" },
   ];
   if (!listStore || listStore.length === 0) {
     return (
@@ -122,7 +217,7 @@ export const CheckoutModal = () => {
         className="bg-card rounded-2xl w-full max-w-xl shadow-2xl max-h-[92vh] overflow-y-auto scrollbar-hide animate-fade-up animate-duration-300"
         onClick={e => e.stopPropagation()}
       >
-        {checkoutStep === "success" ? (
+        {checkoutStep === "success" && (
           /* Success */
           <div className="p-8 text-center">
             <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
@@ -161,11 +256,22 @@ export const CheckoutModal = () => {
               Quay lại trang chủ
             </button>
           </div>
-        ) : (
+        )}{" "}
+        {checkoutStep != "success" && checkoutStep != "failed" && (
           <>
             <div className="flex items-center gap-3 p-5 border-b border-border">
-              {checkoutStep === "payment" && (
+              {checkoutStep === "payment" && isPayment === false ? (
                 <button onClick={() => setCheckoutStep("info")} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground">
+                  <ArrowLeft size={18} />
+                </button>
+              ) : (
+                <button
+                  onClick={() => {
+                    setCheckoutStep("payment");
+                    setIsPayment(false);
+                  }}
+                  className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground"
+                >
                   <ArrowLeft size={18} />
                 </button>
               )}
@@ -186,7 +292,7 @@ export const CheckoutModal = () => {
             </div>
 
             <div className="p-5 space-y-5">
-              {checkoutStep === "info" ? (
+              {checkoutStep === "info" && (
                 <>
                   <div>
                     <label className="block text-sm mb-2">Hình thức nhận hàng</label>
@@ -319,8 +425,8 @@ export const CheckoutModal = () => {
                     Tiếp tục thanh toán
                   </button>
                 </>
-              ) : (
-                /* Payment step */
+              )}
+              {checkoutStep === "payment" && isPayment === false ? (
                 <>
                   <div>
                     <label className="block text-sm mb-3">Chọn phương thức thanh toán</label>
@@ -354,16 +460,6 @@ export const CheckoutModal = () => {
                     </div>
                   </div>
 
-                  {paymentMethod === "bank_transfer" && (
-                    <div className="bg-blue-50 rounded-xl p-4 text-center">
-                      <div className="w-32 h-32 bg-white rounded-xl mx-auto mb-3 flex items-center justify-center border border-border">
-                        <QrCode size={80} className="text-gray-700" />
-                      </div>
-                      <p className="text-sm text-blue-700">Quét mã QR để chuyển khoản</p>
-                      <p className="text-xs text-blue-500 mt-1">STK: 1234567890 - Ngân hàng VCB</p>
-                    </div>
-                  )}
-
                   <div className="bg-muted/50 rounded-xl p-4 space-y-2">
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Tạm tính:</span>
@@ -387,7 +483,61 @@ export const CheckoutModal = () => {
                     }}
                     className="w-full bg-primary text-white py-3 rounded-xl hover:bg-primary/90 transition-colors shadow-lg shadow-primary/25"
                   >
-                    Xác nhận đặt hàng
+                    {paymentMethod != "cash" ? "Thanh toán" : "Xác nhận đặt hàng"}
+                  </button>
+                </>
+              ) : (
+                <></>
+              )}
+              {checkoutStep === "payment" && isPayment === true && imgQr && (
+                <>
+                  <div>
+                    <label className="block text-sm mb-3">Quét mã qr bên dưới để thanh toán</label>
+                    <div className="space-y-3 flex flex-col items-center">
+                      <Image src={imgQr || ""} fill alt="qr" className="relative! w-[50%]!" />
+                      <p>Mã đơn hàng: {idOrder}</p>
+                      <CountdownTimer
+                        expiresAt={testtime}
+                        onExpire={() => {
+                          stopPolling();
+                          setIdOrder("");
+                          setCustName("");
+                          setCustPhone("");
+                          setStoreId("");
+                          setCustAddress("");
+                          setCustNote("");
+                          setOrderMethod("carry_out");
+                          setPaymentMethod("cash");
+                          fetchCart(user?.id);
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="bg-muted/50 rounded-xl p-4 space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Tạm tính:</span>
+                      <span className="text-foreground">{formatVND(cartTotal)}</span>
+                    </div>
+                    {deliveryFee > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Phí giao hàng:</span>
+                        <span className="text-foreground">{formatVND(deliveryFee)}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between pt-2 border-t border-border">
+                      <span className="text-foreground">Tổng thanh toán:</span>
+                      <span className="text-primary text-lg">{formatVND(grandTotal)}</span>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      handleCheckConfirm();
+                    }}
+                    className="w-full bg-primary text-white py-3 rounded-xl hover:bg-primary/90 transition-colors shadow-lg shadow-primary/25"
+                  >
+                    Đã thanh toán
                   </button>
                 </>
               )}

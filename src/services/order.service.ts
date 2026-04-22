@@ -1,9 +1,9 @@
 import { http } from "../utils/config.api";
-import { store_status } from "./store.service";
 
 export type OrderMethod = "carry_out" | "delivery" | "dine_in";
-export type PaymentMethod = "cash" | "bank_transfer" | "card" | "momo";
+export type PaymentMethod = "cash" | "qrCode" | "card" | "momo";
 export type OrderStatus = "pending" | "confirmed" | "preparing" | "completed" | "cancelled" | "delivering";
+export type paymentStatus = "pending" | "success" | "failed";
 export interface CartItem {
   product_id: string;
   size: string;
@@ -20,6 +20,7 @@ export interface CartItemHistory extends CartItem {
 export interface Order {
   order_type: OrderMethod;
   paymentMethod: PaymentMethod;
+  paymentStatus: paymentStatus;
   contact_info: {
     full_name: string;
     phone: string;
@@ -77,7 +78,7 @@ export const createOrder = async (payload: Order, typeUser: string) => {
       typeUser,
     );
 
-    return response.data;
+    return response;
   } catch (error) {
     console.error("Lỗi fetch :", error);
     throw error;

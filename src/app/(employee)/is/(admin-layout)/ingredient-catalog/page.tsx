@@ -55,6 +55,7 @@ export default function IngredientCatalog() {
   const [fromName, setFromName] = useState("");
   const [fromUnit, setFromUnit] = useState("");
   const [fromCategory, setFromCategory] = useState("");
+  const [fromIsActive, setFromIsActive] = useState("");
   useEffect(() => {
     const fectData = async () => {
       try {
@@ -68,7 +69,7 @@ export default function IngredientCatalog() {
           },
           ...data1,
         ];
-        console.log(data);
+
         setCategories(finalCategories);
         setIngredients(data);
         SetUnits(data3);
@@ -93,9 +94,15 @@ export default function IngredientCatalog() {
           name: fromName,
           unit: fromUnit,
           category: fromCategory,
+          is_active: fromIsActive === "true",
         });
         toast.success("Cập nhật thành công !");
       } else {
+        if (fromName === "") {
+          toast.warning("Vui lòng nhập đầy đủ thông tin!");
+          return;
+        }
+        console.log({ name: fromName, unit: fromUnit, category: fromCategory });
         await addIngredient({ name: fromName, unit: fromUnit, category: fromCategory });
         toast.success("Thêm thành công !");
       }
@@ -132,6 +139,8 @@ export default function IngredientCatalog() {
           onClick={() => {
             setEditItem(null);
             setShowForm(true);
+            setFromCategory(categories[1]?.slug);
+            setFromUnit(units[0]?.slug);
           }}
           className="flex items-center gap-2 bg-primary text-white px-4 py-2.5 rounded-xl hover:bg-primary/90 transition-colors shadow-lg shadow-primary/25"
         >
@@ -359,6 +368,7 @@ export default function IngredientCatalog() {
                 <label className="block text-sm text-foreground mb-1.5">Trạng thái</label>
                 <select
                   defaultValue={editItem?.is_active.toString() || "true"}
+                  onChange={e => setFromIsActive(e.target.value)}
                   className="w-full px-4 py-2.5 rounded-xl border border-border bg-background outline-none text-sm"
                 >
                   <option value="true">Hoạt động</option>

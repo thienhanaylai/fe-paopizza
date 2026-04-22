@@ -14,10 +14,12 @@ import {
   Bike,
   Building2,
   CircleCheckBig,
+  RefreshCcw,
 } from "lucide-react";
 import { getAllOrder, OrderHistory, OrderMethod, OrderStatus, updateStatusOrder } from "@/src/services/order.service";
 import { toast, Toaster } from "sonner";
 import { useEmployeeAuth } from "@/src/context/authEmployeeContext";
+import { Skeleton } from "@/src/components/ui/skeleton";
 
 const statusConfig: Record<OrderStatus, { label: string; color: string; icon: React.ReactNode }> = {
   pending: { label: "Chờ xử lý", color: "bg-yellow-100 text-yellow-700", icon: <Clock size={14} /> },
@@ -90,16 +92,19 @@ export default function Orders() {
     completed: 5,
     cancelled: 6,
   };
+  const fecthData = async () => {
+    setIsLoading(true);
+    const info = await getInfo();
+    if (info.ref_id.store_id != "") {
+      const res = await getAllOrder(`store_id=${info.ref_id.store_id}`, "");
+      console.log(res);
+      setAllOrders(res);
+    }
+    setIsLoading(false);
+  };
   useEffect(() => {
-    const fecthData = async () => {
-      const info = await getInfo();
-      if (info.ref_id.store_id != "") {
-        const res = await getAllOrder(`store_id=${info.ref_id.store_id}`, "");
-        setAllOrders(res);
-      }
-    };
     fecthData();
-  }, [isLoading]);
+  }, []);
   const handleSort = (field: string) => {
     if (sortBy === field) {
       setSortOrder(sortOrder === "asc" ? "desc" : "asc");
@@ -160,11 +165,10 @@ export default function Orders() {
       if (currentIndex !== -1 && currentIndex < flow.length - 1) {
         const nextStatus = flow[currentIndex + 1];
         await updateStatusOrder(nextStatus, selectedOrder._id, "");
-        console.log(flow[currentIndex]);
-        console.log(flow[currentIndex + 1]);
         toast.success("Cập nhật trạng thái thành công!");
         setIsLoading(false);
         setSelectedOrder(null);
+        fecthData();
       } else {
         toast.error("Cập nhật trạng thái thất bại!");
         setIsLoading(false);
@@ -176,9 +180,19 @@ export default function Orders() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-foreground">Quản lý đơn hàng</h1>
-        <p className="text-muted-foreground mt-1">Theo dõi và xử lý đơn hàng</p>
+      <div className="flex sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-foreground">Quản lý đơn hàng</h1>
+          <p className="text-muted-foreground mt-1">Theo dõi và xử lý đơn hàng</p>
+        </div>
+        <button
+          onClick={() => {
+            fecthData();
+          }}
+          className="flex items-center gap-2 bg-primary text-white px-4 py-2.5 rounded-xl hover:bg-primary/90 transition-colors shadow-lg shadow-primary/25"
+        >
+          <RefreshCcw size={18} /> Làm mới
+        </button>
       </div>
 
       {/* Status tabs */}
@@ -283,83 +297,89 @@ export default function Orders() {
       </div>
 
       {/* Orders table */}
+
       <div className="bg-card rounded-2xl border border-border overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-muted/50 text-muted-foreground text-left">
-                <th className="px-4 py-3">Mã đơn</th>
-                <th className="px-4 py-3">Khách hàng</th>
-                <th className="px-4 py-3">Loại</th>
-                <th className="px-4 py-3 hidden lg:table-cell">Phương thức giao</th>
-                <th className="px-4 py-3">Tổng tiền</th>
-                <th
-                  className="px-4 py-3 cursor-pointer hover:bg-muted/70 transition-colors select-none"
-                  onClick={() => handleSort("status")}
-                >
-                  Trạng thái {sortBy === "status" && (sortOrder === "asc" ? "↑" : "↓")}
-                </th>
+          {isLoading ? (
+            <Skeleton className="h-100 w-full" />
+          ) : (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-muted/50 text-muted-foreground text-left">
+                  <th className="px-4 py-3">Mã đơn</th>
+                  <th className="px-4 py-3">Khách hàng</th>
+                  <th className="px-4 py-3 ">Phương thức</th>
+                  <th className="px-4 py-3 ">Trạng thái thanh toán</th>
+                  <th className="px-4 py-3">Tổng tiền</th>
+                  <th
+                    className="px-4 py-3 cursor-pointer hover:bg-muted/70 transition-colors select-none"
+                    onClick={() => handleSort("status")}
+                  >
+                    Trạng thái {sortBy === "status" && (sortOrder === "asc" ? "↑" : "↓")}
+                  </th>
 
-                <th
-                  className="px-4 py-3 hidden lg:table-cell cursor-pointer hover:bg-muted/70 transition-colors select-none"
-                  onClick={() => handleSort("createdAt")}
-                >
-                  Giờ đặt {sortBy === "createdAt" && (sortOrder === "asc" ? "↑" : "↓")}
-                </th>
-                <th className="px-4 py-3 text-right">Chi tiết</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered?.map(order => {
-                const st = statusConfig[order.status];
-                const tc = typeConfig[order.order_type];
-                return (
-                  <tr key={order._id} className="border-t border-border/50 hover:bg-muted/30">
-                    <td className="px-4 py-3 text-primary">..{order._id.slice(-8)}</td>
-                    <td className="px-4 py-3">
-                      <p className="text-foreground">
-                        {order.contact_info.full_name} - {order.contact_info.phone}
-                      </p>
-                      <p className="text-xs text-muted-foreground">{order.contact_info.address}</p>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs ${tc.color}`}>
-                        {tc.icon} {tc.label}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 hidden lg:table-cell">
-                      {order.order_type === "delivery" ? (
-                        <div className="flex items-center gap-1.5">
-                          <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs bg-blue-50 text-blue-600">
-                            {/* <Bike size={12} /> NV: {order.deliveryStaff} */}
-                          </span>
-                        </div>
-                      ) : order.order_type === "dine_in" ? (
-                        <span className="text-xs text-muted-foreground">Bàn </span>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">—</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-foreground">{formatVND(order.total)}</td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs ${st.color}`}>
-                        {st.icon} {st.label}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground hidden lg:table-cell">{formatDateTime(order.createdAt)}</td>
-                    <td className="px-4 py-3 text-right">
-                      <button
-                        onClick={() => setSelectedOrder(order)}
-                        className="p-2 rounded-lg hover:bg-primary/10 text-primary transition-colors"
-                      >
-                        <Eye size={16} />
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                  <th
+                    className="px-4 py-3 hidden lg:table-cell cursor-pointer hover:bg-muted/70 transition-colors select-none"
+                    onClick={() => handleSort("createdAt")}
+                  >
+                    Giờ đặt {sortBy === "createdAt" && (sortOrder === "asc" ? "↑" : "↓")}
+                  </th>
+                  <th className="px-4 py-3 text-right">Chi tiết</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered?.map(order => {
+                  const st = statusConfig[order.status];
+                  const tc = typeConfig[order.order_type];
+                  return (
+                    <tr key={order._id} className="border-t border-border/50 hover:bg-muted/30">
+                      <td className="px-4 py-3 text-primary">..{order._id.slice(-8)}</td>
+                      <td className="px-4 py-3">
+                        <p className="text-foreground">
+                          {order.contact_info.full_name} - {order.contact_info.phone}
+                        </p>
+                        <p className="text-xs text-muted-foreground">{order.contact_info.address}</p>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs ${tc.color}`}>
+                          {tc.icon} {tc.label}
+                          {order.order_type === "delivery" ? (
+                            <>{/* <Bike size={12} /> NV: {order.deliveryStaff} */}</>
+                          ) : order.order_type === "dine_in" ? (
+                            ` Bàn `
+                          ) : (
+                            ` - `
+                          )}
+                        </span>
+                      </td>
+                      <td className={`px-4 py-3 text-foreground `}>
+                        <p
+                          className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs ${order.paymentStatus === "pending" ? "bg-yellow-100 text-yellow-700" : "bg-green-100 text-green-700"}`}
+                        >
+                          {order.paymentMethod} - {order.paymentStatus === "pending" ? "Chờ thanh toán" : "Đã thanh toán"}
+                        </p>
+                      </td>
+                      <td className="px-4 py-3 text-foreground">{formatVND(order.total)}</td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs ${st.color}`}>
+                          {st.icon} {st.label}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground hidden lg:table-cell">{formatDateTime(order.createdAt)}</td>
+                      <td className="px-4 py-3 text-right">
+                        <button
+                          onClick={() => setSelectedOrder(order)}
+                          className="p-2 rounded-lg hover:bg-primary/10 text-primary transition-colors"
+                        >
+                          <Eye size={16} />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
 

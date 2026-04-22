@@ -210,6 +210,8 @@ import { Textarea } from "@/src/components/ui/textarea";
 import { ToggleGroup, ToggleGroupItem } from "@/src/components/ui/toggle-group";
 import { Toggle } from "@/src/components/ui/toggle";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/src/components/ui/tooltip";
+import { useIsMobile } from "@/src/components/ui/use-mobile";
+import { cn } from "@/src/components/ui/utils";
 import { toast } from "sonner";
 
 type DemoFormValues = {
@@ -232,6 +234,7 @@ const chartConfig = {
 } satisfies ChartConfig;
 
 export default function TestAllComponentsPage() {
+  const isMobile = useIsMobile();
   const [date, setDate] = React.useState<Date | undefined>(new Date());
   const [switchValue, setSwitchValue] = React.useState(true);
   const [checkboxValue, setCheckboxValue] = React.useState(false);
@@ -255,6 +258,15 @@ export default function TestAllComponentsPage() {
   const onSubmit = (values: DemoFormValues) => {
     toast.success(`Form submitted: ${values.fullName || "(empty)"}`);
   };
+
+  const utilityClassPreview = React.useMemo(
+    () =>
+      cn(
+        "rounded-md border px-3 py-2 text-sm transition-colors",
+        isMobile ? "border-blue-200 bg-blue-50 text-blue-700" : "border-emerald-200 bg-emerald-50 text-emerald-700",
+      ),
+    [isMobile],
+  );
 
   return (
     <div className="bg-background text-foreground px-4 py-8 md:px-8">
@@ -369,7 +381,7 @@ export default function TestAllComponentsPage() {
 
                 <div className="space-y-2">
                   <Skeleton className="h-5 w-48" />
-                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-100 w-full" />
                   <Skeleton className="h-4 w-3/4" />
                 </div>
               </CardContent>
@@ -857,6 +869,22 @@ export default function TestAllComponentsPage() {
                     <ToggleGroupItem value="pizza">Pizza</ToggleGroupItem>
                     <ToggleGroupItem value="drink">Drink</ToggleGroupItem>
                   </ToggleGroup>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>UI Utilities (useIsMobile + cn)</CardTitle>
+                <CardDescription>Kiểm tra tiện ích trong thư mục ui không phải component trực quan.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Badge variant={isMobile ? "secondary" : "default"}>{isMobile ? "Mobile" : "Desktop"}</Badge>
+                  <span className="text-sm text-muted-foreground">useIsMobile(): {String(isMobile)}</span>
+                </div>
+                <div className={utilityClassPreview}>
+                  Kết quả ghép class bằng cn(): nền và màu chữ đổi theo kích thước màn hình.
                 </div>
               </CardContent>
             </Card>
