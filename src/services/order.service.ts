@@ -102,3 +102,35 @@ export const updateStatusOrder = async (status: OrderStatus, orderID: string, ty
     throw error;
   }
 };
+
+export const cancelOrder = async (order_id: string, typeUser: string) => {
+  try {
+    const response = await http(
+      `/api/v1/orders/cancel/${order_id}`,
+      {
+        method: "PATCH",
+      },
+      typeUser,
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Lỗi fetch :", error);
+    throw error;
+  }
+};
+
+export const updatePaymentStatusOrder = async (order_id: string, typeUser: string) => {
+  try {
+    const response = await http(
+      `/api/v1/orders/updatePaymentStatus/${order_id}`,
+      {
+        method: "PATCH",
+      },
+      typeUser,
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Lỗi fetch :", error);
+    throw error;
+  }
+};

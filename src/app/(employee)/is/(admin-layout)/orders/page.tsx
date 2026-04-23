@@ -16,7 +16,16 @@ import {
   CircleCheckBig,
   RefreshCcw,
 } from "lucide-react";
-import { getAllOrder, OrderHistory, OrderMethod, OrderStatus, updateStatusOrder } from "@/src/services/order.service";
+import {
+  cancelOrder,
+  getAllOrder,
+  OrderHistory,
+  OrderMethod,
+  OrderStatus,
+  PaymentMethod,
+  updatePaymentStatusOrder,
+  updateStatusOrder,
+} from "@/src/services/order.service";
 import { toast, Toaster } from "sonner";
 import { useEmployeeAuth } from "@/src/context/authEmployeeContext";
 import { Skeleton } from "@/src/components/ui/skeleton";
@@ -40,6 +49,13 @@ const flowConfig: Record<OrderMethod, OrderStatus[]> = {
   dine_in: ["pending", "confirmed", "preparing", "completed"],
   carry_out: ["pending", "confirmed", "preparing", "completed"],
   delivery: ["pending", "confirmed", "preparing", "delivering", "completed"],
+};
+
+const paymentMethodMap: Record<PaymentMethod, string> = {
+  cash: "Tiền mặt",
+  qrCode: "Chuyển khoản",
+  momo: "Momo",
+  card: "Thẻ",
 };
 
 const actionTextMapDelivery = {
@@ -84,6 +100,10 @@ export default function Orders() {
   const [sortBy, setSortBy] = useState("status");
   const [sortOrder, setSortOrder] = useState("asc");
 
+  const [modalConfirm, setModalConfirm] = useState(false);
+  const [idConfirm, setIdConfirm] = useState("");
+
+  const [modalPayment, setModalPayment] = useState(false);
   const statusWeight = {
     pending: 1,
     confirmed: 2,
@@ -150,6 +170,42 @@ export default function Orders() {
     dine_in: allOrders?.filter(o => o.order_type === "dine_in").length,
     carry_out: allOrders?.filter(o => o.order_type === "carry_out").length,
     delivery: allOrders?.filter(o => o.order_type === "delivery").length,
+  };
+
+  const handleCancelOrder = async () => {
+    setIsLoading(true);
+    try {
+      if (!selectedOrder || !selectedOrder.order_type) {
+        console.error("Không tìm thấy đơn hàng hoặc loại đơn hàng!");
+        return;
+      }
+      await cancelOrder(selectedOrder._id, "");
+      toast.success(`Huỷ đơn hàng thành công`);
+      setSelectedOrder(null);
+      setModalConfirm(false);
+      fecthData();
+      setIsLoading(false);
+    } catch (error) {
+      toast.error(`Cập nhật trạng thái thất bại: ${error}`);
+    }
+  };
+
+  const handleUpdatePaymentStatusOrder = async () => {
+    setIsLoading(true);
+    try {
+      if (!selectedOrder || !selectedOrder.order_type) {
+        console.error("Không tìm thấy đơn hàng hoặc loại đơn hàng!");
+        return;
+      }
+      await updatePaymentStatusOrder(selectedOrder._id, "");
+      toast.success(`Thanh toán đơn hàng thành công`);
+      setSelectedOrder(null);
+      setModalPayment(false);
+      fecthData();
+      setIsLoading(false);
+    } catch (error) {
+      toast.error(`Cập nhật trạng thái thất bại: ${error}`);
+    }
   };
 
   const handleUpdateOrder = async () => {
@@ -240,7 +296,7 @@ export default function Orders() {
               onClick={() => {
                 setTypeFilter(typeFilter === t ? "all" : t);
               }}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm transition-all ${typeFilter === t ? "bg-primary text-white shadow-sm" : "bg-card border border-border text-muted-foreground hover:border-primary/30"}`}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm transition-all  cursor-pointer ${typeFilter === t ? "bg-primary text-white shadow-sm" : "bg-card border border-border text-muted-foreground hover:border-primary/30"}`}
             >
               {cfg.icon} {cfg.label} ({typeCounts[t]})
             </button>
@@ -260,7 +316,7 @@ export default function Orders() {
             <button
               key={t}
               onClick={() => setStatusFilter(statusFilter === t ? "all" : t)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm transition-all ${statusFilter === t ? "bg-primary text-white shadow-sm" : "bg-card border border-border text-muted-foreground hover:border-primary/30"}`}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm transition-all cursor-pointer ${statusFilter === t ? "bg-primary text-white shadow-sm" : "bg-card border border-border text-muted-foreground hover:border-primary/30"}`}
             >
               {cfg.icon} {cfg.label} ({statusCounts[t]})
             </button>
@@ -343,20 +399,14 @@ export default function Orders() {
                       <td className="px-4 py-3">
                         <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs ${tc.color}`}>
                           {tc.icon} {tc.label}
-                          {order.order_type === "delivery" ? (
-                            <>{/* <Bike size={12} /> NV: {order.deliveryStaff} */}</>
-                          ) : order.order_type === "dine_in" ? (
-                            ` Bàn `
-                          ) : (
-                            ` - `
-                          )}
                         </span>
                       </td>
                       <td className={`px-4 py-3 text-foreground `}>
                         <p
                           className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs ${order.paymentStatus === "pending" ? "bg-yellow-100 text-yellow-700" : "bg-green-100 text-green-700"}`}
                         >
-                          {order.paymentMethod} - {order.paymentStatus === "pending" ? "Chờ thanh toán" : "Đã thanh toán"}
+                          {paymentMethodMap[order.paymentMethod]} -{" "}
+                          {order.paymentStatus === "pending" ? "Chờ thanh toán" : "Đã thanh toán"}
                         </p>
                       </td>
                       <td className="px-4 py-3 text-foreground">{formatVND(order.total)}</td>
@@ -467,11 +517,19 @@ export default function Orders() {
               {["pending", "confirmed", "preparing", "delivering"].includes(selectedOrder.status) && (
                 <div className="flex gap-3 pt-2">
                   <button
-                    onClick={() => setSelectedOrder(null)}
+                    onClick={() => setModalConfirm(true)}
                     className="flex-1 py-2.5 rounded-xl border border-red-200 text-red-600 hover:bg-red-50 transition-colors"
                   >
                     Hủy đơn
                   </button>
+                  {selectedOrder.paymentStatus != "success" && (
+                    <button
+                      onClick={() => setModalPayment(true)}
+                      className="flex-1 py-2.5 rounded-xl border border-green-200 text-green-600 hover:bg-green-50 transition-colors"
+                    >
+                      Thanh toán
+                    </button>
+                  )}
                   <button
                     onClick={() => handleUpdateOrder()}
                     className="flex-1 py-2.5 rounded-xl bg-primary text-white hover:bg-primary/90 transition-colors"
@@ -487,6 +545,80 @@ export default function Orders() {
             </div>
           </div>
         </div>
+      )}
+      {modalConfirm && (
+        <>
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 m-0"
+            onClick={() => setModalConfirm(false)}
+          >
+            <div
+              className="bg-card rounded-2xl p-6 w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex gap-1 m-1">
+                Nhập <p className="font-mono">`{selectedOrder?._id.slice(-8)}`</p> để xác nhận huỷ?
+              </div>
+              <input
+                className="w-full pl-4 pr-1 py-2.5 rounded-xl border border-border bg-card focus:border-primary focus:ring-1 focus:ring-primary/20 outline-none"
+                type="text"
+                onChange={e => setIdConfirm(e.target.value)}
+                placeholder={`Nhập '${selectedOrder?._id.slice(-8)}' để xác nhận`}
+              />
+              <div className="flex gap-3 pt-3">
+                <button
+                  onClick={() => setModalConfirm(false)}
+                  className="flex-1 py-2.5 rounded-xl border border-red-200 text-black hover:bg-red-50 transition-colors"
+                >
+                  Thoát
+                </button>
+                <button
+                  onClick={() => {
+                    if (idConfirm === selectedOrder?._id.slice(-8)) handleCancelOrder();
+                  }}
+                  disabled={idConfirm !== selectedOrder?._id.slice(-8)}
+                  className="flex-1 py-2.5 disabled:bg-gray-400 disabled:cursor-not-allowed disabled:opacity-70 rounded-xl bg-red-600 text-white hover:bg-red-700/90 transition-colors"
+                >
+                  Huỷ đơn hàng
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+      {modalPayment && (
+        <>
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 m-0"
+            onClick={() => setModalPayment(false)}
+          >
+            <div
+              className="bg-card rounded-2xl p-6 w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex gap-1 m-1">
+                Xác nhận thanh toán <p className="font-mono">`{formatVND(selectedOrder?.total || 0)}`</p> ?
+              </div>
+
+              <div className="flex gap-3 pt-3">
+                <button
+                  onClick={() => setModalConfirm(false)}
+                  className="flex-1 py-2.5 rounded-xl border border-red-200 text-black hover:bg-red-50 transition-colors"
+                >
+                  Thoát
+                </button>
+                <button
+                  onClick={() => {
+                    handleUpdatePaymentStatusOrder();
+                  }}
+                  className="flex-1 py-2.5  rounded-xl bg-green-600 text-white hover:bg-green-700/90 transition-colors"
+                >
+                  Xác nhận
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
       )}
       <Toaster
         toastOptions={{

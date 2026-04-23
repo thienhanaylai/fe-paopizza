@@ -758,7 +758,7 @@ export default function POS() {
         {/* Back to dashboard button */}
         <div className="px-3 pb-2">
           <Link
-            href="/dashboard"
+            href="/is/dashboard"
             className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 bg-sidebar-accent/50 text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-white ${posCollapsed ? "justify-center" : ""}`}
           >
             <span className="shrink-0">
