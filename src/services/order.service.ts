@@ -29,7 +29,10 @@ export interface Order {
   store_id: string;
   items: CartItem[] | [];
   note: string;
-  customer_id: string;
+  customer_id: string | null;
+}
+export interface PosOrder extends Order {
+  employee_id: string;
 }
 
 export interface OrderHistory extends Order {
@@ -78,6 +81,25 @@ export const createOrder = async (payload: Order, typeUser: string) => {
       typeUser,
     );
 
+    return response;
+  } catch (error) {
+    console.error("Lỗi fetch :", error);
+    throw error;
+  }
+};
+
+export const createPosOrder = async (payload: PosOrder, typeUser: string) => {
+  try {
+    const response = await http(
+      "/api/v1/orders",
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+      typeUser,
+    );
+    console.log(payload);
+    console.log(response);
     return response;
   } catch (error) {
     console.error("Lỗi fetch :", error);

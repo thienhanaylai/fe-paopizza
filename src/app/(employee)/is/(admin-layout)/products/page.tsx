@@ -123,7 +123,7 @@ export default function Products() {
     e.preventDefault();
     setIsLoading(true);
     let isValidate = true;
-    console.log(variantsFrom);
+
     const missingImage = variantsFrom.some(v => !v.imageFile);
     if (missingImage) {
       toast.warning("Vui lòng chọn đầy đủ ảnh cho từng size!");
@@ -262,7 +262,7 @@ export default function Products() {
             recipe: variant.recipe.filter((_, i) => i !== ingredientIndex),
           };
         }
-        // Các variant khác giữ nguyên
+
         return variant;
       }),
     );

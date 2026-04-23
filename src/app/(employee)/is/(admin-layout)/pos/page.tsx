@@ -1,5 +1,5 @@
 "use client";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, use, useRef } from "react";
 import {
   Search,
   Plus,
@@ -38,180 +38,73 @@ import {
 import { getRoleLabel, getRoleColor, useEmployeeAuth } from "@/src/context/authEmployeeContext";
 import Link from "next/link";
 import Image from "next/image";
+import { getAllCategories } from "@/src/services/category.service";
+import { getAllProducts } from "@/src/services/product.service";
+import { toast } from "sonner";
+import { createOrder, createPosOrder, PosOrder } from "@/src/services/order.service";
+import { checkPaymentStatus } from "@/src/services/payment.service";
 
 type MenuCategory = "all" | "pizza" | "pasta" | "dessert" | "drink";
 type OrderType = "dine_in" | "carry_out" | "delivery";
 type DeliveryMethod = "store_delivery" | "third_party";
-type PaymentMethod = "cash" | "bank_transfer" | "card" | "momo";
+type PaymentMethod = "cash" | "qrCode" | "card" | "momo";
 
-interface MenuItem {
-  id: number;
+type MenuCategoryUI = {
+  slug: string;
   name: string;
+  icon: string;
+};
+export type ProductCategory = {
+  _id: string;
+  name: string;
+  slug: string;
+};
+
+export type ProductImage = {
+  _id: string;
+  url: string;
+  public_id: string;
+};
+
+export type Ingredient = {
+  _id: string;
+  name: string;
+};
+
+export type RecipeIngredient = {
+  ingredient: Ingredient;
+  quantity: number;
+  unit: string;
+};
+
+export type ProductVariant = {
+  sku: string;
   price: number;
-  image: string;
-  category: MenuCategory;
-  bestseller: boolean;
-  discount: number;
+  size: string;
+  image: ProductImage;
+  recipe: RecipeIngredient[];
+};
+
+interface Product {
+  _id: string;
+  category: ProductCategory;
+  name: string;
+  description: string;
+  is_active: boolean;
+  variants: ProductVariant[];
+  isDeleted: boolean;
 }
 
 interface CartItem {
-  menuItem: MenuItem;
-  qty: number;
+  product_id: string;
+  name: string;
+  price: number;
+  size: string;
+  sku: string;
+  quantity: number;
   note: string;
+  image: string;
 }
-
-const categories: { key: MenuCategory; label: string; icon: React.ReactNode }[] = [
-  { key: "all", label: "Tất cả", icon: <UtensilsCrossed size={16} /> },
-  { key: "pizza", label: "Pizza", icon: <Pizza size={16} /> },
-  { key: "pasta", label: "Pasta", icon: <Soup size={16} /> },
-  { key: "dessert", label: "Tráng miệng", icon: <CakeSlice size={16} /> },
-  { key: "drink", label: "Đồ uống", icon: <Wine size={16} /> },
-];
-
-const menuItems: MenuItem[] = [
-  {
-    id: 1,
-    name: "Pizza Pepperoni",
-    price: 170000,
-    image:
-      "https://images.unsplash.com/photo-1708649360970-1739eb95204b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwZXBwZXJvbmklMjBwaXp6YSUyMGNsb3NldXB8ZW58MXx8fHwxNzczNjEyOTkwfDA&ixlib=rb-4.1.0&q=80&w=1080",
-    category: "pizza",
-    bestseller: true,
-    discount: 0,
-  },
-  {
-    id: 2,
-    name: "Pizza Hải Sản",
-    price: 195000,
-    image:
-      "https://images.unsplash.com/photo-1530632789071-8543f47edb34?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxpdGFsaWFuJTIwcGl6emElMjBmcmVzaCUyMGJhc2lsfGVufDF8fHx8MTc3MzcxMDI2MXww&ixlib=rb-4.1.0&q=80&w=1080",
-    category: "pizza",
-    bestseller: true,
-    discount: 10,
-  },
-  {
-    id: 3,
-    name: "Pizza BBQ Chicken",
-    price: 185000,
-    image:
-      "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxiYnElMjBjaGlja2VuJTIwcGl6emF8ZW58MXx8fHwxNzczNjIyOTkwfDA&ixlib=rb-4.1.0&q=80&w=1080",
-    category: "pizza",
-    bestseller: false,
-    discount: 0,
-  },
-  {
-    id: 4,
-    name: "Pizza Margherita",
-    price: 120000,
-    image:
-      "https://images.unsplash.com/photo-1772351103036-d107ffab0bbf?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxjaGVlc2UlMjBwaXp6YSUyMHNsaWNlJTIwbWVsdGVkfGVufDF8fHx8MTc3MzcxMDI2Mnww&ixlib=rb-4.1.0&q=80&w=1080",
-    category: "pizza",
-    bestseller: false,
-    discount: 0,
-  },
-  {
-    id: 5,
-    name: "Pizza Hawaiian",
-    price: 155000,
-    image:
-      "https://images.unsplash.com/photo-1671572579366-89bec1184f5e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxoYXdhaWlhbiUyMHBpenphJTIwcGluZWFwcGxlfGVufDF8fHx8MTc3MzY5MjgzNXww&ixlib=rb-4.1.0&q=80&w=1080",
-    category: "pizza",
-    bestseller: false,
-    discount: 15,
-  },
-  {
-    id: 6,
-    name: "Combo Family",
-    price: 450000,
-    image:
-      "https://images.unsplash.com/photo-1572195577046-2f25894c06fc?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwaXp6YSUyMGRlbGl2ZXJ5JTIwZm9vZCUyMG9yZGVyfGVufDF8fHx8MTc3MzcxMTA1N3ww&ixlib=rb-4.1.0&q=80&w=1080",
-    category: "pizza",
-    bestseller: true,
-    discount: 0,
-  },
-  {
-    id: 7,
-    name: "Spaghetti Bolognese",
-    price: 135000,
-    image:
-      "https://images.unsplash.com/photo-1632739148811-2b53d07be26f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxzcGFnaGV0dGklMjBib2xvZ25lc2UlMjBwbGF0ZXxlbnwxfHx8fDE3NzM2Mzg5OTZ8MA&ixlib=rb-4.1.0&q=80&w=1080",
-    category: "pasta",
-    bestseller: true,
-    discount: 0,
-  },
-  {
-    id: 8,
-    name: "Pasta Carbonara",
-    price: 145000,
-    image:
-      "https://images.unsplash.com/photo-1655662844229-d2c2a81f09ec?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwYXN0YSUyMGNhcmJvbmFyYSUyMGl0YWxpYW58ZW58MXx8fHwxNzczNjU1MjkxfDA&ixlib=rb-4.1.0&q=80&w=1080",
-    category: "pasta",
-    bestseller: false,
-    discount: 0,
-  },
-  {
-    id: 9,
-    name: "Penne Arrabbiata",
-    price: 125000,
-    image:
-      "https://images.unsplash.com/photo-1662478839788-7d2898ca66cf?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwZW5uZSUyMHBhc3RhJTIwdG9tYXRvJTIwYmFzaWx8ZW58MXx8fHwxNzczNzEyNTYxfDA&ixlib=rb-4.1.0&q=80&w=1080",
-    category: "pasta",
-    bestseller: false,
-    discount: 0,
-  },
-  {
-    id: 10,
-    name: "Tiramisu",
-    price: 75000,
-    image:
-      "https://images.unsplash.com/photo-1710106519622-8c49d0bcff2f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx0aXJhbWlzdSUyMGl0YWxpYW4lMjBkZXNzZXJ0fGVufDF8fHx8MTc3MzY3MzIxMXww&ixlib=rb-4.1.0&q=80&w=1080",
-    category: "dessert",
-    bestseller: true,
-    discount: 0,
-  },
-  {
-    id: 11,
-    name: "Chocolate Lava",
-    price: 85000,
-    image:
-      "https://images.unsplash.com/photo-1673551490243-f29547426841?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxjaG9jb2xhdGUlMjBsYXZhJTIwY2FrZSUyMGRlc3NlcnR8ZW58MXx8fHwxNzczNjIyOTkyfDA&ixlib=rb-4.1.0&q=80&w=1080",
-    category: "dessert",
-    bestseller: false,
-    discount: 0,
-  },
-  {
-    id: 12,
-    name: "Garlic Bread",
-    price: 55000,
-    image:
-      "https://images.unsplash.com/photo-1558679582-dac5f374f01c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxnYXJsaWMlMjBicmVhZCUyMGFwcGV0aXplcnxlbnwxfHx8fDE3NzM3MTI1NjJ8MA&ixlib=rb-4.1.0&q=80&w=1080",
-    category: "dessert",
-    bestseller: false,
-    discount: 0,
-  },
-  {
-    id: 13,
-    name: "Coca Cola",
-    price: 25000,
-    image:
-      "https://images.unsplash.com/photo-1763297059500-5810c9142d2c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxjb2xhJTIwc29mdCUyMGRyaW5rJTIwZ2xhc3MlMjBpY2V8ZW58MXx8fHwxNzczNzEyNTYxfDA&ixlib=rb-4.1.0&q=80&w=1080",
-    category: "drink",
-    bestseller: false,
-    discount: 0,
-  },
-  {
-    id: 14,
-    name: "Lemonade Đá",
-    price: 35000,
-    image:
-      "https://images.unsplash.com/photo-1679934576534-72d79d027fdc?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxpY2VkJTIwbGVtb25hZGUlMjBkcmluayUyMGZyZXNofGVufDF8fHx8MTc3MzcxMjU2MHww&ixlib=rb-4.1.0&q=80&w=1080",
-    category: "drink",
-    bestseller: false,
-    discount: 0,
-  },
-  { id: 15, name: "Nước cam tươi", price: 35000, image: "", category: "drink", bestseller: false, discount: 0 },
-  { id: 16, name: "Khoai tây chiên", price: 45000, image: "", category: "dessert", bestseller: false, discount: 0 },
-];
 
 const tables = ["T01", "T02", "T03", "T04", "T05", "T06", "T07", "T08", "T09", "T10", "T11", "T12"];
 
@@ -219,29 +112,58 @@ const deliveryStaff = ["Đỗ Quốc Bảo", "Hoàng Đức Em", "Nguyễn Văn 
 
 const paymentOptions: { key: PaymentMethod; label: string; icon: React.ReactNode }[] = [
   { key: "cash", label: "Tiền mặt", icon: <Banknote size={18} /> },
-  { key: "bank_transfer", label: "Chuyển khoản", icon: <QrCode size={18} /> },
-  { key: "card", label: "Thẻ", icon: <CreditCard size={18} /> },
-  { key: "momo", label: "MoMo", icon: <Wallet size={18} /> },
+  { key: "qrCode", label: "Chuyển khoản", icon: <QrCode size={18} /> },
+  // { key: "card", label: "Thẻ", icon: <CreditCard size={18} /> },
+  // { key: "momo", label: "MoMo", icon: <Wallet size={18} /> },
 ];
 
 function formatVND(n: number) {
   return new Intl.NumberFormat("vi-VN").format(n) + "đ";
 }
 
-function getItemPrice(item: MenuItem) {
-  return item.discount > 0 ? Math.round(item.price * (1 - item.discount / 100)) : item.price;
+export function CountdownTimer({ expiresAt, onExpire }) {
+  const [timeLeft, setTimeLeft] = useState(null);
+
+  useEffect(() => {
+    const target = new Date(expiresAt).getTime();
+
+    const interval = setInterval(() => {
+      const now = new Date().getTime();
+      const distance = target - now;
+
+      if (distance <= 0) {
+        clearInterval(interval);
+        setTimeLeft(0);
+        onExpire();
+      } else {
+        setTimeLeft(distance);
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [expiresAt]);
+
+  if (timeLeft === null) return null;
+
+  const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+  const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
+
+  return (
+    <div>
+      <p>Thời gian thanh toán còn lại: </p>
+      <p className="text-red-500 text-center">
+        {minutes}:{seconds < 10 ? `0${seconds}` : seconds}
+      </p>
+    </div>
+  );
 }
 
 export default function POS() {
-  const { user } = useEmployeeAuth();
+  const { user, getInfo } = useEmployeeAuth();
   const [search, setSearch] = useState("");
-  const [activeCategory, setActiveCategory] = useState<MenuCategory>("all");
-  const [cart, setCart] = useState<CartItem[]>([]);
+
   const [orderType, setOrderType] = useState<OrderType>("dine_in");
-  const [tableNumber, setTableNumber] = useState("");
-  const [customerName, setCustomerName] = useState("");
-  const [customerPhone, setCustomerPhone] = useState("");
-  const [customerAddress, setCustomerAddress] = useState("");
+
   const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>("store_delivery");
   const [selectedDeliveryStaff, setSelectedDeliveryStaff] = useState(deliveryStaff[0]);
   const [thirdPartyName, setThirdPartyName] = useState("GrabFood");
@@ -252,31 +174,100 @@ export default function POS() {
   const [lastOrderId, setLastOrderId] = useState("");
   const [editNoteIndex, setEditNoteIndex] = useState<number | null>(null);
   const [showMobileCart, setShowMobileCart] = useState(false);
-  const [posCollapsed, setPosCollapsed] = useState(false);
+  const [posCollapsed, setPosCollapsed] = useState(true);
+
+  const [activeCategory, setActiveCategory] = useState<string>("all");
+  const [products, setProducts] = useState<Product[]>([]);
+  const [contactModal, setContactModal] = useState(false);
+  const [categories, setCategories] = useState<MenuCategoryUI[]>([]);
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [hideTable, setHideTable] = useState(true);
+  const [tableNumber, setTableNumber] = useState("");
+  const [customerName, setCustomerName] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
+  const [customerAddress, setCustomerAddress] = useState("");
+  const [order, setOder] = useState();
+  const [testtime, setTestime] = useState<Date>();
+
+  const pollingRef = useRef(null);
+  const stopPolling = () => {
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current);
+      pollingRef.current = null;
+    }
+  };
+
+  const startPolling = (orderId: string) => {
+    stopPolling();
+
+    pollingRef.current = setInterval(async () => {
+      try {
+        const res = await checkPaymentStatus(orderId);
+
+        if (res.data.paymentStatus === "success") {
+          stopPolling();
+          resetOrder();
+          setShowSuccess(true);
+        }
+      } catch (err) {
+        console.error("Lỗi khi check status:", err);
+      }
+    }, 3000);
+  };
+
+  useEffect(() => {
+    const fectData = async () => {
+      try {
+        const categories = await getAllCategories();
+        const products = await getAllProducts();
+
+        const mappedCategories: MenuCategoryUI[] = categories
+          .filter(cat => cat.is_active && !cat.isDeleted)
+          .map(cat => ({
+            slug: cat.slug,
+            name: cat.name,
+            icon: cat.icon,
+          }));
+
+        const finalCategories: MenuCategoryUI[] = [
+          {
+            slug: "all",
+            name: "Tất cả",
+            icon: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJsdWNpZGUgbHVjaWRlLXV0ZW5zaWxzLWNyb3NzZWQtaWNvbiBsdWNpZGUtdXRlbnNpbHMtY3Jvc3NlZCI+PHBhdGggZD0ibTE2IDItMi4zIDIuM2EzIDMgMCAwIDAgMCA0LjJsMS44IDEuOGEzIDMgMCAwIDAgNC4yIDBMMjIgOCIvPjxwYXRoIGQ9Ik0xNSAxNSAzLjMgMy4zYTQuMiA0LjIgMCAwIDAgMCA2bDcuMyA3LjNjLjcuNyAyIC43IDIuOCAwTDE1IDE1Wm0wIDAgNyA3Ii8+PHBhdGggZD0ibTIuMSAyMS44IDYuNC02LjMiLz48cGF0aCBkPSJtMTkgNS03IDciLz48L3N2Zz4=",
+          },
+          ...mappedCategories,
+        ];
+        setCategories(finalCategories);
+        setProducts(products);
+      } catch (error) {}
+    };
+    fectData();
+  }, []);
 
   const filteredMenu = useMemo(() => {
-    let items = activeCategory === "all" ? menuItems : menuItems.filter(m => m.category === activeCategory);
+    let items = activeCategory === "all" ? products : products.filter(m => m?.category.slug === activeCategory);
     if (search) items = items.filter(m => m.name.toLowerCase().includes(search.toLowerCase()));
     return items;
-  }, [activeCategory, search]);
+  }, [products, activeCategory, search]);
 
-  const addToCart = (item: MenuItem) => {
+  const addToCart = (item: CartItem) => {
     setCart(prev => {
-      const idx = prev.findIndex(c => c.menuItem.id === item.id);
+      const idx = prev.findIndex(c => c.sku === item.sku);
+
       if (idx >= 0) {
         const next = [...prev];
-        next[idx] = { ...next[idx], qty: next[idx].qty + 1 };
+        next[idx] = { ...next[idx], quantity: next[idx].quantity + 1 };
         return next;
       }
-      return [...prev, { menuItem: item, qty: 1, note: "" }];
+      return [...prev, { ...item, quantity: 1, note: "" }];
     });
   };
 
   const updateQty = (index: number, delta: number) => {
     setCart(prev => {
       const next = [...prev];
-      next[index] = { ...next[index], qty: next[index].qty + delta };
-      if (next[index].qty <= 0) next.splice(index, 1);
+      next[index] = { ...next[index], quantity: next[index].quantity + delta };
+      if (next[index].quantity <= 0) next.splice(index, 1);
       return next;
     });
   };
@@ -291,8 +282,8 @@ export default function POS() {
     });
   };
 
-  const cartCount = cart.reduce((s, c) => s + c.qty, 0);
-  const subtotal = cart.reduce((s, c) => s + getItemPrice(c.menuItem) * c.qty, 0);
+  const cartCount = cart.reduce((s, c) => s + c.quantity, 0);
+  const subtotal = cart.reduce((s, c) => s + c.price * c.quantity, 0);
   const deliveryFee = orderType === "delivery" && subtotal < 200000 ? 25000 : 0;
   const total = subtotal + deliveryFee;
   const cashReceivedNum = parseInt(cashReceived) || 0;
@@ -306,13 +297,44 @@ export default function POS() {
     return true;
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!canSubmit()) return;
-    const orderId = `ORD-${1300 + Math.floor(Math.random() * 200)}`;
-    setLastOrderId(orderId);
-    setShowSuccess(true);
+    try {
+      const emp = await getInfo();
+      const listItem: CartItem[] = cart;
+      console.log(emp);
+      const order: PosOrder = {
+        order_type: orderType,
+        paymentMethod: paymentMethod,
+        paymentStatus: "pending",
+        contact_info: {
+          full_name: customerName,
+          phone: customerPhone,
+          address: customerAddress,
+        },
+        store_id: emp.ref_id.store_id,
+        note: "",
+        customer_id: null,
+        employee_id: emp._id,
+        items: listItem,
+      };
+      const result = await createPosOrder(order, "");
+      const res = result.data;
+      const payment = result.payment;
+      if (res.paymentMethod != "cash" && res.paymentStatus != "success") {
+        setTestime(new Date(Date.now() + 5 * 60 * 1000));
+        startPolling(payment.orderId);
+        setOder(result);
+      }
+      if (res.paymentMethod === "cash") {
+        await createPosOrder(order, "");
+        setShowSuccess(true);
+      }
+    } catch (error) {
+      toast.error("Có lỗi!");
+    }
   };
-
+  console.log(order);
   const resetOrder = () => {
     setCart([]);
     setOrderType("dine_in");
@@ -325,6 +347,7 @@ export default function POS() {
     setOrderNote("");
     setShowSuccess(false);
     setShowMobileCart(false);
+    setContactModal(false);
   };
 
   const now = new Date();
@@ -332,9 +355,9 @@ export default function POS() {
 
   // Order panel content (reused for desktop sidebar and mobile overlay)
   const orderPanel = (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-[95vh] max-h-screen">
       {/* Order type tabs */}
-      <div className="p-3 border-b border-border">
+      <div className="p-2 border-b border-border">
         <div className="flex gap-1 bg-muted rounded-xl p-1">
           {[
             { key: "dine_in" as OrderType, label: "Tại chỗ", icon: <UtensilsCrossed size={14} /> },
@@ -351,23 +374,28 @@ export default function POS() {
           ))}
         </div>
       </div>
-
-      {/* Order type specific fields */}
-      <div className="p-3 space-y-2 border-b border-border">
+      <div className="p-2 space-y-2 border-b border-border">
         {orderType === "dine_in" && (
           <div>
-            <label className="text-[11px] text-muted-foreground mb-1 block">Số bàn *</label>
-            <div className="grid grid-cols-6 gap-1.5">
-              {tables.map(t => (
-                <button
-                  key={t}
-                  onClick={() => setTableNumber(t)}
-                  className={`py-1.5 rounded-lg text-xs transition-all ${tableNumber === t ? "bg-primary text-white" : "bg-muted text-foreground hover:bg-primary/10"}`}
-                >
-                  {t}
-                </button>
-              ))}
+            <div className="flex justify-between px-1">
+              <label className="text-[11px] text-muted-foreground mb-1 block">Số bàn *</label>
+              <button onClick={() => setHideTable(!hideTable)}>
+                <ChevronDown />
+              </button>
             </div>
+            {!hideTable && (
+              <div className="grid grid-cols-6 gap-1.5">
+                {tables.map(t => (
+                  <button
+                    key={t}
+                    onClick={() => setTableNumber(t)}
+                    className={`py-1.5 rounded-lg text-xs transition-all ${tableNumber === t ? "bg-primary text-white" : "bg-muted text-foreground hover:bg-primary/10"}`}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -474,13 +502,12 @@ export default function POS() {
         ) : (
           <div className="space-y-2">
             {cart.map((item, i) => {
-              const price = getItemPrice(item.menuItem);
               return (
-                <div key={item.menuItem.id} className="bg-muted/40 rounded-xl p-2.5 group">
+                <div key={item.sku} className="bg-muted/40 rounded-xl p-2.5 group">
                   <div className="flex items-start gap-2">
                     <div className="w-10 h-10 rounded-lg overflow-hidden bg-muted shrink-0">
-                      {item.menuItem.image ? (
-                        <Image fill src={item.menuItem.image} alt="" className="relative! w-full h-full" />
+                      {item.image ? (
+                        <Image fill src={item.image} alt={item.sku} className="relative! w-full h-full" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
                           <Pizza size={16} className="text-muted-foreground/30" />
@@ -489,7 +516,7 @@ export default function POS() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-1">
-                        <p className="text-xs text-foreground truncate">{item.menuItem.name}</p>
+                        <p className="text-xs text-foreground truncate">{item.name}</p>
                         <button
                           onClick={() => removeItem(i)}
                           className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-500 transition-all p-0.5"
@@ -505,7 +532,7 @@ export default function POS() {
                           >
                             <Minus size={10} />
                           </button>
-                          <span className="text-xs w-5 text-center text-foreground">{item.qty}</span>
+                          <span className="text-xs w-5 text-center text-foreground">{item.quantity}</span>
                           <button
                             onClick={() => updateQty(i, 1)}
                             className="w-6 h-6 rounded-md bg-primary text-white flex items-center justify-center hover:bg-primary/90 transition-colors"
@@ -513,29 +540,28 @@ export default function POS() {
                             <Plus size={10} />
                           </button>
                         </div>
-                        <span className="text-xs text-primary">{formatVND(price * item.qty)}</span>
+                        {editNoteIndex === i ? (
+                          <div className="mt-1.5 flex gap-1">
+                            <input
+                              autoFocus
+                              value={item.note}
+                              onChange={e => updateNote(i, e.target.value)}
+                              onBlur={() => setEditNoteIndex(null)}
+                              onKeyDown={e => e.key === "Enter" && setEditNoteIndex(null)}
+                              placeholder="Ghi chú món..."
+                              className="flex-1 text-[11px] px-2 py-1 rounded border border-border bg-background outline-none focus:border-primary"
+                            />
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => setEditNoteIndex(i)}
+                            className="text-[10px] text-muted-foreground mt-1 hover:text-primary transition-colors"
+                          >
+                            {item.note ? `📝 ${item.note}` : "+ Ghi chú"}
+                          </button>
+                        )}
+                        <span className="text-xs text-primary">{formatVND(item.price * item.quantity)}</span>
                       </div>
-                      {/* Item note */}
-                      {editNoteIndex === i ? (
-                        <div className="mt-1.5 flex gap-1">
-                          <input
-                            autoFocus
-                            value={item.note}
-                            onChange={e => updateNote(i, e.target.value)}
-                            onBlur={() => setEditNoteIndex(null)}
-                            onKeyDown={e => e.key === "Enter" && setEditNoteIndex(null)}
-                            placeholder="Ghi chú món..."
-                            className="flex-1 text-[11px] px-2 py-1 rounded border border-border bg-background outline-none focus:border-primary"
-                          />
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => setEditNoteIndex(i)}
-                          className="text-[10px] text-muted-foreground mt-1 hover:text-primary transition-colors"
-                        >
-                          {item.note ? `📝 ${item.note}` : "+ Ghi chú"}
-                        </button>
-                      )}
                     </div>
                   </div>
                 </div>
@@ -545,25 +571,26 @@ export default function POS() {
         )}
       </div>
 
-      {/* Order note */}
+      {/* Order note
       {cart.length > 0 && (
-        <div className="px-3 pb-2">
-          <input
-            value={orderNote}
-            onChange={e => setOrderNote(e.target.value)}
-            placeholder="Ghi chú đơn hàng chung..."
-            className="w-full text-xs px-3 py-2 rounded-lg border border-border bg-background outline-none focus:border-primary"
-          />
-        </div>
-      )}
+        
+      )} */}
 
       {/* Payment section */}
       {cart.length > 0 && (
-        <div className="border-t border-border p-3 space-y-3">
+        <div className="shrink-0 bg-white bottom-0 border-t border-border p-3 space-y-3">
           {/* Payment method */}
           <div>
+            <div className="px-3 pb-2">
+              <input
+                value={orderNote}
+                onChange={e => setOrderNote(e.target.value)}
+                placeholder="Ghi chú đơn hàng chung..."
+                className="w-full text-xs px-3 py-2 rounded-lg border border-border bg-background outline-none focus:border-primary"
+              />
+            </div>
             <label className="text-[11px] text-muted-foreground mb-1.5 block">Thanh toán</label>
-            <div className="grid grid-cols-4 gap-1.5">
+            <div className="grid grid-cols-2 gap-1.5">
               {paymentOptions.map(opt => (
                 <button
                   key={opt.key}
@@ -611,13 +638,6 @@ export default function POS() {
             </div>
           )}
 
-          {paymentMethod === "bank_transfer" && (
-            <div className="bg-blue-50 rounded-lg p-2.5 text-center">
-              <QrCode size={48} className="mx-auto text-gray-600 mb-1" />
-              <p className="text-[10px] text-blue-700">STK: 1234567890 - VCB</p>
-            </div>
-          )}
-
           {/* Totals */}
           <div className="space-y-1.5 text-sm">
             <div className="flex justify-between text-muted-foreground">
@@ -649,8 +669,11 @@ export default function POS() {
           </div>
 
           {/* Submit */}
+
           <button
-            onClick={handleSubmit}
+            onClick={() => {
+              setContactModal(true);
+            }}
             disabled={!canSubmit()}
             className="w-full py-3 rounded-xl bg-primary text-white hover:bg-primary/90 transition-colors shadow-lg shadow-primary/25 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm"
           >
@@ -664,7 +687,7 @@ export default function POS() {
   if (showSuccess) {
     return (
       <div className="fixed inset-0 z-50 bg-background flex items-center justify-center">
-        <div className="text-center max-w-md mx-auto p-8">
+        <div className="text-center w-[80vh] mx-auto p-8">
           <div className="w-24 h-24 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-6">
             <CheckCircle2 size={52} className="text-green-600" />
           </div>
@@ -722,17 +745,17 @@ export default function POS() {
     <div className="fixed inset-0 z-40 bg-background flex">
       {/* Left Sidebar - Navigation & Categories */}
       <div
-        className={`hidden md:flex bg-sidebar flex-col shrink-0 border-r border-sidebar-border transition-all duration-300 ${posCollapsed ? "w-[72px]" : "w-64"}`}
+        className={`hidden md:flex bg-white flex-col shrink-0 shadow-xl border-sidebar-border transition-all duration-300 ${posCollapsed ? "w-[72px]" : "w-64"}`}
       >
         {/* Logo */}
-        <div className="flex items-center gap-3 px-4 py-5 border-b border-sidebar-border">
+        <div className="flex items-center gap-3 px-4 py-5 border-b border-gray-300">
           <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center shrink-0">
             <Pizza size={22} className="text-white" />
           </div>
           {!posCollapsed && (
             <div className="overflow-hidden">
-              <h2 className="text-white truncate">PaoPizza</h2>
-              <p className="text-sidebar-foreground/60 text-xs truncate">POS Bán hàng</p>
+              <h2 className="text-black truncate">PaoPizza</h2>
+              <p className="text-black text-xs truncate">POS Bán hàng</p>
             </div>
           )}
         </div>
@@ -741,16 +764,12 @@ export default function POS() {
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
           {categories.map(cat => (
             <button
-              key={cat.key}
-              onClick={() => setActiveCategory(cat.key)}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 ${
-                activeCategory === cat.key
-                  ? "bg-primary text-white shadow-lg shadow-primary/25"
-                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-white"
-              } ${posCollapsed ? "justify-center" : ""}`}
+              key={cat.slug}
+              onClick={() => setActiveCategory(cat.slug)}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 ${activeCategory === cat.slug ? "bg-primary text-white shadow-lg shadow-primary/25" : "bg-card border border-border text-muted-foreground hover:border-primary/30 hover:text-primary"}`}
             >
-              <span className="shrink-0">{cat.icon}</span>
-              {!posCollapsed && <span className="text-sm truncate">{cat.label}</span>}
+              <Image src={cat.icon || ""} width={18} height={18} alt={cat.name} />
+              {!posCollapsed && <span className="text-sm truncate text-gray-800">{cat.name}</span>}
             </button>
           ))}
         </nav>
@@ -759,24 +778,24 @@ export default function POS() {
         <div className="px-3 pb-2">
           <Link
             href="/is/dashboard"
-            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 bg-sidebar-accent/50 text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-white ${posCollapsed ? "justify-center" : ""}`}
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 border border-border hover:border-primary hover:text-white ${posCollapsed ? "justify-center" : ""}`}
           >
             <span className="shrink-0">
-              <ArrowLeft size={20} />
+              <ArrowLeft size={20} className="text-black" />
             </span>
-            {!posCollapsed && <span className="text-sm truncate">Quay lại Dashboard</span>}
+            {!posCollapsed && <span className="text-sm text-black truncate">Quay lại Dashboard</span>}
           </Link>
         </div>
 
         {/* User info */}
-        <div className="border-t border-sidebar-border p-4">
+        <div className="border-t border-gray-300 p-4">
           <div className={`flex items-center ${posCollapsed ? "justify-center" : "gap-3"}`}>
             <div className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
               <span className="text-primary text-sm">{user?.name?.charAt(0)}</span>
             </div>
             {!posCollapsed && (
               <div className="flex-1 min-w-0">
-                <p className="text-white text-sm truncate">{user?.name}</p>
+                <p className="text-black text-sm truncate">{user?.name}</p>
                 {user && (
                   <span className={`inline-block px-2 py-0.5 rounded text-[10px] ${getRoleColor(user.role)}`}>
                     {getRoleLabel(user.role)}
@@ -790,7 +809,7 @@ export default function POS() {
         {/* Collapse button */}
         <button
           onClick={() => setPosCollapsed(!posCollapsed)}
-          className="hidden lg:flex items-center justify-center py-3 border-t border-sidebar-border text-sidebar-foreground/50 hover:text-white transition-colors"
+          className="hidden lg:flex items-center justify-center py-3 border-t border-gray-300 text-black hover:text-primary transition-colors"
         >
           {posCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
         </button>
@@ -799,7 +818,7 @@ export default function POS() {
       {/* Center: Menu area */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top bar */}
-        <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-border bg-card">
+        <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-border bg-card shadow-sm">
           {/* Mobile menu button */}
           <button onClick={() => setActiveCategory(activeCategory)} className="md:hidden p-2 rounded-lg bg-sidebar text-white">
             <Pizza size={16} />
@@ -814,11 +833,11 @@ export default function POS() {
           <div className="md:hidden flex gap-1.5 overflow-x-auto flex-1 mx-2">
             {categories.map(cat => (
               <button
-                key={cat.key}
-                onClick={() => setActiveCategory(cat.key)}
-                className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-[10px] whitespace-nowrap transition-all ${activeCategory === cat.key ? "bg-primary text-white" : "bg-muted text-muted-foreground"}`}
+                key={cat.slug}
+                onClick={() => setActiveCategory(cat.slug)}
+                className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-[10px] whitespace-nowrap transition-all ${activeCategory === cat.slug ? "bg-primary text-white" : "bg-muted text-muted-foreground"}`}
               >
-                {cat.icon} {cat.label}
+                <Image src={cat.icon || ""} width={18} height={18} alt={cat.name} /> {cat.name}
               </button>
             ))}
           </div>
@@ -846,49 +865,57 @@ export default function POS() {
         <div className="flex-1 overflow-y-auto p-4">
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
             {filteredMenu.map(item => {
-              const inCart = cart.find(c => c.menuItem.id === item.id);
-              const price = getItemPrice(item);
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => addToCart(item)}
-                  className={`bg-card rounded-xl border overflow-hidden hover:shadow-lg transition-all text-left group relative ${inCart ? "border-primary ring-1 ring-primary/20" : "border-border"}`}
-                >
-                  <div className="aspect-[4/3] bg-muted relative overflow-hidden">
-                    {item.image ? (
-                      <Image fill src={item.image} alt={item.name} />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <Pizza size={28} className="text-muted-foreground/20" />
-                      </div>
-                    )}
-                    {item.bestseller && (
-                      <span className="absolute top-1.5 left-1.5 px-1.5 py-0.5 bg-primary text-white text-[9px] rounded-full flex items-center gap-0.5">
-                        <Star size={8} className="fill-white" /> Hot
-                      </span>
-                    )}
-                    {item.discount > 0 && (
-                      <span className="absolute top-1.5 right-1.5 px-1.5 py-0.5 bg-red-500 text-white text-[9px] rounded-full">
-                        -{item.discount}%
-                      </span>
-                    )}
-                    {inCart && (
-                      <div className="absolute bottom-1.5 right-1.5 w-6 h-6 bg-primary text-white text-xs rounded-full flex items-center justify-center shadow-lg">
-                        {inCart.qty}
-                      </div>
-                    )}
-                  </div>
-                  <div className="p-2.5">
-                    <p className="text-xs text-foreground truncate">{item.name}</p>
-                    <div className="flex items-center gap-1.5 mt-1">
-                      {item.discount > 0 && (
-                        <span className="text-[10px] text-muted-foreground line-through">{formatVND(item.price)}</span>
+              return item.variants.map(prd => {
+                return (
+                  <button
+                    key={prd.sku}
+                    onClick={() => {
+                      const itemCart: CartItem = {
+                        product_id: item._id,
+                        name: item.name,
+                        note: "",
+                        price: prd.price,
+                        quantity: 1,
+                        size: prd.size,
+                        sku: prd.sku,
+                        image: prd.image.url,
+                      };
+                      addToCart(itemCart);
+                    }}
+                    className={`bg-card rounded-xl border overflow-hidden hover:shadow-lg transition-all text-left group relative `}
+                  >
+                    <div className="aspect-[4/3] bg-muted relative overflow-hidden">
+                      {prd.image.url ? (
+                        <Image
+                          fill
+                          loading="eager"
+                          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                          src={prd?.image.url}
+                          alt={item.name}
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <Pizza size={28} className="text-muted-foreground/20" />
+                        </div>
                       )}
-                      <span className="text-xs text-primary">{formatVND(price)}</span>
+
+                      {/* {inCart && (
+                        <div className="absolute bottom-1.5 right-1.5 w-6 h-6 bg-primary text-white text-xs rounded-full flex items-center justify-center shadow-lg">
+                          {inCart.qty}
+                        </div>
+                      )} */}
                     </div>
-                  </div>
-                </button>
-              );
+                    <div className="p-2.5">
+                      <p className="text-xs text-foreground truncate">
+                        {item.name} - {prd.size}
+                      </p>
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <span className="text-xs text-primary">{formatVND(prd?.price)}</span>
+                      </div>
+                    </div>
+                  </button>
+                );
+              });
             })}
           </div>
 
@@ -927,6 +954,101 @@ export default function POS() {
             {orderPanel}
           </div>
         </div>
+      )}
+      {contactModal && (
+        <>
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+            onClick={() => setContactModal(false)}
+          >
+            <div className="bg-card rounded-2xl p-6 w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h3 className="text-foreground text-xl font-semibold">
+                    {order?.payment ? "Quét mã để thanht toán" : "Nhập thông tin khách hàng"}
+                  </h3>
+                </div>
+                <button
+                  onClick={() => {
+                    setContactModal(false);
+                  }}
+                  className="p-2 rounded-lg hover:bg-muted text-muted-foreground transition-colors cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+              {order?.payment ? (
+                <>
+                  <div className="space-y-4 flex flex-col items-center">
+                    <Image
+                      src={order?.payment.qrUrl || ""}
+                      fill
+                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                      alt="qr"
+                      className="relative! w-[50%]!"
+                    />
+                    <p>Mã đơn hàng: {order.data?._id}</p>
+                    <CountdownTimer
+                      expiresAt={testtime}
+                      onExpire={() => {
+                        stopPolling();
+                      }}
+                    />
+                  </div>
+                </>
+              ) : (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm mb-1.5 font-medium">Họ tên *</label>
+                    <input
+                      value={customerName}
+                      onChange={e => setCustomerName(e.target.value)}
+                      required
+                      placeholder="Nguyễn Văn A"
+                      className="w-full px-4 py-2.5 rounded-xl border border-border bg-background focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm mb-1.5 font-medium">Số điện thoại *</label>
+                    <input
+                      value={customerPhone}
+                      onChange={e => setCustomerPhone(e.target.value)}
+                      required
+                      placeholder="09xxxxxxx"
+                      className="w-full px-4 py-2.5 rounded-xl border border-border bg-background focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm mb-1.5 font-medium">Địa chỉ</label>
+                    <input
+                      placeholder="42 pham nhu tang"
+                      value={customerAddress}
+                      onChange={e => setCustomerAddress(e.target.value)}
+                      className="w-full px-4 py-2.5 rounded-xl border border-border bg-background focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                    />
+                  </div>
+                  {paymentMethod === "qrCode" ? (
+                    <button
+                      onClick={() => {
+                        handleSubmit();
+                      }}
+                      className="w-full py-3 rounded-xl bg-primary text-white hover:bg-primary/90 transition-colors shadow-lg shadow-primary/25 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm"
+                    >
+                      <Receipt size={16} /> Tạo mã thanh toán
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => handleSubmit()}
+                      className="w-full py-3 rounded-xl bg-primary text-white hover:bg-primary/90 transition-colors shadow-lg shadow-primary/25 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm"
+                    >
+                      <Receipt size={16} /> Tạo đơn hàng
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </>
       )}
     </div>
   );
