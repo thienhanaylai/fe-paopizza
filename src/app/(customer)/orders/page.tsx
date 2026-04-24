@@ -49,7 +49,8 @@ export default function Orders() {
   useEffect(() => {
     const fecthData = async () => {
       const customer = await getInfo();
-      const res = await getAllOrder(`customer_id=${customer.ref_id._id}`, "customer");
+      console.log(customer);
+      const res = await getAllOrder(`customer_id=${customer.ref_id?._id}`, "customer");
       setOrderHistory(res);
     };
     fecthData();

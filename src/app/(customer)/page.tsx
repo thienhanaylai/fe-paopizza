@@ -78,8 +78,8 @@ export default function IndexPage() {
         const products = await getAllProducts();
 
         const mappedCategories: MenuCategoryUI[] = categories
-          .filter(cat => cat.is_active && !cat.isDeleted)
-          .map(cat => ({
+          .filter((cat: { is_active: boolean; isDeleted: boolean }) => cat.is_active && !cat.isDeleted)
+          .map((cat: MenuCategoryUI) => ({
             slug: cat.slug,
             name: cat.name,
             icon: cat.icon,
@@ -109,9 +109,9 @@ export default function IndexPage() {
   const handleCart = async (product_id: string, size: string, quantity: number = 1, sku: string, note: string = "") => {
     if (!isAuthenticated) setAuthMode("login");
     else {
-      await addToCart(user?.id, product_id, size, quantity, note);
-      const fectCart = await fetchCart(user?.id);
-      const productInCart = fectCart?.items.find(i => i.sku === sku);
+      await addToCart(user?.id || "", product_id, size, quantity, note);
+      const fectCart = await fetchCart(user?.id || "");
+      const productInCart = fectCart?.items.find((i: { sku: string }) => i.sku === sku);
       setNote(productInCart?.note);
     }
   };

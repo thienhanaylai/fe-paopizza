@@ -4,7 +4,7 @@ import React, { createContext, useContext, useMemo, useState, ReactNode } from "
 const ACCESS_TOKEN_KEY = "customer_access_token";
 const USER_KEY = "customer";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:4000";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
 type AuthMode = null | "login" | "register";
 
@@ -67,7 +67,14 @@ interface AuthContextType {
   accessToken: string | null;
   customerRegister: (fullname: string, phone: string, password: string) => Promise<{ success: boolean; message?: string }>;
   customerLogin: (phone: string, password: string) => Promise<{ success: boolean; message?: string }>;
-  getInfo: () => Promise<{ success: boolean; message?: string }>;
+  getInfo: () => Promise<{
+    success: boolean;
+    message?: string;
+    ref_id?: {
+      _id: string;
+      name: string;
+    };
+  }>;
   logout: () => void;
   isAuthenticated: boolean;
   authMode: AuthMode;
