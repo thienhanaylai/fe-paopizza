@@ -4,7 +4,7 @@ import React, { createContext, useContext, useMemo, useState, ReactNode } from "
 const ACCESS_TOKEN_KEY = "customer_access_token";
 const USER_KEY = "customer";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://apipaopizza.ngb.id.vn";
 
 type AuthMode = null | "login" | "register";
 

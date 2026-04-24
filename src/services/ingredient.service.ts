@@ -1,6 +1,6 @@
 import { http } from "../utils/config.api";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://apipaopizza.ngb.id.vn";
 
 export const getAllIngredients = async () => {
   try {
