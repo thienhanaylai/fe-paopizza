@@ -1,30 +1,27 @@
-FROM node:22-alpine AS base
+FROM node:22-alpine
+
 WORKDIR /app
+
+# Cài đặt thư viện cần thiết cho Next.js trên Alpine
 RUN apk add --no-cache libc6-compat
 
-FROM base AS deps
-COPY package.json package-lock.json ./
-RUN npm i -f
-
-FROM base AS builder
-ENV NODE_ENV=production
-COPY --from=deps /app/node_modules ./node_modules
-COPY . .
-RUN npm run build
-
-FROM base AS runner
+# Cấu hình biến môi trường
 ENV NODE_ENV=production
 ENV PORT=3001
 ENV HOSTNAME=0.0.0.0
 ENV NEXT_PUBLIC_API_URL="https://apipaopizza.ngb.id.vn"
 
+# Tạo user để bảo mật
 RUN addgroup --system --gid 1001 nodejs \
     && adduser --system --uid 1001 nextjs
 
-COPY --from=builder /app/public ./public
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+# COPY TRỰC TIẾP TỪ MÁY BẠN VÀO DOCKER (Không dùng --from=builder nữa)
+COPY ./public ./public
+COPY --chown=nextjs:nodejs ./.next/standalone ./
+COPY --chown=nextjs:nodejs ./.next/static ./.next/static
 
 USER nextjs
+
 EXPOSE 3001
+
 CMD ["node", "server.js"]
