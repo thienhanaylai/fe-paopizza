@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { Search, Plus, Edit2, Filter, Pizza, Eye, EyeOff, Tag, Percent } from "lucide-react";
 import { useEmployeeAuth } from "@/src/context/authEmployeeContext";
 import Image from "next/image";
-import { addProduct, getAllProducts } from "@/src/services/product.service";
+import { addProduct, getAllProducts, updateProduct, updateStatusProduct } from "@/src/services/product.service";
 import { getAllCategories } from "@/src/services/category.service";
 import { ImageInput } from "@/src/components/ui/input";
 import { getAllIngredients } from "@/src/services/ingredient.service";
@@ -28,7 +28,7 @@ export interface VariantPayload {
   size: string;
   price: number;
   recipe: RecipeItemPayload[];
-  imageFile: File;
+  imageFile?: File | null;
 }
 
 export interface AddProductPayload {
@@ -86,6 +86,32 @@ type Product = {
   isDeleted: boolean;
 };
 
+const createEmptyVariant = (): VariantPayload => ({
+  sku: "",
+  size: "",
+  price: 0,
+  imageFile: undefined as any,
+  recipe: [],
+});
+
+const mapProductToVariants = (product: Product): VariantPayload[] => {
+  if (!product?.variants?.length) {
+    return [createEmptyVariant()];
+  }
+
+  return product.variants.map(variant => ({
+    sku: variant.sku,
+    size: variant.size,
+    price: variant.price,
+    imageFile: undefined as any,
+    recipe: (variant.recipe || []).map(item => ({
+      ingredient_id: item.ingredient?._id || "",
+      quantity: item.quantity,
+      unit: item.unit,
+    })),
+  }));
+};
+
 function formatVND(n: number) {
   return new Intl.NumberFormat("vi-VN").format(n) + "đ";
 }
@@ -109,22 +135,20 @@ export default function Products() {
     description: "",
   });
 
-  const [variantsFrom, setVariantsFrom] = useState<VariantPayload[]>([
-    {
-      sku: "",
-      size: "",
-      price: 0,
-      imageFile: undefined as any,
-      recipe: [],
-    },
-  ]);
+  const [variantsFrom, setVariantsFrom] = useState<VariantPayload[]>([createEmptyVariant()]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     let isValidate = true;
 
-    const missingImage = variantsFrom.some(v => !v.imageFile);
+    const missingImage = editItem
+      ? variantsFrom.some((variant, index) => {
+          const existingImage = editItem.variants?.[index]?.image;
+          const hasExistingImage = Boolean(existingImage?.url || existingImage?.public_id);
+          return !variant.imageFile && !hasExistingImage;
+        })
+      : variantsFrom.some(v => !v.imageFile);
     if (missingImage) {
       toast.warning("Vui lòng chọn đầy đủ ảnh cho từng size!");
       isValidate = false;
@@ -133,39 +157,70 @@ export default function Products() {
     }
     const formatForSku = (str: string) => str.toUpperCase().trim().replace(/\s+/g, "-");
     try {
+      const categoryPrefix = formatForSku(categories?.find(item => item._id === basicInfo.category)?.name.charAt(0) || "");
+
+      const normalizedVariants = variantsFrom.map((variant, index) => {
+        if (variant.size === "" || variant.price === 0) {
+          toast.warning("Vui lòng nhập đầy đủ size và giá!");
+          isValidate = false;
+        }
+        if (variant.recipe.length === 0) {
+          toast.warning("Vui lòng thêm công thức cho sản phẩm!");
+          isValidate = false;
+        }
+
+        const computedSku = `${categoryPrefix}-${formatForSku(basicInfo.name)}-${formatForSku(variant.size)}`;
+        const resolvedSku = variant.sku || computedSku;
+
+        return {
+          sku: resolvedSku,
+          size: variant.size,
+          price: variant.price,
+          recipe: variant.recipe,
+          imageFile: variant.imageFile as File,
+          image: editItem?.variants?.[index]?.image,
+        };
+      });
+
       const payload: AddProductPayload = {
         name: basicInfo.name,
         category: basicInfo.category,
         description: basicInfo.description,
-        variants: variantsFrom.map(v => {
-          if (v.size === "" || v.price === 0) {
-            toast.warning("Vui lòng nhập đầy đủ size và giá!");
-            isValidate = false;
-          }
-          if (v.recipe.length === 0) {
-            toast.warning("Vui lòng thêm công thức cho sản phẩm!");
-            isValidate = false;
-          }
-
-          const newSku = `${formatForSku(categories?.find(item => item._id === basicInfo.category)?.name.charAt(0) || "")}-${formatForSku(basicInfo.name)}-${formatForSku(v.size)}`;
-          return { sku: newSku, size: v.size, price: v.price, recipe: v.recipe, imageFile: v.imageFile as File };
-        }),
+        variants: normalizedVariants,
       };
 
       if (!isValidate) {
         setIsLoading(false);
         return;
       }
-      const result = await addProduct(payload);
+      const result = editItem
+        ? await updateProduct({
+            product_id: editItem._id,
+            name: payload.name,
+            category: payload.category,
+            description: payload.description,
+            variants: normalizedVariants.map(variant => ({
+              sku: variant.sku,
+              size: variant.size,
+              price: variant.price,
+              recipe: variant.recipe,
+              image: variant.image,
+              imageFile: variant.imageFile,
+            })),
+          })
+        : await addProduct(payload);
 
       if (result) {
-        toast.success("Thêm sản phẩm thành công");
+        toast.success(editItem ? "Cập nhật sản phẩm thành công" : "Thêm sản phẩm thành công");
         setShowModal(false);
+        setEditItem(null);
         setIsLoading(false);
       }
     } catch (error: any) {
-      console.error("Lỗi khi thêm sản phẩm:", error);
-      toast.error(`Tạo thất bại: ${error.message || "Có lỗi xảy ra"}`);
+      const actionLabel = editItem ? "Cập nhật" : "Tạo";
+      console.error(editItem ? "Lỗi khi cập nhật sản phẩm:" : "Lỗi khi thêm sản phẩm:", error);
+      toast.error(`${actionLabel} thất bại: ${error.message || "Có lỗi xảy ra"}`);
+      setIsLoading(false);
     }
   };
 
@@ -205,30 +260,40 @@ export default function Products() {
     p => (categoryFilter === "all" || p.category.slug === categoryFilter) && p.name.toLowerCase().includes(search.toLowerCase()),
   );
 
-  const toggleStatus = (id: string) => {
-    //setProducts(prev => prev.map(p => (p.id === id ? { ...p, status: p.status === "active" ? "inactive" : "active" } : p)));
+  const toggleStatus = async (id: string) => {
+    setIsLoading(true);
+    try {
+      await updateStatusProduct(id);
+      toast.success("Cập nhật trạng thái thành công!");
+      setIsLoading(false);
+    } catch (e) {
+      toast.error(`Lỗi: ${e}`);
+      setIsLoading(false);
+      return;
+    }
   };
-
   const openCreate = () => {
     setEditItem(null);
     setShowModal(true);
-    setBasicInfo({ name: "", category: categories[1]._id, description: "" });
+    const firstCategoryId = categories.find(item => item.slug !== "all")?._id || "";
+    setBasicInfo({ name: "", category: firstCategoryId, description: "" });
+    setVariantsFrom([createEmptyVariant()]);
   };
 
   const openEdit = (product: Product) => {
+    console.log(product);
     setEditItem(product);
+    setBasicInfo({
+      name: product.name || "",
+      category: product.category?._id || "",
+      description: product.description || "",
+    });
+    setVariantsFrom(mapProductToVariants(product));
     setShowModal(true);
   };
 
   const addSize = () => {
-    const newVariant = {
-      sku: "",
-      size: "",
-      price: 0,
-      imageFile: undefined as any,
-      recipe: [],
-    };
-    setVariantsFrom([...variantsFrom, newVariant]);
+    setVariantsFrom([...variantsFrom, createEmptyVariant()]);
   };
 
   const removeSize = (indexToRemove: number) => {
@@ -467,7 +532,6 @@ export default function Products() {
                 <div>
                   <label className="block text-sm mb-1">Tên sản phẩm *</label>
                   <input
-                    defaultValue={editItem?.name}
                     value={basicInfo.name}
                     onChange={e => setBasicInfo({ ...basicInfo, name: e.target.value })}
                     placeholder="VD: Pizza Pepperoni"
@@ -477,7 +541,6 @@ export default function Products() {
                 <div>
                   <label className="block text-sm mb-1">Danh mục *</label>
                   <select
-                    defaultValue={categories[0]._id || editItem?.category.slug}
                     onChange={e => setBasicInfo({ ...basicInfo, category: e.target.value })}
                     value={basicInfo.category}
                     className="w-full px-4 py-2.5 rounded-xl border border-border bg-background outline-none"
@@ -500,7 +563,6 @@ export default function Products() {
               <div>
                 <label className="block text-sm mb-1">Mô tả</label>
                 <textarea
-                  defaultValue={editItem?.description || ""}
                   value={basicInfo.description}
                   onChange={e => setBasicInfo({ ...basicInfo, description: e.target.value })}
                   rows={2}
@@ -531,15 +593,25 @@ export default function Products() {
                       <div key={i} className="flex flex-col gap-2 bg-muted/30 rounded-xl p-3 ">
                         <div className="flex justify-between gap-2 ">
                           <div className="flex gap-2">
+                            {editItem && editItem.variants?.[i]?.image?.url && !variant.imageFile && (
+                              <div className="flex flex-col items-center gap-1">
+                                <Image
+                                  src={editItem.variants[i].image.url}
+                                  alt={`Ảnh hiện tại ${variant.size || ""}`.trim()}
+                                  width={80}
+                                  height={80}
+                                  className="rounded-lg object-cover border border-border"
+                                />
+                                <span className="text-[10px] text-muted-foreground">Ảnh hiện tại</span>
+                              </div>
+                            )}
                             <ImageInput
                               accept="image/*"
                               className="h-20 w-20"
-                              required
+                              required={!editItem || !editItem.variants?.[i]?.image?.url}
                               onChange={e => {
-                                const file = e.target.files?.[0];
-                                if (file) {
-                                  handleVariantChange(i, "imageFile", file);
-                                }
+                                const file = e.target.files?.[0] || null;
+                                handleVariantChange(i, "imageFile", file);
                               }}
                             />
                             <div>
@@ -559,7 +631,7 @@ export default function Products() {
                                 value={variant.price}
                                 onChange={e => handleVariantChange(i, "price", e.target.value)}
                                 placeholder="170000"
-                                className="w-45 px-4 py-2.5 rounded-xl border border-border bg-background focus:border-primary outline-none"
+                                className="w-40 px-4 py-2.5 rounded-xl border border-border bg-background focus:border-primary outline-none"
                               />
                             </div>
                           </div>
@@ -660,68 +732,6 @@ export default function Products() {
         </div>
       )}
 
-      {/* {showModal && !isAdmin && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowModal(false)}>
-          <div
-            className="bg-card rounded-2xl p-6 w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto"
-            onClick={e => e.stopPropagation()}
-          >
-            <h3 className="text-foreground mb-2">Thêm sản phẩm vào menu</h3>
-            <p className="text-sm text-muted-foreground mb-4">Chọn từ danh sách sản phẩm đã được Admin tạo</p>
-            <div className="space-y-2">
-              {products.filter(p => p.is_active === true).length === 0 ? (
-                <div className="bg-muted/50 rounded-xl p-6 text-center text-sm text-muted-foreground">
-                  Tất cả sản phẩm đã được hiển thị
-                </div>
-              ) : (
-                products
-                  .filter(p => p.is_active === true)
-                  .map(product => (
-                    <div
-                      key={product._id}
-                      className="flex items-center gap-3 p-3 rounded-xl border border-border hover:bg-muted/30 transition-colors"
-                    >
-                      <div className="w-12 h-12 rounded-lg overflow-hidden bg-muted shrink-0">
-                        {product.variants[0].image.url ? (
-                          <Image
-                            src={product.variants[0].image.url}
-                            alt={product.name}
-                            fill
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <Pizza size={20} className="text-muted-foreground/30" />
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-foreground">{product.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {product.category.name} • {formatVND(product.variants[0].price)}
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => {
-                          toggleStatus(product._id);
-                        }}
-                        className="px-3 py-1.5 bg-primary/10 text-primary rounded-lg text-sm hover:bg-primary/20 transition-colors"
-                      >
-                        <Eye size={14} />
-                      </button>
-                    </div>
-                  ))
-              )}
-            </div>
-            <button
-              onClick={() => setShowModal(false)}
-              className="w-full mt-4 py-2.5 rounded-xl border border-border text-foreground hover:bg-muted transition-colors"
-            >
-              Đóng
-            </button>
-          </div>
-        </div>
-      )} */}
       <Toaster
         toastOptions={{
           classNames: {

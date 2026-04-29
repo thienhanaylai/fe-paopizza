@@ -5,7 +5,7 @@ import Cookies from "js-cookie";
 const ACCESS_TOKEN_KEY = "employee_access_token";
 const USER_KEY = "employee";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://apipaopizza.ngb.id.vn";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
 export type EmployeeRole = null | "admin" | "manager" | "staff";
 export type EmployeeLevel = "intern" | "fresher" | "junior" | "senior" | "store_manager";

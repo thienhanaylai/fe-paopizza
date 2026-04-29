@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://apipaopizza.ngb.id.vn";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
 export const getAllCategories = async () => {
   try {

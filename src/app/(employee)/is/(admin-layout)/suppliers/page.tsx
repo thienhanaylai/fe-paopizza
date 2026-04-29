@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Search, Plus, Edit2, Trash2, Phone, Mail, MapPin, Package, Star, Truck } from "lucide-react";
+import { getAllSupplier } from "@/src/services/suppliers.service";
 
 interface Supplier {
   id: string;
@@ -108,7 +109,16 @@ export default function Suppliers() {
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [editItem, setEditItem] = useState<Supplier | null>(null);
-  const [viewItem, setViewItem] = useState<Supplier | null>(null);
+
+  const [listSuppliers, setListSuppliers] = useState([]);
+
+  useEffect(() => {
+    const fectData = async () => {
+      const res = await getAllSupplier();
+      console.log(res);
+    };
+    fectData();
+  }, []);
 
   const filtered = mockSuppliers.filter(
     s =>

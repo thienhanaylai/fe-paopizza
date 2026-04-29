@@ -24,95 +24,6 @@ import { createStore, getAllStore, StoreData1 } from "@/src/services/store.servi
 import { getEmployeeByRole } from "@/src/services/employee.service";
 import { toast, Toaster } from "sonner";
 
-// interface StoreData {
-//   _id: string;
-//   name: string;
-//   address: string;
-//   phone: string;
-//   email: string;
-//   manager: string;
-//   manager_id: string;
-//   staffCount: number;
-//   status: "active" | "inactive" | "maintenance";
-//   openTime: string;
-//   closeTime: string;
-//   monthlyRevenue: number;
-//   monthlyOrders: number;
-//   revenueChange: number;
-//   createdAt: string;
-// }
-
-// const listStore: StoreData[] = [
-//   {
-//     _id: "store-1",
-//     name: "Chi nhánh Quận 1",
-//     address: "123 Nguyễn Huệ, Quận 1, TP.HCM",
-//     phone: "028 1234 5678",
-//     email: "q1@paopizza.com",
-//     manager: "Nguyễn Văn A",
-//     manager_id: "2",
-//     staffCount: 18,
-//     status: "active",
-//     openTime: "10:00",
-//     closeTime: "22:00",
-//     monthlyRevenue: 175000000,
-//     monthlyOrders: 2340,
-//     revenueChange: 12.5,
-//     createdAt: "15/01/2024",
-//   },
-//   {
-//     _id: "store-2",
-//     name: "Chi nhánh Quận 7",
-//     address: "456 Nguyễn Thị Thập, Quận 7, TP.HCM",
-//     phone: "028 2345 6789",
-//     email: "q7@paopizza.com",
-//     manager: "Trần Minh B",
-//     manager_id: "5",
-//     staffCount: 14,
-//     status: "active",
-//     openTime: "10:00",
-//     closeTime: "22:00",
-//     monthlyRevenue: 130000000,
-//     monthlyOrders: 1780,
-//     revenueChange: 8.3,
-//     createdAt: "20/03/2024",
-//   },
-//   {
-//     _id: "store-3",
-//     name: "Chi nhánh Thủ Đức",
-//     address: "789 Võ Văn Ngân, Thủ Đức, TP.HCM",
-//     phone: "028 3456 7890",
-//     email: "td@paopizza.com",
-//     manager: "Lê Thị C",
-//     manager_id: "8",
-//     staffCount: 12,
-//     status: "active",
-//     openTime: "10:00",
-//     closeTime: "22:00",
-//     monthlyRevenue: 110000000,
-//     monthlyOrders: 1520,
-//     revenueChange: -2.1,
-//     createdAt: "10/06/2024",
-//   },
-//   {
-//     _id: "store-4",
-//     name: "Chi nhánh Bình Thạnh",
-//     address: "321 Điện Biên Phủ, Bình Thạnh, TP.HCM",
-//     phone: "028 4567 8901",
-//     email: "bt@paopizza.com",
-//     manager: "Phạm Quốc D",
-//     manager_id: "11",
-//     staffCount: 10,
-//     status: "maintenance",
-//     openTime: "10:00",
-//     closeTime: "22:00",
-//     monthlyRevenue: 0,
-//     monthlyOrders: 0,
-//     revenueChange: 0,
-//     createdAt: "01/02/2026",
-//   },
-// ];
-
 const statusConfig = {
   active: { label: "Hoạt động", color: "bg-green-100 text-green-700", icon: <CheckCircle2 size={14} /> },
   close: { label: "Tạm đóng", color: "bg-red-100 text-red-700", icon: <XCircle size={14} /> },
@@ -139,14 +50,14 @@ export default function Stores() {
   const [timeCloseStore, setTimeCloseStore] = useState("22:00");
   const [managerStore, setManagerStore] = useState("");
 
-  useEffect(() => {
-    const fecthdata = async () => {
-      const res = await getAllStore();
-      const listManager = await getEmployeeByRole("manager");
+  const fecthdata = async () => {
+    const res = await getAllStore();
+    const listManager = await getEmployeeByRole("manager");
 
-      setListManager(listManager);
-      setListStore(res);
-    };
+    setListManager(listManager);
+    setListStore(res);
+  };
+  useEffect(() => {
     fecthdata();
   }, []);
 
@@ -157,6 +68,7 @@ export default function Stores() {
     setEmailStore("");
     setTimeOpenStore("10:00");
     setTimeCloseStore("22:00");
+    setShowForm(false);
     setIsLoading(false);
   };
 
@@ -173,6 +85,7 @@ export default function Stores() {
       ) {
         toast.warning("Vui lòng nhập đầy đủ thông tin !");
         setIsLoading(false);
+
         return;
       }
       const res = await createStore({
@@ -187,6 +100,8 @@ export default function Stores() {
 
       if (res) {
         toast.success("Thêm mới cửa hàng thành công!");
+        fecthdata();
+        clearFrom();
         setIsLoading(false);
       }
     } catch (error) {

@@ -2,7 +2,7 @@
 import { ArrowRight, Award, ChefHat, Clock, Dot, MapPin, Minus, Phone, Plus, Star, Truck, X } from "lucide-react";
 import Image from "next/image";
 import { useEffect, useState } from "react";
-import { getAllProducts } from "@/src/services/product.service";
+import { getAllProductsActive } from "@/src/services/product.service";
 import { getAllCategories } from "@/src/services/category.service";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/src/components/ui/tabs";
 import { useCustomerAuth } from "@/src/context/authCustomerContext";
@@ -75,7 +75,7 @@ export default function IndexPage() {
     const fectData = async () => {
       try {
         const categories = await getAllCategories();
-        const products = await getAllProducts();
+        const products = await getAllProductsActive();
 
         const mappedCategories: MenuCategoryUI[] = categories
           .filter((cat: { is_active: boolean; isDeleted: boolean }) => cat.is_active && !cat.isDeleted)

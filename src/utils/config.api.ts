@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://apipaopizza.ngb.id.vn";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
 export const http = async (endpoint: string, options: RequestInit = {}, typeUser: string | null = null) => {
   let ACCESS_TOKEN_KEY = "employee_access_token";
