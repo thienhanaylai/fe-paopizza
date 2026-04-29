@@ -163,3 +163,14 @@ export const updateStatusProduct = async (product_id: string) => {
   );
   return response.data;
 };
+
+export const deletedProduct = async (product_id: string) => {
+  const response = await http(
+    `/api/v1/products/deleted/${product_id}`,
+    {
+      method: "PATCH",
+    },
+    "",
+  );
+  return response.data;
+};

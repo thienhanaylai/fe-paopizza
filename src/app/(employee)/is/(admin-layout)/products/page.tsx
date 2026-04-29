@@ -1,9 +1,9 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Search, Plus, Edit2, Filter, Pizza, Eye, EyeOff, Tag, Percent } from "lucide-react";
+import { Search, Plus, Edit2, Filter, Pizza, Eye, EyeOff, Tag, Percent, DeleteIcon, X } from "lucide-react";
 import { useEmployeeAuth } from "@/src/context/authEmployeeContext";
 import Image from "next/image";
-import { addProduct, getAllProducts, updateProduct, updateStatusProduct } from "@/src/services/product.service";
+import { addProduct, deletedProduct, getAllProducts, updateProduct, updateStatusProduct } from "@/src/services/product.service";
 import { getAllCategories } from "@/src/services/category.service";
 import { ImageInput } from "@/src/components/ui/input";
 import { getAllIngredients } from "@/src/services/ingredient.service";
@@ -128,6 +128,7 @@ export default function Products() {
   const [categories, setCategories] = useState<MenuCategoryUI[]>([]);
   const [ingredients, setIngredients] = useState<IngredientList[]>();
   const [isLoading, setIsLoading] = useState(false);
+  const [confirmModal, setCongirmModal] = useState(false);
 
   const [basicInfo, setBasicInfo] = useState({
     name: "",
@@ -368,6 +369,20 @@ export default function Products() {
     );
   };
 
+  const handleDeleteProduct = async (product_id: string) => {
+    setIsLoading(true);
+    try {
+      await deletedProduct(product_id);
+      toast.success("Xoá sản phẩm thành công!");
+      setCongirmModal(false);
+      setIsLoading(false);
+    } catch (e) {
+      toast.error(`Lỗi: ${e}`);
+      setIsLoading(false);
+      return;
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -459,35 +474,19 @@ export default function Products() {
                   <h4 className="text-foreground">{product.name}</h4>
                   <p className="text-xs text-muted-foreground mt-0.5">{product.category.name}</p>
                 </div>
-                <div className="text-right shrink-0">
-                  {/* {product.discount > 0 ? (
-                    <div>
-                      <span className="text-xs text-muted-foreground line-through">{formatVND(product.price)}</span>
-                      <p className="text-primary">{formatVND(Math.round(product.price * (1 - product.discount / 100)))}</p>
-                    </div>
-                  ) : (
-                    <span className="text-primary">{formatVND(product.price)}</span>
-                  )} */}
-                </div>
               </div>
               <p className="text-xs text-muted-foreground mt-2 line-clamp-2">{product.description}</p>
 
-              {/* {isAdmin && product.recipe.length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-1">
-                  {product.recipe.slice(0, 3).map((r, i) => (
-                    <span key={i} className="px-1.5 py-0.5 rounded text-[9px] bg-orange-50 text-orange-600">
-                      {r.name}
-                    </span>
-                  ))}
-                  {product.recipe.length > 3 && (
-                    <span className="px-1.5 py-0.5 rounded text-[9px] bg-muted text-muted-foreground">
-                      +{product.recipe.length - 3}
-                    </span>
-                  )}
-                </div>
-              )} */}
-
               <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border">
+                <button
+                  onClick={() => {
+                    setCongirmModal(true);
+                    setEditItem(product);
+                  }}
+                  className={`flex-1 flex items-center justify-center gap-1 text-sm py-2 rounded-lg transition-colors bg-red-50 text-red-600 hover:bg-red-100`}
+                >
+                  <X size={14} /> Xoá
+                </button>
                 <button
                   onClick={() => toggleStatus(product._id)}
                   className={`flex-1 flex items-center justify-center gap-1 text-sm py-2 rounded-lg transition-colors ${product.is_active === true ? "bg-red-50 text-red-600 hover:bg-red-100" : "bg-green-50 text-green-600 hover:bg-green-100"}`}
@@ -731,7 +730,39 @@ export default function Products() {
           </div>
         </div>
       )}
-
+      {confirmModal && (
+        <>
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 m-0"
+            onClick={() => setCongirmModal(false)}
+          >
+            <div
+              className="bg-card rounded-2xl p-6 w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex gap-1 m-1">
+                Xác nhận xoá sản phẩm <p className="font-mono">`{editItem?.name}`</p> ?
+              </div>
+              <div className="flex gap-3 pt-3">
+                <button
+                  onClick={() => setCongirmModal(false)}
+                  className="flex-1 py-2.5 rounded-xl border border-red-200 text-black hover:bg-red-50 transition-colors"
+                >
+                  Thoát
+                </button>
+                <button
+                  onClick={() => {
+                    handleDeleteProduct(editItem?._id);
+                  }}
+                  className="flex-1 py-2.5  rounded-xl bg-red-600 text-white hover:bg-red-700/90 transition-colors"
+                >
+                  Xác nhận
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
       <Toaster
         toastOptions={{
           classNames: {
