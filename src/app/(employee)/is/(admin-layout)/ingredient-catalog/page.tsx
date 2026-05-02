@@ -141,8 +141,8 @@ export default function IngredientCatalog() {
           onClick={() => {
             setEditItem(null);
             setShowForm(true);
-            setFromCategory(categories[1]?.slug);
-            setFromUnit(units[0]?.slug);
+            setFromCategory(categories[1]?.slug || "");
+            setFromUnit(units[0]?.slug || "");
           }}
           className="flex items-center gap-2 bg-primary text-white px-4 py-2.5 rounded-xl hover:bg-primary/90 transition-colors shadow-lg shadow-primary/25"
         >
