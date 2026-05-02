@@ -4,7 +4,7 @@ export type RECOGNIZED_STATUSES = ["completed", "delivering"];
 export type ALLOWED_GROUP_BY = ["day", "week", "month"];
 export type DASHBOARD_PERIODS = ["day", "month", "quarter", "year"];
 
-export const getRevenueDashboard = async (
+export const getRevenue = async (
   revenueStartDate: string,
   revenueEndDate: string,
   storeId: string,
@@ -20,7 +20,6 @@ export const getRevenueDashboard = async (
       },
       typeUser,
     );
-
     return response.data;
   } catch (error) {
     console.error("Lỗi fetch :", error);

@@ -4,8 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { DollarSign, TrendingUp, ShoppingCart, Calendar, Store, ChevronDown, ArrowUpRight, ArrowDownRight } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { useEmployeeAuth } from "@/src/context/authEmployeeContext";
-import { getRevenueDashboard } from "@/src/services/revenue.service";
-import { getAllStore, type StoreData1 } from "@/src/services/store.service";
+import { getRevenue } from "@/src/services/revenue.service";
+import { getAllStore, type StoreData } from "@/src/services/store.service";
 
 type Period = "day" | "month" | "quarter" | "year";
 
@@ -29,6 +29,9 @@ type RevenueRange = {
 type RevenueData = {
   metrics?: RevenueMetrics;
   range?: RevenueRange;
+  timeline?: {
+    data?: RevenueSeriesPoint[];
+  };
   [key: string]: unknown;
 };
 
@@ -56,7 +59,7 @@ const periodLabels: Record<Period, string> = {
   year: "Năm",
 };
 
-const chartMeta: Record<Period, { title: string; size: number; makeLabel: (index: number) => string }> = {
+const chartMeta: Record<Period, { title: string; size: number; makeLabel: (index: number, rangeStart?: Date) => string }> = {
   day: {
     title: "Doanh thu theo giờ (10h - 22h)",
     size: 12,
@@ -75,7 +78,13 @@ const chartMeta: Record<Period, { title: string; size: number; makeLabel: (index
   year: {
     title: "Doanh thu theo tháng (12 tháng)",
     size: 12,
-    makeLabel: index => `Th${index + 1}`,
+    makeLabel: (index, rangeStart) => {
+      const base = rangeStart ?? new Date();
+      const date = new Date(base.getFullYear(), base.getMonth() + index, 1);
+      const month = date.getMonth() + 1;
+      const year = date.getFullYear();
+      return `Th${month}/${year}`;
+    },
   },
 };
 
@@ -111,12 +120,15 @@ function formatDateOnly(value: string) {
   return `${day}-${month}-${year}`;
 }
 
+function formatDateInput(dateObj: Date) {
+  const y = dateObj.getFullYear();
+  const m = (dateObj.getMonth() + 1).toString().padStart(2, "0");
+  const d = dateObj.getDate().toString().padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
 function getDateNow() {
-  const now = new Date();
-  const day = now.getDate().toString().padStart(2, "0");
-  const month = (now.getMonth() + 1).toString().padStart(2, "0");
-  const year = now.getFullYear().toString();
-  return `${year}-${month}-${day}`;
+  return formatDateInput(new Date());
 }
 
 function getCurrentMonthRange() {
@@ -124,57 +136,45 @@ function getCurrentMonthRange() {
   const startDate = new Date(now.getFullYear(), now.getMonth(), 1);
   const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
-  const formatDate = (dateObj: Date) => {
-    const y = dateObj.getFullYear();
-    const m = (dateObj.getMonth() + 1).toString().padStart(2, "0");
-    const d = dateObj.getDate().toString().padStart(2, "0");
-    return `${y}-${m}-${d}`;
-  };
-
   return {
-    start: formatDate(startDate),
-    end: formatDate(endDate),
-  };
-}
-
-function getCurrentYearRange() {
-  const now = new Date();
-  const day = now.getDate().toString().padStart(2, "0");
-  const month = (now.getMonth() + 1).toString().padStart(2, "0");
-  const yearEnd = now.getFullYear().toString();
-  const yearStart = (now.getFullYear() - 1).toString();
-
-  return {
-    start: `${yearStart}-${month}-${day}`,
-    end: `${yearEnd}-${month}-${day}`,
+    start: formatDateInput(startDate),
+    end: formatDateInput(endDate),
   };
 }
 
 function getCurrentQuarterRange() {
   const now = new Date();
   const year = now.getFullYear();
-  const currentMonth = now.getMonth();
-  const startMonthIndex = Math.floor(currentMonth / 3) * 3;
-
+  const startMonthIndex = Math.floor(now.getMonth() / 3) * 3;
   const startDate = new Date(year, startMonthIndex, 1);
   const endDate = new Date(year, startMonthIndex + 3, 0);
 
-  const formatDate = (dateObj: Date) => {
-    const y = dateObj.getFullYear();
-    const m = (dateObj.getMonth() + 1).toString().padStart(2, "0");
-    const d = dateObj.getDate().toString().padStart(2, "0");
-    return `${y}-${m}-${d}`;
+  return {
+    start: formatDateInput(startDate),
+    end: formatDateInput(endDate),
   };
+}
+
+function getCurrentYearRange() {
+  const now = new Date();
+  const startDate = new Date(now.getFullYear(), 0, 1);
+  const endDate = new Date(now.getFullYear(), 11, 31);
 
   return {
-    start: formatDate(startDate),
-    end: formatDate(endDate),
+    start: formatDateInput(startDate),
+    end: formatDateInput(endDate),
   };
 }
 
 function toFiniteNumber(value: unknown) {
   const num = Number(value);
   return Number.isFinite(num) ? num : 0;
+}
+
+function addDays(date: Date, days: number) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
 }
 
 function parseDate(value: unknown) {
@@ -327,22 +327,31 @@ function getBucketIndex(point: RevenueSeriesPoint, period: Period, rangeStart: D
     return -1;
   }
 
-  let month = toFiniteNumber(point.month || point.month_of_year);
-  if (!month) {
-    const fromText = extractFirstNumber(labelText);
-    month = fromText ?? 0;
-  }
+  if (period === "year") {
+    if (dateValue) {
+      const diffMonths =
+        (dateValue.getFullYear() - rangeStart.getFullYear()) * 12 + (dateValue.getMonth() - rangeStart.getMonth());
+      return diffMonths >= 0 && diffMonths < 12 ? diffMonths : -1;
+    }
 
-  if (!month && dateValue) {
-    month = dateValue.getMonth() + 1;
-  }
+    let month = toFiniteNumber(point.month || point.month_of_year);
+    if (!month) {
+      const fromText = extractFirstNumber(labelText);
+      month = fromText ?? 0;
+    }
 
-  if (month >= 0 && month <= 11) {
-    month += 1;
-  }
+    if (month >= 0 && month <= 11) {
+      month += 1;
+    }
 
-  if (month >= 1 && month <= 12) {
-    return month - 1;
+    if (month >= 1 && month <= 12) {
+      const startMonth = rangeStart.getMonth() + 1;
+      const diff = month - startMonth;
+      const normalized = diff >= 0 ? diff : diff + 12;
+      return normalized < 12 ? normalized : -1;
+    }
+
+    return -1;
   }
 
   return -1;
@@ -369,7 +378,8 @@ function getDefaultRangeStart(period: Period) {
 
 function getRangeByPeriod(targetPeriod: Period) {
   if (targetPeriod === "day") {
-    return { startDate: getDateNow(), endDate: "" };
+    const today = getDateNow();
+    return { startDate: today, endDate: today };
   }
 
   if (targetPeriod === "month") {
@@ -384,6 +394,58 @@ function getRangeByPeriod(targetPeriod: Period) {
 
   const yearRange = getCurrentYearRange();
   return { startDate: yearRange.start, endDate: yearRange.end };
+}
+
+function getBucketRangesByPeriod(period: Period) {
+  if (period === "month") {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth();
+    const lastDay = new Date(year, month + 1, 0).getDate();
+
+    return [1, 8, 15, 22].map((startDay, index) => {
+      const endDay = index < 3 ? startDay + 6 : lastDay;
+      const start = new Date(year, month, startDay);
+      const end = new Date(year, month, endDay);
+      return {
+        start: formatDateInput(start),
+        end: formatDateInput(end),
+      };
+    });
+  }
+
+  if (period === "quarter") {
+    const now = new Date();
+    const year = now.getFullYear();
+    const startMonthIndex = Math.floor(now.getMonth() / 3) * 3;
+    const quarterStart = new Date(year, startMonthIndex, 1);
+    const quarterEnd = new Date(year, startMonthIndex + 3, 0);
+
+    return Array.from({ length: 12 }, (_, index) => {
+      const start = addDays(quarterStart, index * 7);
+      const end = index === 11 ? quarterEnd : addDays(quarterStart, index * 7 + 6);
+      return {
+        start: formatDateInput(start),
+        end: formatDateInput(end),
+      };
+    });
+  }
+
+  if (period === "year") {
+    const now = new Date();
+    const year = now.getFullYear();
+
+    return Array.from({ length: 12 }, (_, index) => {
+      const start = new Date(year, index, 1);
+      const end = new Date(year, index + 1, 0);
+      return {
+        start: formatDateInput(start),
+        end: formatDateInput(end),
+      };
+    });
+  }
+
+  return [] as Array<{ start: string; end: string }>;
 }
 
 function getMetricNumber(metrics: unknown, keys: string[]) {
@@ -414,6 +476,22 @@ function getOptionalMetricNumber(metrics: unknown, keys: string[]) {
   return null;
 }
 
+async function getTimelineSeries(period: Period, storeId: string) {
+  const buckets = getBucketRangesByPeriod(period);
+  if (buckets.length === 0) return [] as RevenueSeriesPoint[];
+
+  const results = await Promise.allSettled(buckets.map(bucket => getRevenue(bucket.start, bucket.end, storeId, "", "", "")));
+
+  return results.map((result, index) => {
+    const metrics = result.status === "fulfilled" ? (result.value as RevenueData).metrics : null;
+    return {
+      start_date: buckets[index].start,
+      end_date: buckets[index].end,
+      total_revenue: getMetricNumber(metrics, ["total_revenue", "totalRevenue", "revenue"]),
+    } as RevenueSeriesPoint;
+  });
+}
+
 export default function Revenue() {
   const { user, getInfo } = useEmployeeAuth();
 
@@ -423,7 +501,7 @@ export default function Revenue() {
   const [showStoreDropdown, setShowStoreDropdown] = useState(false);
   const [dateRanger, setDateRanger] = useState(getDateNow());
   const [employee, setEmployee] = useState<EmployeeInfo | null>(null);
-  const [stores, setStores] = useState<StoreData1[]>([]);
+  const [stores, setStores] = useState<StoreData[]>([]);
   const [storeRanking, setStoreRanking] = useState<StoreRankingRow[]>([]);
   const [rankingLoading, setRankingLoading] = useState(false);
 
@@ -435,8 +513,17 @@ export default function Revenue() {
       const storeId = isAdmin ? (options.storeValue === "all" ? "" : options.storeValue) : employeeInfo?.ref_id?.store_id || "";
       const { startDate, endDate } = getRangeByPeriod(targetPeriod);
 
-      const response = (await getRevenueDashboard(startDate, endDate, storeId, "", "", "")) as RevenueData;
-      setRevenue(response ?? {});
+      const [response, timeline] = await Promise.all([
+        getRevenue(startDate, endDate, storeId, "", "", ""),
+        getTimelineSeries(targetPeriod, storeId),
+      ]);
+
+      setRevenue({
+        ...(response ?? {}),
+        timeline: {
+          data: timeline,
+        },
+      });
 
       if (targetPeriod === "day") {
         setDateRanger(startDate);
@@ -466,7 +553,7 @@ export default function Revenue() {
         const rows = await Promise.all(
           stores.map(async store => {
             try {
-              const response = (await getRevenueDashboard(startDate, endDate, store._id, "", "", "")) as RevenueData;
+              const response = (await getRevenue(startDate, endDate, store._id, "", "", "")) as RevenueData;
               const totalRevenue = getMetricNumber(response.metrics, ["total_revenue", "totalRevenue", "revenue"]);
               const totalOrders = getMetricNumber(response.metrics, ["total_orders", "totalOrders", "orders"]);
               const customers = getMetricNumber(response.metrics, ["customers", "total_customers", "totalCustomers"]);
@@ -534,7 +621,7 @@ export default function Revenue() {
 
         setEmployee(employeeInfo);
 
-        const storeList = (await getAllStore()) as StoreData1[];
+        const storeList = (await getAllStore()) as StoreData[];
         if (cancelled) return;
 
         setStores(storeList || []);
@@ -581,13 +668,12 @@ export default function Revenue() {
 
   const chartData = useMemo(() => {
     const meta = chartMeta[period];
-    const buckets: ChartPoint[] = Array.from({ length: meta.size }, (_, index) => ({
-      label: meta.makeLabel(index),
-      revenue: 0,
-    }));
-
     const series = getRevenueSeriesByPeriod(revenue, period);
     const rangeStart = parseDate(revenue.range?.start_date) ?? getDefaultRangeStart(period);
+    const buckets: ChartPoint[] = Array.from({ length: meta.size }, (_, index) => ({
+      label: meta.makeLabel(index, rangeStart),
+      revenue: 0,
+    }));
 
     for (const point of series) {
       const index = getBucketIndex(point, period, rangeStart);

@@ -31,8 +31,8 @@ import {
   Cell,
 } from "recharts";
 import { useEmployeeAuth } from "@/src/context/authEmployeeContext";
-import { getAllStore, type StoreData1 } from "@/src/services/store.service";
-import { getRevenueDashboard } from "@/src/services/revenue.service";
+import { getAllStore, type StoreData } from "@/src/services/store.service";
+import { getRevenue } from "@/src/services/revenue.service";
 import { getAllOrder, type OrderHistory, type OrderStatus } from "@/src/services/order.service";
 import { getAllEmployee } from "@/src/services/employee.service";
 
@@ -61,7 +61,7 @@ type AdminStoreRow = {
   manager: string;
   revenue: number;
   orders: number;
-  status: StoreData1["status"];
+  status: StoreData["status"];
 };
 
 type AdminDataState = {
@@ -160,7 +160,7 @@ function getHourBucketsFromOrders(orders: OrderHistory[]) {
   }));
 }
 
-function getStoreName(store: StoreData1) {
+function getStoreName(store: StoreData) {
   return store.name || "Cửa hàng";
 }
 
@@ -523,17 +523,10 @@ export default function DashboardPage() {
         if (role === "admin") {
           setAdminLoading(true);
 
-          const [stores, employees] = (await Promise.all([getAllStore(), getAllEmployee()])) as [StoreData1[], unknown[]];
+          const [stores, employees] = (await Promise.all([getAllStore(), getAllEmployee()])) as [StoreData[], unknown[]];
           const monthRange = getMonthRange(0);
 
-          const systemMonthOverview = (await getRevenueDashboard(
-            monthRange.start,
-            monthRange.end,
-            "",
-            "",
-            "",
-            "",
-          )) as RevenueOverview;
+          const systemMonthOverview = (await getRevenue(monthRange.start, monthRange.end, "", "", "", "")) as RevenueOverview;
 
           const chartRanges = [
             getMonthRange(-5),
@@ -546,7 +539,8 @@ export default function DashboardPage() {
 
           const chartValues = await Promise.all(
             chartRanges.map(async r => {
-              const response = (await getRevenueDashboard(r.start, r.end, "", "", "", "")) as RevenueOverview;
+              const response = (await getRevenue(r.start, r.end, "", "", "", "")) as RevenueOverview;
+
               return {
                 name: r.label,
                 value: getRevenueMetricsValue(response, "total_revenue"),
@@ -556,14 +550,7 @@ export default function DashboardPage() {
 
           const storeRows = await Promise.all(
             stores.map(async st => {
-              const response = (await getRevenueDashboard(
-                monthRange.start,
-                monthRange.end,
-                st._id,
-                "",
-                "",
-                "",
-              )) as RevenueOverview;
+              const response = (await getRevenue(monthRange.start, monthRange.end, st._id, "", "", "")) as RevenueOverview;
               return {
                 id: st._id,
                 name: getStoreName(st),
@@ -597,7 +584,7 @@ export default function DashboardPage() {
           setManagerLoading(true);
 
           const today = dateToYmd(new Date());
-          const todayOverview = (await getRevenueDashboard(today, "", managerStoreId, "", "", "")) as RevenueOverview;
+          const todayOverview = (await getRevenue(today, "", managerStoreId, "", "", "")) as RevenueOverview;
 
           const weekDates = Array.from({ length: 7 }, (_, idx) => {
             const d = new Date();
@@ -608,7 +595,7 @@ export default function DashboardPage() {
           const weeklyRevenue = await Promise.all(
             weekDates.map(async d => {
               const date = dateToYmd(d);
-              const overview = (await getRevenueDashboard(date, "", managerStoreId, "", "", "")) as RevenueOverview;
+              const overview = (await getRevenue(date, "", managerStoreId, "", "", "")) as RevenueOverview;
               return {
                 name: `T${d.getDate()}/${d.getMonth() + 1}`,
                 value: getRevenueMetricsValue(overview, "total_revenue"),

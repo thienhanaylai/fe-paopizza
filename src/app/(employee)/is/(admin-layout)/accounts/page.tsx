@@ -8,28 +8,16 @@ import {
   UserPlus,
   Shield,
   Users,
-  ShieldCheck,
-  ShieldAlert,
   UserCircle,
   Phone,
-  Mail,
   MoreVertical,
   Lock,
   Unlock,
 } from "lucide-react";
-import {
-  EmployeeRole,
-  getRoleLabel,
-  getRoleColor,
-  EmployeeLevel,
-  EmployeeStation,
-  getLevelLabel,
-  getLevelColor,
-  getStationLabel,
-  getStationColor,
-} from "@/src/context/authEmployeeContext";
-import { createUser, getAllUser, User } from "@/src/services/user.service";
+import { getRoleLabel, getRoleColor, getStationLabel, getStationColor } from "@/src/context/authEmployeeContext";
+import { createUser, getAllUser, updateCustomer, updateEmployee, updateUser, User } from "@/src/services/user.service";
 import { getAllStore } from "@/src/services/store.service";
+import { toast, Toaster } from "sonner";
 type UserRole = "admin" | "manager" | "staff";
 
 const statusConfig: Record<boolean, { label: string; color: string }> = {
@@ -48,6 +36,28 @@ const avatarColors = [
   "bg-red-500",
 ];
 
+const createEmptyForm = () => ({
+  role: "staff",
+  name: "",
+  email: "",
+  phone: "",
+  address: "",
+  birthday: "",
+  station: "kitchen",
+  salary: 0,
+  salary_type: "monthly",
+  store_id: "",
+  username: "",
+  password: "",
+});
+
+const toDateInputValue = (value?: string) => {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toISOString().split("T")[0];
+};
+
 export default function Accounts() {
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<"all" | UserRole | null>("all");
@@ -57,21 +67,9 @@ export default function Accounts() {
   const [actionMenu, setActionMenu] = useState<string | null>(null);
   const [listUser, setListUser] = useState<User[]>();
   const [listStore, setListStore] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const [formData, setFormData] = useState({
-    role: "staff",
-    name: "",
-    email: "",
-    phone: "",
-    address: "",
-    birthday: "",
-    station: "",
-    salary: 0,
-    salary_type: "",
-    store_id: "",
-    username: "",
-    password: "",
-  });
+  const [formData, setFormData] = useState(createEmptyForm);
 
   const handleChange = e => {
     const { name, value } = e.target;
@@ -89,12 +87,62 @@ export default function Accounts() {
       setListUser(res);
     };
     fecthData();
-  }, []);
+  }, [isLoading]);
+
   const handleSubmit = async () => {
+    setIsLoading(true);
     try {
-      await createUser(formData);
+      if (!editAccount) {
+        await createUser(formData);
+        toast.success("Thêm mới thành công!");
+      } else {
+        const isCustomer = editAccount.user_type === "Customer" || editAccount.role === null || formData.role === "customer";
+
+        if (isCustomer) {
+          await updateCustomer({
+            user_id: editAccount._id,
+            name: formData.name,
+            phone: formData.phone,
+            address: formData.address,
+            email: formData.email,
+          });
+          await updateUser(editAccount._id, {
+            username: formData.phone,
+            role: null,
+          });
+        } else {
+          const employeeId = (editAccount.ref_id as any)?._id;
+          await updateEmployee({
+            employee_id: employeeId,
+            name: formData.name,
+            phone: formData.phone,
+            email: formData.email,
+            address: formData.address,
+            birthday: formData.birthday || undefined,
+            station: formData.station,
+            salary_type: formData.salary_type,
+            salary: Number(formData.salary) || 0,
+            store_id: formData.store_id || null,
+          });
+
+          const roleForUser = formData.role === "store_manager" ? "manager" : formData.role;
+          await updateUser(editAccount._id, {
+            username: formData.username || editAccount.username,
+            role: roleForUser as any,
+          });
+        }
+
+        toast.success("Cập nhật thành công!");
+      }
+
+      setIsLoading(false);
+      setShowModal(false);
+      setEditAccount(null);
+      setFormData(createEmptyForm());
     } catch (error) {
-      console.log(error);
+      toast.error(editAccount ? `Cập nhật thất bại: ${error}` : `Thêm mới thất bại: ${error}`);
+      setIsLoading(false);
+      return;
     }
   };
   const filtered = listUser?.filter(
@@ -123,6 +171,7 @@ export default function Accounts() {
         <button
           onClick={() => {
             setEditAccount(null);
+            setFormData(createEmptyForm());
             setShowModal(true);
           }}
           className="flex items-center gap-2 bg-primary text-white px-4 py-2.5 rounded-xl hover:bg-primary/90 transition-colors shadow-lg shadow-primary/25"
@@ -307,6 +356,21 @@ export default function Accounts() {
                             <button
                               onClick={() => {
                                 setEditAccount(account);
+                                const isCustomer = account.user_type === "Customer" || account.role === null;
+                                setFormData({
+                                  role: isCustomer ? "customer" : account.role || "staff",
+                                  name: account.ref_id?.name || "",
+                                  email: account.ref_id?.email || "",
+                                  phone: account.ref_id?.phone || "",
+                                  address: account.ref_id?.address || "",
+                                  birthday: !isCustomer ? toDateInputValue((account.ref_id as any)?.birthday) : "",
+                                  station: !isCustomer ? (account.ref_id as any)?.station || "kitchen" : "kitchen",
+                                  salary: !isCustomer ? (account.ref_id as any)?.salary || 0 : 0,
+                                  salary_type: !isCustomer ? (account.ref_id as any)?.salary_type || "monthly" : "monthly",
+                                  store_id: !isCustomer ? (account.ref_id as any)?.store_id || "" : "",
+                                  username: account.username || "",
+                                  password: "",
+                                });
                                 setShowModal(true);
                                 setActionMenu(null);
                               }}
@@ -344,7 +408,10 @@ export default function Accounts() {
 
       {/* Create/Edit Modal */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowModal(false)}>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 m-0 p-4"
+          onClick={() => setShowModal(false)}
+        >
           <div
             className="bg-card rounded-2xl p-6 w-full max-w-3xl shadow-2xl max-h-[90vh] overflow-y-auto"
             onClick={e => e.stopPropagation()}
@@ -354,7 +421,6 @@ export default function Accounts() {
               <div>
                 <label className="block text-sm mb-1">Họ tên *</label>
                 <input
-                  defaultValue={editAccount?.ref_id.name}
                   name="name"
                   value={formData.name}
                   onChange={handleChange}
@@ -369,7 +435,6 @@ export default function Accounts() {
                     name="email"
                     value={formData.email}
                     onChange={handleChange}
-                    defaultValue={editAccount?.ref_id.email}
                     placeholder="email@paopizza.com"
                     className="w-full px-4 py-2.5 rounded-xl border border-border bg-background focus:border-primary outline-none"
                   />
@@ -382,7 +447,6 @@ export default function Accounts() {
                     name="phone"
                     value={formData.phone}
                     onChange={handleChange}
-                    defaultValue={editAccount?.ref_id.phone}
                     placeholder="0901234567"
                     className="w-full px-4 py-2.5 rounded-xl border border-border bg-background focus:border-primary outline-none"
                   />
@@ -394,7 +458,6 @@ export default function Accounts() {
                   name="address"
                   value={formData.address}
                   onChange={handleChange}
-                  defaultValue={editAccount?.ref_id.address}
                   type="text"
                   placeholder="43 Pham nhu tang, p4, q8, HCM"
                   className="w-full px-4 py-2.5 rounded-xl border border-border bg-background focus:border-primary outline-none"
@@ -406,7 +469,6 @@ export default function Accounts() {
                   name="birthday"
                   value={formData.birthday}
                   onChange={handleChange}
-                  defaultValue={editAccount?.ref_id.address}
                   type="date"
                   placeholder="43 Pham nhu tang, p4, q8, HCM"
                   className="w-full px-4 py-2.5 rounded-xl border border-border bg-background focus:border-primary outline-none"
@@ -421,12 +483,12 @@ export default function Accounts() {
                   className="w-full px-4 py-2.5 rounded-xl border border-border bg-background outline-none"
                 >
                   <option value="admin">Admin</option>
-                  <option value="store_manager">Quản lý cửa hàng</option>
+                  <option value="manager">Quản lý cửa hàng</option>
                   <option value="staff">Nhân viên</option>
                   <option value="customer">Khách hàng</option>
                 </select>
               </div>
-              {(formData.role === "staff" || formData.role === "store_manager" || formData.role === "admin") && (
+              {(formData.role === "staff" || formData.role === "manager" || formData.role === "admin") && (
                 <>
                   <div className="grid grid-cols-3 gap-4">
                     <div>
@@ -458,7 +520,6 @@ export default function Accounts() {
                         name="station"
                         value={formData.station}
                         onChange={handleChange}
-                        defaultValue={editAccount?.ref_id.station || "cashier"}
                         className="w-full px-4 py-2.5 rounded-xl border border-border bg-background outline-none"
                       >
                         <option value="kitchen">Bếp</option>
@@ -520,20 +581,36 @@ export default function Accounts() {
                 >
                   Hủy
                 </button>
-                <button
-                  onClick={() => handleSubmit()}
-                  className="flex-1 py-2.5 rounded-xl bg-primary text-white hover:bg-primary/90 transition-colors"
-                >
-                  {editAccount ? "Cập nhật" : "Tạo mới"}
-                </button>
+
+                {isLoading ? (
+                  <button className="flex-1 py-2.5 rounded-xl bg-primary text-white bg-primary/50 transition-colors" disabled>
+                    Đang xử lý ...
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => handleSubmit()}
+                    className="flex-1 py-2.5 rounded-xl bg-primary text-white hover:bg-primary/90 transition-colors"
+                  >
+                    {editAccount ? "Cập nhật" : "Tạo mới"}
+                  </button>
+                )}
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Click outside to close action menu */}
       {actionMenu && <div className="fixed inset-0 z-0" onClick={() => setActionMenu(null)} />}
+      <Toaster
+        toastOptions={{
+          classNames: {
+            success: "bg-green-500! text-white! border-green-600!",
+            error: "bg-red-500! text-white! border-red-600!",
+            warning: "bg-yellow-500! text-white! border-yellow-600!",
+            toast: "bg-gray-800! text-white!",
+          },
+        }}
+      />
     </div>
   );
 }

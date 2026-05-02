@@ -3,7 +3,7 @@
 import { ArrowLeft, Banknote, CheckCircle2, CreditCard, LoaderCircle, QrCode, ShoppingBag, Truck, Wallet, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useCart } from "@/src/context/cartContext";
-import { getAllStore, StoreData1 } from "@/src/services/store.service";
+import { getAllStore, StoreData } from "@/src/services/store.service";
 import { Order, createOrder } from "@/src/services/order.service";
 import { useCustomerAuth } from "@/src/context/authCustomerContext";
 import { toast } from "sonner";
@@ -61,7 +61,7 @@ export const CheckoutModal = () => {
   const { user } = useCustomerAuth();
   const { getInfo } = useCustomerAuth();
   const [checkoutStep, setCheckoutStep] = useState<CheckoutStep>("info");
-  const [listStore, setListStore] = useState<StoreData1[]>();
+  const [listStore, setListStore] = useState<StoreData[]>();
   const [idOrder, setIdOrder] = useState("");
   const [orderMethod, setOrderMethod] = useState<OrderMethod>("carry_out");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
@@ -104,7 +104,7 @@ export const CheckoutModal = () => {
     const fecthData = async () => {
       try {
         const stores = await getAllStore();
-        const finalList = stores.filter(item => item.status != "maintenance");
+        const finalList = stores.filter(item => item.status == "active");
         setListStore(finalList);
         setStoreId(stores[0]._id);
       } catch (error) {
@@ -148,7 +148,7 @@ export const CheckoutModal = () => {
           }))
         : [],
       note: custNote,
-      customer_id: customer.ref_id._id,
+      customer_id: customer.ref_id?._id || "",
     };
 
     if (custName === "" || custPhone === "" || storeId === "") {

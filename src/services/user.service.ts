@@ -112,3 +112,66 @@ export const createUser = async (payload: {
     throw error;
   }
 };
+
+export const updateUser = async (
+  userId: string,
+  payload: {
+    username?: string;
+    role?: Role | null;
+    status?: boolean;
+  },
+) => {
+  try {
+    const response = await http(`/api/v1/users/${userId}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Lỗi update user:", error);
+    throw error;
+  }
+};
+
+export const updateEmployee = async (payload: {
+  employee_id: string;
+  name?: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  birthday?: string;
+  station?: string;
+  salary?: number;
+  salary_type?: string;
+  store_id?: string | null;
+}) => {
+  try {
+    const response = await http("/api/v1/employees/update", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Lỗi update employee:", error);
+    throw error;
+  }
+};
+
+export const updateCustomer = async (payload: {
+  user_id: string;
+  name?: string;
+  phone?: string;
+  address?: string;
+  email?: string;
+}) => {
+  try {
+    const response = await http("/api/v1/customers/update", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Lỗi update customer:", error);
+    throw error;
+  }
+};

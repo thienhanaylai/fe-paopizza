@@ -20,9 +20,10 @@ import {
   Settings,
   LoaderCircle,
 } from "lucide-react";
-import { createStore, getAllStore, StoreData1 } from "@/src/services/store.service";
+import { createStore, getAllStore, StoreData, updateStore } from "@/src/services/store.service";
 import { getEmployeeByRole } from "@/src/services/employee.service";
 import { toast, Toaster } from "sonner";
+import { getRevenue } from "@/src/services/revenue.service";
 
 const statusConfig = {
   active: { label: "Hoạt động", color: "bg-green-100 text-green-700", icon: <CheckCircle2 size={14} /> },
@@ -34,12 +35,32 @@ function formatVND(n: number) {
   return new Intl.NumberFormat("vi-VN").format(n) + "đ";
 }
 
+function dateToYmd(date: Date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function getMonthRange(offset = 0) {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth() + offset, 1);
+  const end = new Date(now.getFullYear(), now.getMonth() + offset + 1, 0);
+
+  return {
+    start: dateToYmd(start),
+    end: dateToYmd(end),
+    label: `T${start.getMonth() + 1}`,
+  };
+}
+
 export default function Stores() {
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState<"all" | "active" | "close" | "maintenance">("all");
-  const [selectedStore, setSelectedStore] = useState<StoreData1 | null>(null);
+  const [selectedStore, setSelectedStore] = useState<StoreData | null>(null);
+  const [editingStore, setEditingStore] = useState<StoreData | null>(null);
   const [showForm, setShowForm] = useState(false);
-  const [listStore, setListStore] = useState<StoreData1[]>();
+  const [listStore, setListStore] = useState<StoreData[]>();
   const [listManager, setListManager] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [nameStore, setNameStore] = useState("");
@@ -49,11 +70,32 @@ export default function Stores() {
   const [timeOpenStore, setTimeOpenStore] = useState("10:00");
   const [timeCloseStore, setTimeCloseStore] = useState("22:00");
   const [managerStore, setManagerStore] = useState("");
+  const [statusStore, setStatusStore] = useState<StoreData["status"]>("active");
+  const [revenue, setRevenue] = useState();
+
+  const managerOptions = (listManager as any[])
+    .map(item => ({
+      id: item?.ref_id?._id || item?._id || "",
+      name: item?.ref_id?.name || item?.name || "",
+    }))
+    .filter(option => option.id && option.name);
+
+  const selectedManagerOption = editingStore?.manager_by
+    ? { id: editingStore.manager_by._id, name: editingStore.manager_by.name }
+    : null;
+
+  const mergedManagerOptions =
+    selectedManagerOption && !managerOptions.some(option => option.id === selectedManagerOption.id)
+      ? [selectedManagerOption, ...managerOptions]
+      : managerOptions;
 
   const fecthdata = async () => {
     const res = await getAllStore();
     const listManager = await getEmployeeByRole("manager");
 
+    const totalRev = await getRevenue(getMonthRange().start, getMonthRange().end, "", "", "", "");
+
+    setRevenue(totalRev);
     setListManager(listManager);
     setListStore(res);
   };
@@ -68,8 +110,24 @@ export default function Stores() {
     setEmailStore("");
     setTimeOpenStore("10:00");
     setTimeCloseStore("22:00");
+    setManagerStore("");
+    setStatusStore("active");
+    setEditingStore(null);
     setShowForm(false);
     setIsLoading(false);
+  };
+
+  const openEditForm = (store: StoreData) => {
+    setEditingStore(store);
+    setNameStore(store.name || "");
+    setAddressStore(store.address || "");
+    setPhoneStore(store.phone || "");
+    setEmailStore(store.email || "");
+    setTimeOpenStore(store.time_open || "10:00");
+    setTimeCloseStore(store.time_close || "22:00");
+    setManagerStore(store.manager_by?._id || "");
+    setStatusStore(store.status || "active");
+    setShowForm(true);
   };
 
   const handleSubmit = async () => {
@@ -88,21 +146,42 @@ export default function Stores() {
 
         return;
       }
-      const res = await createStore({
-        name: nameStore,
-        address: addressStore,
-        phone: phoneStore,
-        email: emailStore,
-        time_open: timeOpenStore,
-        time_close: timeCloseStore,
-        manager_by: managerStore,
-      });
+      if (editingStore) {
+        const res = await updateStore({
+          store_id: editingStore._id,
+          name: nameStore,
+          address: addressStore,
+          phone: phoneStore,
+          email: emailStore,
+          time_open: timeOpenStore,
+          time_close: timeCloseStore,
+          manager_by: managerStore,
+          status: statusStore,
+        });
 
-      if (res) {
-        toast.success("Thêm mới cửa hàng thành công!");
-        fecthdata();
-        clearFrom();
-        setIsLoading(false);
+        if (res) {
+          toast.success("Cập nhật cửa hàng thành công!");
+          fecthdata();
+          clearFrom();
+          setIsLoading(false);
+        }
+      } else {
+        const res = await createStore({
+          name: nameStore,
+          address: addressStore,
+          phone: phoneStore,
+          email: emailStore,
+          time_open: timeOpenStore,
+          time_close: timeCloseStore,
+          manager_by: managerStore,
+        });
+
+        if (res) {
+          toast.success("Thêm mới cửa hàng thành công!");
+          fecthdata();
+          clearFrom();
+          setIsLoading(false);
+        }
       }
     } catch (error) {
       toast.error(`Lỗi: ${error}`);
@@ -110,7 +189,6 @@ export default function Stores() {
     }
   };
 
-  // || s.manager.toLowerCase().includes(search.toLowerCase());
   const filtered = listStore?.filter(s => {
     const matchSearch =
       s.name.toLowerCase().includes(search.toLowerCase()) || s.address.toLowerCase().includes(search.toLowerCase());
@@ -118,9 +196,9 @@ export default function Stores() {
     return matchSearch && matchStatus;
   });
 
-  const totalRevenue = 0; //listStore?.filter(s => s.status === "active").reduce((a, b) => a + b.monthlyRevenue, 0);
-  const totalOrders = 0; //listStore?.filter(s => s.status === "active").reduce((a, b) => a + b.monthlyOrders, 0);
-  const totalStaff = 0; //listStore?.reduce((a, b) => a + b.staffCount, 0);
+  const totalRevenue = revenue?.metrics.total_revenue || 0;
+  const totalOrders = revenue?.metrics.total_orders || 0;
+  const totalStaff = listStore?.reduce((a, b) => a + b.employee_count, 0);
   const activeStores = listStore?.filter(s => s.status === "active").length;
 
   return (
@@ -134,7 +212,10 @@ export default function Stores() {
           <p className="text-muted-foreground text-sm mt-1">Quản lý toàn bộ hệ thống chi nhánh PaoPizza</p>
         </div>
         <button
-          onClick={() => setShowForm(true)}
+          onClick={() => {
+            clearFrom();
+            setShowForm(true);
+          }}
           className="flex items-center gap-2 px-4 py-2.5 bg-primary text-white rounded-xl hover:bg-primary/90 transition-colors text-sm"
         >
           <Plus size={16} /> Thêm cửa hàng
@@ -160,14 +241,14 @@ export default function Stores() {
           },
           {
             label: "Tổng đơn hàng tháng",
-            value: totalOrders.toLocaleString(),
+            value: totalOrders?.toLocaleString(),
             sub: "Các CN hoạt động",
             icon: <ShoppingCart size={20} />,
             color: "bg-blue-50 text-blue-600",
           },
           {
             label: "Tổng nhân sự",
-            value: totalStaff.toString(),
+            value: totalStaff?.toString(),
             sub: "Toàn hệ thống",
             icon: <Users size={20} />,
             color: "bg-purple-50 text-purple-600",
@@ -240,6 +321,7 @@ export default function Stores() {
                       <Eye size={16} />
                     </button>
                     <button
+                      onClick={() => openEditForm(store)}
                       className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
                       title="Chỉnh sửa"
                     >
@@ -264,12 +346,13 @@ export default function Stores() {
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <Users size={14} className="shrink-0" />
                     <span>
-                      Quản lý: <span className="text-foreground">{store.manager_by?.name}</span> • {0} nhân viên
+                      Quản lý: <span className="text-foreground">{store.manager_by?.name}</span> • {store.employee_count} nhân
+                      viên
                     </span>
                   </div>
                 </div>
 
-                {store.status === "active" && (
+                {/* {store.status === "active" && (
                   <div className="grid grid-cols-3 gap-3 mt-4 pt-4 border-t border-border">
                     <div>
                       <p className="text-xs text-muted-foreground">Doanh thu tháng</p>
@@ -287,7 +370,7 @@ export default function Stores() {
                       </p>
                     </div>
                   </div>
-                )}
+                )} */}
               </div>
             </div>
           );
@@ -303,10 +386,10 @@ export default function Stores() {
 
       {selectedStore && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 m-0 p-4"
           onClick={() => setSelectedStore(null)}
         >
-          <div className="bg-card rounded-2xl w-full max-w-2xl max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+          <div className="bg-card rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between p-6 border-b border-border">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
@@ -339,7 +422,7 @@ export default function Stores() {
                     value: `${selectedStore.time_open} - ${selectedStore.time_close}`,
                   },
                   { icon: <Users size={16} />, label: "Quản lý", value: selectedStore.manager_by?.name },
-                  { icon: <Users size={16} />, label: "Số nhân viên", value: `${0} người` },
+                  { icon: <Users size={16} />, label: "Số nhân viên", value: `${selectedStore.employee_count} người` },
                 ].map((item, i) => (
                   <div key={i} className="flex items-start gap-3 p-3 rounded-xl bg-muted/30">
                     <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary shrink-0 mt-0.5">
@@ -383,7 +466,13 @@ export default function Stores() {
             </div>
 
             <div className="flex items-center gap-3 p-6 border-t border-border">
-              <button className="flex-1 py-2.5 rounded-xl bg-primary text-white hover:bg-primary/90 transition-colors text-sm flex items-center justify-center gap-2">
+              <button
+                onClick={() => {
+                  openEditForm(selectedStore);
+                  setSelectedStore(null);
+                }}
+                className="flex-1 py-2.5 rounded-xl bg-primary text-white hover:bg-primary/90 transition-colors text-sm flex items-center justify-center gap-2"
+              >
                 <Edit2 size={14} /> Chỉnh sửa
               </button>
               <button
@@ -414,7 +503,7 @@ export default function Stores() {
           >
             <div className="flex items-center justify-between p-6 border-b border-border">
               <h2 className="text-foreground flex items-center gap-2">
-                <Store size={20} className="text-primary" /> Thêm cửa hàng mới
+                <Store size={20} className="text-primary" /> {editingStore ? "Chỉnh sửa cửa hàng" : "Thêm cửa hàng mới"}
               </h2>
               <button
                 onClick={() => {
@@ -432,6 +521,7 @@ export default function Stores() {
                 <input
                   type="text"
                   placeholder={"Paopizza Phú Mỹ Hưng"}
+                  value={nameStore}
                   onChange={e => setNameStore(e.target.value)}
                   className="w-full px-4 py-2.5 rounded-xl border border-border bg-background text-sm outline-none focus:border-primary transition-colors"
                 />
@@ -441,6 +531,7 @@ export default function Stores() {
                 <input
                   type="text"
                   placeholder={"42 Hưng Gia 1, P. Phú Mỹ, HCM"}
+                  value={addressStore}
                   onChange={e => setAddressStore(e.target.value)}
                   className="w-full px-4 py-2.5 rounded-xl border border-border bg-background text-sm outline-none focus:border-primary transition-colors"
                 />
@@ -451,6 +542,7 @@ export default function Stores() {
                   type="text"
                   placeholder={"0917580860"}
                   onChange={e => setPhoneStore(e.target.value)}
+                  value={phoneStore}
                   className="w-full px-4 py-2.5 rounded-xl border border-border bg-background text-sm outline-none focus:border-primary transition-colors"
                 />
               </div>
@@ -460,6 +552,7 @@ export default function Stores() {
                   type="email"
                   placeholder={"pmh@paopizza.com"}
                   onChange={e => setEmailStore(e.target.value)}
+                  value={emailStore}
                   className="w-full px-4 py-2.5 rounded-xl border border-border bg-background text-sm outline-none focus:border-primary transition-colors"
                 />
               </div>
@@ -488,19 +581,34 @@ export default function Stores() {
                 <select
                   onChange={e => setManagerStore(e.target.value)}
                   value={managerStore}
-                  defaultValue={""}
                   className="w-full px-4 py-2.5 rounded-xl border border-border bg-background text-sm outline-none focus:border-primary"
                 >
-                  <option value="null">Chọn cửa hàng trưởng</option>
-                  {listManager?.map(item => (
-                    <>
-                      <option value={item.ref_id._id}>{item.ref_id.name}</option>
-                    </>
+                  <option value="">Chọn cửa hàng trưởng</option>
+                  {mergedManagerOptions.map(option => (
+                    <option key={option.id} value={option.id}>
+                      {option.name}
+                    </option>
                   ))}
                 </select>
               </div>
+              {editingStore && (
+                <div>
+                  <label className="text-sm text-foreground mb-1.5 block">Trạng thái cửa hàng</label>
+                  <select
+                    onChange={e => setStatusStore(e.target.value as StoreData["status"])}
+                    value={statusStore}
+                    className="w-full px-4 py-2.5 rounded-xl border border-border bg-background text-sm outline-none focus:border-primary"
+                  >
+                    {(["active", "maintenance", "close"] as const).map(status => (
+                      <option key={status} value={status}>
+                        {statusConfig[status].label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
-            <div className={`flex  gap-3 p-6 border-t border-border`}>
+            <div className={`flex gap-3 p-6 border-t border-border`}>
               <button
                 onClick={() => {
                   clearFrom();
@@ -514,7 +622,13 @@ export default function Stores() {
                 onClick={() => handleSubmit()}
                 className={`flex justify-center flex-1 py-2.5 rounded-xl  text-white ${isLoading ? "bg-primary/60" : "bg-primary hover:bg-primary/90"} transition-colors text-sm`}
               >
-                {isLoading ? <LoaderCircle className="animate-spin" size={18} /> : "Thêm cửa hàng"}
+                {isLoading ? (
+                  <LoaderCircle className="animate-spin" size={18} />
+                ) : editingStore ? (
+                  "Cập nhật cửa hàng"
+                ) : (
+                  "Thêm cửa hàng"
+                )}
               </button>
             </div>
           </div>
