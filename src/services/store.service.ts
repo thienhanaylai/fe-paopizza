@@ -14,6 +14,7 @@ export type StoreData = {
   manager_by: { _id: string; name: string; email: string; phone: string; station: string } | null;
   status: store_status;
   isDeleted: boolean;
+  createdAt: string;
 };
 
 export const getAllStore = async () => {

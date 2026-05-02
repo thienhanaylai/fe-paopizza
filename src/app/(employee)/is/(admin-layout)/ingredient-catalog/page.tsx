@@ -56,6 +56,8 @@ export default function IngredientCatalog() {
   const [fromUnit, setFromUnit] = useState("");
   const [fromCategory, setFromCategory] = useState("");
   const [fromIsActive, setFromIsActive] = useState("");
+  const [confirmModal, setCongirmModal] = useState(false);
+
   useEffect(() => {
     const fectData = async () => {
       try {
@@ -279,7 +281,10 @@ export default function IngredientCatalog() {
                         <Edit2 size={15} />
                       </button>
                       <button
-                        onClick={() => handleDelete(item._id)}
+                        onClick={() => {
+                          setCongirmModal(true);
+                          setEditItem(item);
+                        }}
                         className="p-2 rounded-lg hover:bg-red-50 text-red-500 transition-colors"
                         title="Xóa"
                       >
@@ -392,6 +397,41 @@ export default function IngredientCatalog() {
             </div>
           </div>
         </div>
+      )}
+      {confirmModal && (
+        <>
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 m-0"
+            onClick={() => setCongirmModal(false)}
+          >
+            <div
+              className="bg-card rounded-2xl p-6 w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex gap-1 m-1">
+                Xác nhận xoá nguyên liệu <p className="font-mono">`{editItem?.name}`</p> ?
+              </div>
+              <div className="flex gap-3 pt-3">
+                <button
+                  onClick={() => setCongirmModal(false)}
+                  className="flex-1 py-2.5 rounded-xl border border-red-200 text-black hover:bg-red-50 transition-colors"
+                >
+                  Thoát
+                </button>
+                <button
+                  onClick={() => {
+                    handleDelete(editItem?._id || "");
+                    setEditItem(null);
+                    setCongirmModal(false);
+                  }}
+                  className="flex-1 py-2.5  rounded-xl bg-red-600 text-white hover:bg-red-700/90 transition-colors"
+                >
+                  Xác nhận
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
       )}
       <Toaster
         toastOptions={{

@@ -199,7 +199,7 @@ export default function Stores() {
   const totalRevenue = revenue?.metrics.total_revenue || 0;
   const totalOrders = revenue?.metrics.total_orders || 0;
   const totalStaff = listStore?.reduce((a, b) => a + b.employee_count, 0);
-  const activeStores = listStore?.filter(s => s.status === "active").length;
+  const activeStores = listStore?.filter(s => s.status === "active").length || 0;
 
   return (
     <div className="p-6 space-y-6">
