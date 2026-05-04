@@ -1,7 +1,5 @@
 import { http } from "../utils/config.api";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
-
 export interface RecipeItemPayload {
   ingredient_id: string;
   quantity: number;
@@ -45,14 +43,9 @@ export interface UpdateProductPayload {
 
 export const getAllProducts = async () => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/v1/products`, {
+    const data = await http("/api/v1/products", {
       next: { revalidate: 3600 },
     });
-    if (!response.ok) {
-      throw new Error("Lỗi khi lấy danh sách sản phẩm");
-    }
-
-    const data = await response.json();
     return data.data;
   } catch (error) {
     console.error("Lỗi fetch products:", error);
@@ -62,14 +55,9 @@ export const getAllProducts = async () => {
 
 export const getAllProductsActive = async () => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/v1/products/active`, {
+    const data = await http("/api/v1/products/active", {
       next: { revalidate: 3600 },
     });
-    if (!response.ok) {
-      throw new Error("Lỗi khi lấy danh sách sản phẩm");
-    }
-
-    const data = await response.json();
     return data.data;
   } catch (error) {
     console.error("Lỗi fetch products:", error);

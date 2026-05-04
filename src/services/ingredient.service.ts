@@ -1,17 +1,10 @@
 import { http } from "../utils/config.api";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
-
 export const getAllIngredients = async () => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/v1/ingredient`, {
+    const data = await http("/api/v1/ingredient", {
       next: { revalidate: 3600 },
     });
-    if (!response.ok) {
-      throw new Error(`Lỗi khi lấy danh sách nguyên liệu`);
-    }
-
-    const data = await response.json();
     return data.result;
   } catch (error) {
     console.error("Lỗi fetch categories:", error);
@@ -21,15 +14,9 @@ export const getAllIngredients = async () => {
 
 export const getCategoryIngredient = async () => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/v1/ingredient/category`, {
+    const data = await http("/api/v1/ingredient/category", {
       next: { revalidate: 3600 },
     });
-    if (!response.ok) {
-      throw new Error(`Lỗi khi lấy danh sách nguyên liệu`);
-    }
-
-    const data = await response.json();
-
     return data.result;
   } catch (error) {
     console.error("Lỗi fetch categories:", error);
@@ -39,15 +26,9 @@ export const getCategoryIngredient = async () => {
 
 export const getUnitIngredient = async () => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/v1/ingredient/unit`, {
+    const data = await http("/api/v1/ingredient/unit", {
       next: { revalidate: 3600 },
     });
-    if (!response.ok) {
-      throw new Error(`Lỗi khi lấy danh sách đơn vị`);
-    }
-
-    const data = await response.json();
-
     return data.result;
   } catch (error) {
     console.error("Lỗi fetch categories:", error);

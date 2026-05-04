@@ -1,10 +1,9 @@
 "use client";
 import React, { createContext, useContext, useMemo, useState, ReactNode } from "react";
+import { http } from "../utils/config.api";
 
 const ACCESS_TOKEN_KEY = "customer_access_token";
 const USER_KEY = "customer";
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
 type AuthMode = null | "login" | "register";
 
@@ -91,33 +90,35 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
   const customerRegister = async (fullname: string, phone: string, password: string) => {
     const endpoint = "/customers/register";
     try {
-      const response = await fetch(`${API_BASE_URL}/api/v1${endpoint}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+      const data = await http(
+        `/api/v1${endpoint}`,
+        {
+          method: "POST",
+          body: JSON.stringify({ name: fullname, phone, password }),
         },
-        body: JSON.stringify({ name: fullname, phone, password }),
-      });
-      const data = await response.json();
-
-      if (response.status === 500) {
-        return {
-          success: false,
-          message: data.error || "Lỗi đăng ký!",
-        };
-      }
-      if (response.status === 400) {
-        return {
-          success: false,
-          message: data.message || "Lỗi đăng ký!",
-        };
-      }
+        "customer",
+        { skipUnauthorized: true },
+      );
       return {
         success: true,
         message: data.message || "Đăng ký tài khoản thành công!",
         data,
       };
     } catch (error) {
+      const status = (error as { status?: number; data?: { message?: string; error?: string } })?.status;
+      const errData = (error as { data?: { message?: string; error?: string } })?.data;
+      if (status === 500) {
+        return {
+          success: false,
+          message: errData?.error || "Lỗi đăng ký!",
+        };
+      }
+      if (status === 400) {
+        return {
+          success: false,
+          message: errData?.message || "Lỗi đăng ký!",
+        };
+      }
       return {
         success: false,
         message: "Không thể kết nối tới máy chủ",
@@ -129,23 +130,17 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
     const endpoint = "/auth/CustomerLogin";
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/v1${endpoint}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+      const data = (await http(
+        `/api/v1${endpoint}`,
+        {
+          method: "POST",
+          body: JSON.stringify({ username: phone, password }),
         },
-        body: JSON.stringify({ username: phone, password }),
-      });
+        "customer",
+        { skipUnauthorized: true },
+      )) as LoginApiResponse;
 
-      const data = (await response.json()) as LoginApiResponse;
-
-      if (response.status === 401) {
-        return {
-          success: false,
-          message: data.message || "Số điện thoại hoặc mật khẩu không chính xác.",
-        };
-      }
-      if (!response.ok || !data.accessToken || !data.user?.id) {
+      if (!data.accessToken || !data.user?.id) {
         return {
           success: false,
           message: data.message || "Đăng nhập thất bại",
@@ -153,14 +148,17 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
       }
 
       setAccessToken(data.accessToken);
-      const resp = await fetch(`${API_BASE_URL}/api/v1/users/me`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${data.accessToken}`,
+      const dataCustomer = await http(
+        "/api/v1/users/me",
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${data.accessToken}`,
+          },
         },
-      });
-      const dataCustomer = await resp.json();
+        "customer",
+        { skipUnauthorized: true },
+      );
 
       const dataCus: Customer = {
         id: dataCustomer.data._id,
@@ -183,7 +181,15 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
         success: true,
         message: data.message || "Đăng nhập thành công",
       };
-    } catch {
+    } catch (error) {
+      const status = (error as { status?: number; data?: { message?: string } })?.status;
+      const message = (error as { data?: { message?: string } })?.data?.message;
+      if (status === 401) {
+        return {
+          success: false,
+          message: message || "Số điện thoại hoặc mật khẩu không chính xác.",
+        };
+      }
       return {
         success: false,
         message: "Không thể kết nối tới máy chủ",
@@ -194,35 +200,23 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
   const getInfo = async () => {
     const endpoint = "/users/me";
     try {
-      let token;
-      if (typeof window !== "undefined") {
-        token = localStorage.getItem(ACCESS_TOKEN_KEY);
-      }
-      if (!token) {
-        console.warn("Chưa đăng nhập!");
-        return null;
-      }
-      const response = await fetch(`${API_BASE_URL}/api/v1${endpoint}`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+      const data = await http(
+        `/api/v1${endpoint}`,
+        {
+          method: "GET",
         },
-      });
+        "customer",
+      );
 
-      const data = await response.json();
-      if (response.status === 401) {
+      return data.data;
+    } catch (error) {
+      const status = (error as { status?: number })?.status;
+      if (status === 401) {
         console.error("Token đã hết hạn hoặc không hợp lệ. Vui lòng đăng nhập lại.");
         logout();
         return null;
       }
 
-      if (!response.ok) {
-        throw new Error(data.message || "Lỗi khi lấy thông tin người dùng");
-      }
-
-      return data.data;
-    } catch (error) {
       console.error("Lỗi hệ thống khi gọi getInfo:", error);
       return null;
     }

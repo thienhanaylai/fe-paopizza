@@ -5,6 +5,7 @@ import { Pizza, Eye, EyeOff, Shield, Store, UserCheck, ArrowLeft } from "lucide-
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Toaster } from "sonner";
 
 export type EmployeeRole = "admin" | "manager" | "staff";
 
@@ -159,6 +160,16 @@ export default function IndexPage() {
           </form>
         </div>
       </div>
+      <Toaster
+        toastOptions={{
+          classNames: {
+            success: "bg-green-500! text-white! border-green-600!",
+            error: "bg-red-500! text-white! border-red-600!",
+            warning: "bg-yellow-500! text-white! border-yellow-600!",
+            toast: "bg-gray-800! text-white!",
+          },
+        }}
+      />
     </div>
   );
 }

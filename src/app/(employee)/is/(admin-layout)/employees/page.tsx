@@ -1,19 +1,6 @@
 "use client";
-import { useEffect, useState } from "react";
-import {
-  Search,
-  Plus,
-  Edit2,
-  Trash2,
-  Phone,
-  Mail,
-  UserCircle,
-  Briefcase,
-  Clock,
-  Filter,
-  GraduationCap,
-  MapPinned,
-} from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { Search, Plus, Edit2, Trash2, Phone, Mail, UserCircle, Briefcase, Clock, Filter, MapPinned } from "lucide-react";
 import {
   EmployeeRole,
   EmployeeLevel,
@@ -24,156 +11,60 @@ import {
   getStationColor,
   useEmployeeAuth,
 } from "@/src/context/authEmployeeContext";
-import { getAllEmployee } from "@/src/services/employee.service";
+import {
+  createEmployee,
+  deleteEmployee,
+  getAllEmployee,
+  getEmployeesByStore,
+  updateEmployee,
+} from "@/src/services/employee.service";
+import { toast, Toaster } from "sonner";
 
 export type EmployeeType = "fulltime" | "parttime";
 
 export interface Employee {
-  id: string;
+  _id: string;
+  store_id?: string | { _id: string };
   name: string;
-  role: EmployeeRole;
-  type: EmployeeType;
-  level: EmployeeLevel;
-  station: EmployeeStation;
-  phone: string;
+  birthday?: string;
   email: string;
-  joinDate: string;
-  status: "active" | "inactive";
-  baseSalary: number;
-  hourlyRate: number;
-  totalHoursMonth: number;
+  phone: string;
+  station?: EmployeeStation;
+  salary_type?: "hourly" | "monthly";
+  salary?: number;
+  status?: boolean;
+  createdAt?: string;
+  address?: string;
+  bank_account?: {
+    bank_name?: string;
+    account_number?: string;
+    account_name?: string;
+  };
+  isDeleted?: boolean;
+  updatedAt?: string;
+  __v?: number;
 }
-
-export const mockEmployees: Employee[] = [
-  {
-    id: "E001",
-    name: "Nguyễn Văn An",
-    role: "manager",
-    type: "fulltime",
-    level: "store_manager",
-    station: "management",
-    phone: "0901234567",
-    email: "an@paopizza.com",
-    joinDate: "01/01/2024",
-    status: "active",
-    baseSalary: 15000000,
-    hourlyRate: 0,
-    totalHoursMonth: 176,
-  },
-  {
-    id: "E002",
-    name: "Trần Thị Bình",
-    role: "staff",
-    type: "fulltime",
-    level: "senior",
-    station: "crs",
-    phone: "0912345678",
-    email: "binh@paopizza.com",
-    joinDate: "15/03/2024",
-    status: "active",
-    baseSalary: 8000000,
-    hourlyRate: 0,
-    totalHoursMonth: 168,
-  },
-  {
-    id: "E003",
-    name: "Lê Minh Cường",
-    role: "staff",
-    type: "fulltime",
-    level: "junior",
-    station: "kitchen",
-    phone: "0923456789",
-    email: "cuong@paopizza.com",
-    joinDate: "01/06/2024",
-    status: "active",
-    baseSalary: 8000000,
-    hourlyRate: 0,
-    totalHoursMonth: 160,
-  },
-  {
-    id: "E004",
-    name: "Phạm Thu Dung",
-    role: "staff",
-    type: "parttime",
-    level: "fresher",
-    station: "crs",
-    phone: "0934567890",
-    email: "dung@paopizza.com",
-    joinDate: "10/08/2024",
-    status: "active",
-    baseSalary: 0,
-    hourlyRate: 45000,
-    totalHoursMonth: 96,
-  },
-  {
-    id: "E005",
-    name: "Hoàng Đức Em",
-    role: "staff",
-    type: "parttime",
-    level: "intern",
-    station: "delivery",
-    phone: "0945678901",
-    email: "em@paopizza.com",
-    joinDate: "20/10/2024",
-    status: "inactive",
-    baseSalary: 0,
-    hourlyRate: 42000,
-    totalHoursMonth: 0,
-  },
-  {
-    id: "E006",
-    name: "Vũ Thị Phương",
-    role: "staff",
-    type: "parttime",
-    level: "fresher",
-    station: "kitchen",
-    phone: "0956789012",
-    email: "phuong@paopizza.com",
-    joinDate: "05/01/2025",
-    status: "active",
-    baseSalary: 0,
-    hourlyRate: 45000,
-    totalHoursMonth: 72,
-  },
-  {
-    id: "E007",
-    name: "Đỗ Quốc Bảo",
-    role: "staff",
-    type: "fulltime",
-    level: "junior",
-    station: "delivery",
-    phone: "0967890123",
-    email: "bao@paopizza.com",
-    joinDate: "15/09/2024",
-    status: "active",
-    baseSalary: 7500000,
-    hourlyRate: 0,
-    totalHoursMonth: 152,
-  },
-  {
-    id: "E008",
-    name: "Ngô Thanh Tâm",
-    role: "staff",
-    type: "parttime",
-    level: "intern",
-    station: "crs",
-    phone: "0978901234",
-    email: "tam@paopizza.com",
-    joinDate: "01/02/2025",
-    status: "active",
-    baseSalary: 0,
-    hourlyRate: 40000,
-    totalHoursMonth: 64,
-  },
-];
 
 function formatVND(n: number) {
   return new Intl.NumberFormat("vi-VN").format(n) + "đ";
 }
 
-function getEstimatedSalary(emp: Employee): number {
-  if (emp.type === "fulltime") return emp.baseSalary;
-  return emp.hourlyRate * emp.totalHoursMonth;
+function getEstimatedSalary(employee: Employee, totalHoursMonth: number): number {
+  const salary = employee.salary || 0;
+  if ((employee.salary_type || "monthly") === "monthly") return salary;
+  return salary * totalHoursMonth;
+}
+
+function getEmployeeType(employee: Employee): EmployeeType {
+  return (employee.salary_type || "monthly") === "monthly" ? "fulltime" : "parttime";
+}
+
+function getEmployeeStation(employee: Employee): EmployeeStation {
+  return employee.station || "cashier";
+}
+
+function getEmployeeStatus(employee: Employee): "active" | "inactive" {
+  return employee.status === false ? "inactive" : "active";
 }
 
 const avatarColors = [
@@ -188,31 +79,190 @@ const avatarColors = [
 ];
 
 export default function Employees() {
-  const { authMode } = useEmployeeAuth();
+  const { authMode, user, getInfo } = useEmployeeAuth();
 
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<"all" | EmployeeType>("all");
   const [stationFilter, setStationFilter] = useState<"all" | EmployeeStation>("all");
   const [showModal, setShowModal] = useState(false);
   const [editItem, setEditItem] = useState<Employee | null>(null);
-  const [listEmployee, setListEmployee] = useState([]);
+  const [listEmployee, setListEmployee] = useState<Employee[]>([]);
+  const [formName, setFormName] = useState("");
+  const [formUsername, setFormUsername] = useState("");
+  const [formPassword, setFormPassword] = useState("");
+  const [formBirthday, setFormBirthday] = useState("");
+  const [formRole, setFormRole] = useState<EmployeeRole>("staff");
+  const [formStation, setFormStation] = useState<EmployeeStation>("cashier");
+  const [formSalaryType, setFormSalaryType] = useState<"monthly" | "hourly">("monthly");
+  const [formSalary, setFormSalary] = useState(0);
+  const [formPhone, setFormPhone] = useState("");
+  const [formEmail, setFormEmail] = useState("");
+  const [formAddress, setFormAddress] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [modalConfirm, setModalConfirm] = useState(false);
+  const [idConfirm, setIdConfirm] = useState("");
+  const [info, setInfo] = useState();
 
-  const filtered = mockEmployees.filter(
-    e =>
-      (typeFilter === "all" || e.type === typeFilter) &&
-      (stationFilter === "all" || e.station === stationFilter) &&
-      (e.name.toLowerCase().includes(search.toLowerCase()) || e.email.toLowerCase().includes(search.toLowerCase())),
-  );
-  useEffect(() => {
-    const fectdata = async () => {
+  const managerStoreId = authMode === "manager" ? (user?.store_id ?? null) : null;
+
+  const fetchEmployees = useCallback(
+    async (storeId?: string | null) => {
+      if (authMode === "manager") {
+        if (!storeId) {
+          setListEmployee([]);
+          return;
+        }
+        const list = await getEmployeesByStore(storeId);
+
+        const ress = await getInfo();
+        setInfo(ress);
+        setListEmployee(list);
+        return;
+      }
+
       const list = await getAllEmployee();
       setListEmployee(list);
-    };
-    fectdata();
-  }, []);
-  console.log(listEmployee);
-  const fulltimeCount = mockEmployees.filter(e => e.type === "fulltime" && e.status === "active").length;
-  const parttimeCount = mockEmployees.filter(e => e.type === "parttime" && e.status === "active").length;
+    },
+    [authMode],
+  );
+
+  useEffect(() => {
+    fetchEmployees(authMode === "manager" ? managerStoreId : null);
+  }, [authMode, managerStoreId, fetchEmployees]);
+
+  const resetForm = () => {
+    setFormName("");
+    setFormUsername("");
+    setFormPassword("");
+    setFormBirthday("");
+    setFormRole("staff");
+    setFormStation("cashier");
+    setFormSalaryType("monthly");
+    setFormSalary(0);
+    setFormPhone("");
+    setFormEmail("");
+    setFormAddress("");
+  };
+
+  const openCreateModal = () => {
+    setEditItem(null);
+    resetForm();
+    setShowModal(true);
+  };
+
+  const handleDeleteEmployee = async () => {
+    try {
+      if (!idConfirm || !editItem?._id) {
+        toast.warning("Không tìm thấy nhân viên!");
+        return;
+      }
+      if (editItem.station === "store_manager") {
+        toast.warning("Vui lòng liên hệ admin để xoá quản lý cửa hàng!");
+        return;
+      }
+      if (editItem._id === info?.ref_id._id) {
+        toast.warning("Không xoá được tài khoản đang đăng nhập!");
+        return;
+      }
+      await deleteEmployee(editItem?._id || "");
+      setModalConfirm(false);
+      setEditItem(null);
+      resetForm();
+      fetchEmployees();
+      toast.success("Xoá nhân viên thành công!");
+    } catch (e) {
+      toast.error(`Lỗi: ${e}`);
+    }
+  };
+
+  const openEditModal = (employee: Employee) => {
+    const station = employee.station || "cashier";
+    const salaryType = employee.salary_type || "monthly";
+    setEditItem(employee);
+    setFormName(employee.name || "");
+    setFormUsername("");
+    setFormPassword("");
+    setFormBirthday(employee.birthday || "");
+    setFormRole(station === "manager" || station === "store_manager" ? "manager" : "staff");
+    setFormStation(station);
+    setFormSalaryType(salaryType);
+    setFormSalary(employee.salary || 0);
+    setFormPhone(employee.phone || "");
+    setFormEmail(employee.email || "");
+    setFormAddress(employee.address || "");
+    setShowModal(true);
+  };
+
+  const closeModal = () => {
+    setShowModal(false);
+    setEditItem(null);
+    resetForm();
+  };
+
+  const handleSubmit = async () => {
+    if (!formName || !formEmail || !formPhone || !formBirthday) return;
+    if (!editItem && (!formUsername || !formPassword)) return;
+
+    setIsSubmitting(true);
+    try {
+      const storeId = authMode === "manager" ? managerStoreId : undefined;
+
+      if (editItem) {
+        await updateEmployee({
+          employee_id: editItem._id,
+          store_id: storeId || undefined,
+          name: formName,
+          birthday: formBirthday || undefined,
+          email: formEmail,
+          phone: formPhone,
+          station: formStation,
+          salary_type: formSalaryType,
+          role: formRole || undefined,
+          address: formAddress || undefined,
+          salary: formSalary || 0,
+        });
+      } else {
+        await createEmployee({
+          username: formUsername,
+          password: formPassword,
+          store_id: storeId || undefined,
+          name: formName,
+          birthday: formBirthday,
+          email: formEmail,
+          phone: formPhone,
+          station: formStation,
+          salary_type: formSalaryType,
+          role: formRole || "staff",
+          address: formAddress || undefined,
+          salary: formSalary || 0,
+        });
+      }
+
+      await fetchEmployees(storeId ?? null);
+      closeModal();
+    } catch (error) {
+      console.error("Lỗi xử lý nhân viên:", error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const filtered = listEmployee.filter(employee => {
+    const type = getEmployeeType(employee);
+    const station = getEmployeeStation(employee);
+
+    return (
+      (typeFilter === "all" || type === typeFilter) &&
+      (stationFilter === "all" || station === stationFilter) &&
+      (employee.name.toLowerCase().includes(search.toLowerCase()) || employee.email.toLowerCase().includes(search.toLowerCase()))
+    );
+  });
+  const fulltimeCount = listEmployee.filter(
+    employee => getEmployeeType(employee) === "fulltime" && employee.status !== false,
+  ).length;
+  const parttimeCount = listEmployee.filter(
+    employee => getEmployeeType(employee) === "parttime" && employee.status !== false,
+  ).length;
 
   return (
     <div className="space-y-6">
@@ -222,10 +272,7 @@ export default function Employees() {
           <p className="text-muted-foreground mt-1">Quản lý thông tin nhân viên cửa hàng</p>
         </div>
         <button
-          onClick={() => {
-            setEditItem(null);
-            setShowModal(true);
-          }}
+          onClick={openCreateModal}
           className="flex items-center gap-2 bg-primary text-white px-4 py-2.5 rounded-xl hover:bg-primary/90 transition-colors shadow-lg shadow-primary/25"
         >
           <Plus size={18} /> Thêm nhân viên
@@ -258,7 +305,7 @@ export default function Employees() {
           </div>
           <div>
             <p className="text-muted-foreground text-sm">Stations</p>
-            <p className="text-foreground text-xl">4</p>
+            <p className="text-foreground text-xl">6</p>
           </div>
         </div>
         <div className="bg-card rounded-2xl p-4 border border-border flex items-center gap-3">
@@ -288,7 +335,7 @@ export default function Employees() {
             <Filter size={16} className="text-muted-foreground" />
             <select
               value={typeFilter}
-              onChange={e => setTypeFilter(e.target.value as any)}
+              onChange={e => setTypeFilter(e.target.value as "all" | EmployeeType)}
               className="bg-transparent py-2.5 text-sm outline-none text-foreground"
             >
               <option value="all">Tất cả loại</option>
@@ -300,14 +347,16 @@ export default function Employees() {
             <MapPinned size={16} className="text-muted-foreground" />
             <select
               value={stationFilter}
-              onChange={e => setStationFilter(e.target.value as any)}
+              onChange={e => setStationFilter(e.target.value as "all" | EmployeeStation)}
               className="bg-transparent py-2.5 text-sm outline-none text-foreground"
             >
               <option value="all">Tất cả station</option>
               <option value="kitchen">Bếp</option>
-              <option value="crs">CRS</option>
+              <option value="cashier">Cashier</option>
               <option value="delivery">Delivery</option>
-              <option value="management">Quản lý</option>
+              <option value="barista">Barista</option>
+              <option value="manager">Quản lý</option>
+              <option value="store_manager">Cửa hàng trưởng</option>
             </select>
           </div>
         </div>
@@ -315,71 +364,78 @@ export default function Employees() {
 
       {/* Employee cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        {filtered.map((emp, i) => {
-          const estimated = getEstimatedSalary(emp);
+        {filtered.map((employee, i) => {
+          const station = getEmployeeStation(employee);
+          const type = getEmployeeType(employee);
+          const status = getEmployeeStatus(employee);
+          // const level: EmployeeLevel = station === "store_manager" ? "store_manager" : "junior";
+          const totalHoursMonth = 0;
+          const salary = employee.salary || 0;
+          const estimated = getEstimatedSalary(employee, totalHoursMonth);
+          const joinDate = employee.createdAt ? new Date(employee.createdAt).toLocaleDateString("vi-VN") : "-";
           return (
-            <div key={emp.id} className="bg-card rounded-2xl border border-border p-5 hover:shadow-lg transition-shadow">
+            <div key={employee._id} className="bg-card rounded-2xl border border-border p-5 hover:shadow-lg transition-shadow">
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-3">
                   <div
                     className={`w-12 h-12 rounded-full ${avatarColors[i % avatarColors.length]} flex items-center justify-center text-white`}
                   >
-                    {emp.name
+                    {employee.name
                       .split(" ")
                       .map(w => w[0])
                       .slice(-2)
                       .join("")}
                   </div>
                   <div>
-                    <h4 className="text-foreground">{emp.name}</h4>
+                    <h4 className="text-foreground">{employee.name}</h4>
                     <div className="flex flex-wrap items-center gap-1 mt-0.5">
-                      <span className={`inline-block px-2 py-0.5 rounded text-[10px] ${getLevelColor(emp.level)}`}>
-                        {getLevelLabel(emp.level)}
-                      </span>
-                      <span className={`inline-block px-2 py-0.5 rounded text-[10px] ${getStationColor(emp.station)}`}>
-                        {getStationLabel(emp.station)}
+                      {/* <span className={`inline-block px-2 py-0.5 rounded text-[10px] ${getLevelColor(level)}`}>
+                        {getLevelLabel(level)}
+                      </span> */}
+                      <span className={`inline-block px-2 py-0.5 rounded text-[10px] ${getStationColor(station)}`}>
+                        {getStationLabel(station)}
                       </span>
                     </div>
                   </div>
                 </div>
                 <div className="flex flex-col items-end gap-1">
                   <span
-                    className={`px-2 py-0.5 rounded-full text-[10px] ${emp.status === "active" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"}`}
+                    className={`px-2 py-0.5 rounded-full text-[10px] ${status === "active" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"}`}
                   >
-                    {emp.status === "active" ? "Đang làm" : "Nghỉ việc"}
+                    {status === "active" ? "Đang làm" : "Nghỉ việc"}
                   </span>
                   <span
-                    className={`px-2 py-0.5 rounded text-[10px] ${emp.type === "fulltime" ? "bg-blue-100 text-blue-700" : "bg-purple-100 text-purple-700"}`}
+                    className={`px-2 py-0.5 rounded text-[10px] ${type === "fulltime" ? "bg-blue-100 text-blue-700" : "bg-purple-100 text-purple-700"}`}
                   >
-                    {emp.type === "fulltime" ? "Full-time" : "Part-time"}
+                    {type === "fulltime" ? "Full-time" : "Part-time"}
                   </span>
                 </div>
               </div>
 
               <div className="space-y-1.5 text-sm">
                 <div className="flex items-center gap-2 text-muted-foreground">
-                  <Phone size={13} /> {emp.phone}
+                  <Phone size={13} /> {employee.phone}
                 </div>
                 <div className="flex items-center gap-2 text-muted-foreground">
-                  <Mail size={13} /> {emp.email}
+                  <Mail size={13} /> {employee.email}
                 </div>
                 <div className="flex items-center gap-2 text-muted-foreground">
-                  <UserCircle size={13} /> Ngày vào: {emp.joinDate}
+                  <UserCircle size={13} /> Ngày vào: {joinDate}
                 </div>
                 <div className="flex items-center gap-2 text-muted-foreground">
-                  <Clock size={13} /> Giờ tháng này: <span className="text-foreground">{emp.totalHoursMonth}h</span>
+                  <Clock size={13} /> Giờ tháng này: <span className="text-foreground">{totalHoursMonth}h</span>
                 </div>
               </div>
 
               <div className="mt-4 pt-3 border-t border-border flex items-center justify-between">
-                {emp.type === "fulltime" ? (
+                {type === "fulltime" ? (
                   <div>
                     <p className="text-xs text-muted-foreground">Lương cố định</p>
-                    <p className="text-primary">{formatVND(emp.baseSalary)}/tháng</p>
+                    <p className="text-primary">{formatVND(salary)}/tháng</p>
                   </div>
                 ) : (
                   <div>
-                    <p className="text-xs text-muted-foreground">{formatVND(emp.hourlyRate)}/h</p>
+                    <p className="text-xs text-muted-foreground">{formatVND(salary)}/h</p>
                     <p className="text-primary">
                       {formatVND(estimated)} <span className="text-xs text-muted-foreground">(dự kiến)</span>
                     </p>
@@ -387,15 +443,18 @@ export default function Employees() {
                 )}
                 <div className="flex gap-1">
                   <button
-                    onClick={() => {
-                      setEditItem(emp);
-                      setShowModal(true);
-                    }}
+                    onClick={() => openEditModal(employee)}
                     className="p-2 rounded-lg hover:bg-primary/10 text-primary transition-colors"
                   >
                     <Edit2 size={15} />
                   </button>
-                  <button className="p-2 rounded-lg hover:bg-red-50 text-red-500 transition-colors">
+                  <button
+                    onClick={() => {
+                      setModalConfirm(true);
+                      setEditItem(employee);
+                    }}
+                    className="p-2 rounded-lg hover:bg-red-50 text-red-500 transition-colors"
+                  >
                     <Trash2 size={15} />
                   </button>
                 </div>
@@ -407,7 +466,7 @@ export default function Employees() {
 
       {/* Modal */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowModal(false)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={closeModal}>
           <div
             className="bg-card rounded-2xl p-6 w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto"
             onClick={e => e.stopPropagation()}
@@ -417,16 +476,50 @@ export default function Employees() {
               <div>
                 <label className="block text-sm mb-1">Họ tên</label>
                 <input
-                  defaultValue={editItem?.name}
+                  value={formName}
+                  onChange={e => setFormName(e.target.value)}
                   placeholder="Nhập họ tên"
                   className="w-full px-4 py-2.5 rounded-xl border border-border bg-background focus:border-primary outline-none"
+                />
+              </div>
+              {!editItem && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm mb-1">Tên đăng nhập</label>
+                    <input
+                      value={formUsername}
+                      onChange={e => setFormUsername(e.target.value)}
+                      placeholder="newstaff01"
+                      className="w-full px-4 py-2.5 rounded-xl border border-border bg-background outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm mb-1">Mật khẩu</label>
+                    <input
+                      type="password"
+                      value={formPassword}
+                      onChange={e => setFormPassword(e.target.value)}
+                      placeholder="12345678"
+                      className="w-full px-4 py-2.5 rounded-xl border border-border bg-background outline-none"
+                    />
+                  </div>
+                </div>
+              )}
+              <div>
+                <label className="block text-sm mb-1">Ngày sinh</label>
+                <input
+                  type="date"
+                  value={formBirthday}
+                  onChange={e => setFormBirthday(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl border border-border bg-background outline-none"
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm mb-1">Vai trò</label>
                   <select
-                    defaultValue={editItem?.role}
+                    value={formRole || "staff"}
+                    onChange={e => setFormRole(e.target.value as EmployeeRole)}
                     className="w-full px-4 py-2.5 rounded-xl border border-border bg-background outline-none"
                   >
                     <option value="manager">Quản lý cửa hàng</option>
@@ -434,57 +527,38 @@ export default function Employees() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm mb-1">Loại nhân viên</label>
+                  <label className="block text-sm mb-1">Loại lương</label>
                   <select
-                    defaultValue={editItem?.type || "fulltime"}
+                    value={formSalaryType}
+                    onChange={e => setFormSalaryType(e.target.value as "monthly" | "hourly")}
                     className="w-full px-4 py-2.5 rounded-xl border border-border bg-background outline-none"
                   >
-                    <option value="fulltime">Full-time</option>
-                    <option value="parttime">Part-time</option>
+                    <option value="monthly">Lương tháng</option>
+                    <option value="hourly">Lương giờ</option>
                   </select>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm mb-1">Cấp bậc</label>
-                  <select
-                    defaultValue={editItem?.level || "intern"}
-                    className="w-full px-4 py-2.5 rounded-xl border border-border bg-background outline-none"
-                  >
-                    <option value="intern">Intern</option>
-                    <option value="fresher">Fresher</option>
-                    <option value="junior">Junior</option>
-                    <option value="senior">Senior</option>
-                    <option value="manager">Store Manager</option>
-                  </select>
-                </div>
                 <div>
                   <label className="block text-sm mb-1">Station</label>
                   <select
-                    defaultValue={editItem?.station || "crs"}
+                    value={formStation}
+                    onChange={e => setFormStation(e.target.value as EmployeeStation)}
                     className="w-full px-4 py-2.5 rounded-xl border border-border bg-background outline-none"
                   >
                     <option value="kitchen">Bếp</option>
-                    <option value="crs">CRS</option>
+                    <option value="cashier">Cashier</option>
                     <option value="delivery">Delivery</option>
-                    <option value="management">Quản lý</option>
+                    <option value="barista">Barista</option>
+                    <option value="manager">Quản lý</option>
                   </select>
                 </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm mb-1">Lương cố định (FT)</label>
+                  <label className="block text-sm mb-1">Mức lương</label>
                   <input
                     type="number"
-                    defaultValue={editItem?.baseSalary || 0}
-                    className="w-full px-4 py-2.5 rounded-xl border border-border bg-background outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm mb-1">Lương theo giờ (PT)</label>
-                  <input
-                    type="number"
-                    defaultValue={editItem?.hourlyRate || 0}
+                    value={formSalary}
+                    onChange={e => setFormSalary(Number(e.target.value) || 0)}
                     className="w-full px-4 py-2.5 rounded-xl border border-border bg-background outline-none"
                   />
                 </div>
@@ -493,7 +567,8 @@ export default function Employees() {
                 <div>
                   <label className="block text-sm mb-1">Số điện thoại</label>
                   <input
-                    defaultValue={editItem?.phone}
+                    value={formPhone}
+                    onChange={e => setFormPhone(e.target.value)}
                     placeholder="0901234567"
                     className="w-full px-4 py-2.5 rounded-xl border border-border bg-background outline-none"
                   />
@@ -501,30 +576,92 @@ export default function Employees() {
                 <div>
                   <label className="block text-sm mb-1">Email</label>
                   <input
-                    defaultValue={editItem?.email}
+                    value={formEmail}
+                    onChange={e => setFormEmail(e.target.value)}
                     placeholder="email@paopizza.com"
                     className="w-full px-4 py-2.5 rounded-xl border border-border bg-background outline-none"
                   />
                 </div>
               </div>
+              <div>
+                <label className="block text-sm mb-1">Địa chỉ</label>
+                <input
+                  value={formAddress}
+                  onChange={e => setFormAddress(e.target.value)}
+                  placeholder="Nhập địa chỉ"
+                  className="w-full px-4 py-2.5 rounded-xl border border-border bg-background outline-none"
+                />
+              </div>
               <div className="flex gap-3 pt-2">
                 <button
-                  onClick={() => setShowModal(false)}
+                  onClick={closeModal}
                   className="flex-1 py-2.5 rounded-xl border border-border text-foreground hover:bg-muted transition-colors"
                 >
                   Hủy
                 </button>
                 <button
-                  onClick={() => setShowModal(false)}
+                  onClick={handleSubmit}
                   className="flex-1 py-2.5 rounded-xl bg-primary text-white hover:bg-primary/90 transition-colors"
+                  disabled={isSubmitting}
                 >
-                  {editItem ? "Cập nhật" : "Thêm mới"}
+                  {isSubmitting ? "Đang lưu..." : editItem ? "Cập nhật" : "Thêm mới"}
                 </button>
               </div>
             </div>
           </div>
         </div>
       )}
+      {modalConfirm && (
+        <>
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 m-0"
+            onClick={() => setModalConfirm(false)}
+          >
+            <div
+              className="bg-card rounded-2xl p-6 w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto"
+              onClick={e => e.stopPropagation()}
+            >
+              <h3>Xoá {editItem?.name}</h3>
+              <div className="flex gap-1 m-2">
+                Nhập <p className="font-mono">`{editItem?._id.slice(-8)}`</p> để xác nhận xoá nhân viên?
+              </div>
+              <input
+                className="w-full pl-4 pr-1 py-2.5 rounded-xl border border-border bg-card focus:border-primary focus:ring-1 focus:ring-primary/20 outline-none"
+                type="text"
+                onChange={e => setIdConfirm(e.target.value)}
+                placeholder={`Nhập '${editItem?._id.slice(-8)}' để xác nhận`}
+              />
+              <div className="flex gap-3 pt-3">
+                <button
+                  onClick={() => setModalConfirm(false)}
+                  className="flex-1 py-2.5 rounded-xl border border-red-200 text-black hover:bg-red-50 transition-colors"
+                >
+                  Thoát
+                </button>
+                <button
+                  onClick={() => {
+                    if (idConfirm === editItem?._id.slice(-8)) handleDeleteEmployee();
+                  }}
+                  disabled={idConfirm !== editItem?._id.slice(-8)}
+                  className="flex-1 py-2.5 disabled:bg-gray-400 disabled:cursor-not-allowed disabled:opacity-70 rounded-xl bg-red-600 text-white hover:bg-red-700/90 transition-colors"
+                >
+                  Xoá nhân viên
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+      <Toaster
+        toastOptions={{
+          classNames: {
+            success: "bg-green-500! text-white! border-green-600!",
+            error: "bg-red-500! text-white! border-red-600!",
+            warning: "bg-yellow-500! text-white! border-yellow-600!",
+            toast: "bg-gray-800! text-white!",
+          },
+        }}
+      />
     </div>
   );
 }

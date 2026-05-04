@@ -10,7 +10,7 @@ import { useCustomerAuth } from "@/src/context/authCustomerContext";
 import { CheckoutModal } from "@/src/components/modals/CheckoutModal";
 
 export default function CustomerLayoutContent({ children }: { children: React.ReactNode }) {
-  const { authMode, user } = useCustomerAuth();
+  const { authMode, user, setAuthMode } = useCustomerAuth();
   const { showCart, fetchCart, checkout } = useCart();
 
   useEffect(() => {
@@ -18,7 +18,15 @@ export default function CustomerLayoutContent({ children }: { children: React.Re
       fetchCart(user.id);
     }
   }, [user?.id, fetchCart]);
-
+  useEffect(() => {
+    const handleUnauthorized = () => {
+      setAuthMode("login");
+    };
+    window.addEventListener("customer_unauthorized", handleUnauthorized);
+    return () => {
+      window.removeEventListener("customer_unauthorized", handleUnauthorized);
+    };
+  }, [setAuthMode]);
   return (
     <>
       <Header />

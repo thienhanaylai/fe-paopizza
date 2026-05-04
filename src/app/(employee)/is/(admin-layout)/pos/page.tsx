@@ -44,7 +44,6 @@ import { toast } from "sonner";
 import { createOrder, createPosOrder, PosOrder } from "@/src/services/order.service";
 import { checkPaymentStatus } from "@/src/services/payment.service";
 
-type MenuCategory = "all" | "pizza" | "pasta" | "dessert" | "drink";
 type OrderType = "dine_in" | "carry_out" | "delivery";
 type DeliveryMethod = "store_delivery" | "third_party";
 type PaymentMethod = "cash" | "qrCode" | "card" | "momo";
@@ -108,8 +107,6 @@ interface CartItem {
 
 const tables = ["T01", "T02", "T03", "T04", "T05", "T06", "T07", "T08", "T09", "T10", "T11", "T12"];
 
-const deliveryStaff = ["Đỗ Quốc Bảo", "Hoàng Đức Em", "Nguyễn Văn Phát"];
-
 const paymentOptions: { key: PaymentMethod; label: string; icon: React.ReactNode }[] = [
   { key: "cash", label: "Tiền mặt", icon: <Banknote size={18} /> },
   { key: "qrCode", label: "Chuyển khoản", icon: <QrCode size={18} /> },
@@ -164,9 +161,6 @@ export default function POS() {
 
   const [orderType, setOrderType] = useState<OrderType>("dine_in");
 
-  const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>("store_delivery");
-  const [selectedDeliveryStaff, setSelectedDeliveryStaff] = useState(deliveryStaff[0]);
-  const [thirdPartyName, setThirdPartyName] = useState("GrabFood");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
   const [cashReceived, setCashReceived] = useState("");
   const [orderNote, setOrderNote] = useState("");
@@ -292,7 +286,6 @@ export default function POS() {
   const canSubmit = () => {
     if (cart.length === 0) return false;
     if (orderType === "dine_in" && !tableNumber) return false;
-    if (orderType === "delivery" && !customerPhone) return false;
     if (paymentMethod === "cash" && cashReceivedNum < total) return false;
     return true;
   };
@@ -302,7 +295,7 @@ export default function POS() {
     try {
       const emp = await getInfo();
       const listItem: CartItem[] = cart;
-      console.log(emp);
+
       const order: PosOrder = {
         order_type: orderType,
         paymentMethod: paymentMethod,
@@ -313,7 +306,7 @@ export default function POS() {
           address: customerAddress,
         },
         store_id: emp.ref_id.store_id,
-        note: "",
+        note: `${tableNumber} ${orderNote != "" ? `- ${orderNote}` : ``}`,
         customer_id: null,
         employee_id: emp._id,
         items: listItem,
@@ -327,14 +320,14 @@ export default function POS() {
         setOder(result);
       }
       if (res.paymentMethod === "cash") {
-        await createPosOrder(order, "");
+        setLastOrderId(result.data._id);
         setShowSuccess(true);
       }
     } catch (error) {
       toast.error("Có lỗi!");
     }
   };
-  console.log(order);
+
   const resetOrder = () => {
     setCart([]);
     setOrderType("dine_in");
@@ -353,7 +346,6 @@ export default function POS() {
   const now = new Date();
   const timeStr = `${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}`;
 
-  // Order panel content (reused for desktop sidebar and mobile overlay)
   const orderPanel = (
     <div className="flex flex-col h-[95vh] max-h-screen">
       {/* Order type tabs */}
@@ -374,7 +366,7 @@ export default function POS() {
           ))}
         </div>
       </div>
-      <div className="p-2 space-y-2 border-b border-border">
+      <div className={`space-y-2 border-b border-border ${orderType === "dine_in" ? "p-2" : "hidden"}`}>
         {orderType === "dine_in" && (
           <div>
             <div className="flex justify-between px-1">
@@ -397,97 +389,6 @@ export default function POS() {
               </div>
             )}
           </div>
-        )}
-
-        {(orderType === "carry_out" || orderType === "delivery") && (
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="text-[11px] text-muted-foreground mb-1 flex items-center gap-1">
-                <User size={10} /> Tên KH
-              </label>
-              <input
-                value={customerName}
-                onChange={e => setCustomerName(e.target.value)}
-                placeholder="Tên khách"
-                className="w-full px-2.5 py-1.5 rounded-lg border border-border bg-background text-sm outline-none focus:border-primary"
-              />
-            </div>
-            <div>
-              <label className="text-[11px] text-muted-foreground mb-1 flex items-center gap-1">
-                <Phone size={10} /> SĐT {orderType === "delivery" && "*"}
-              </label>
-              <input
-                value={customerPhone}
-                onChange={e => setCustomerPhone(e.target.value)}
-                placeholder="0901234567"
-                className="w-full px-2.5 py-1.5 rounded-lg border border-border bg-background text-sm outline-none focus:border-primary"
-              />
-            </div>
-          </div>
-        )}
-
-        {orderType === "delivery" && (
-          <>
-            <div>
-              <label className="text-[11px] text-muted-foreground mb-1 flex items-center gap-1">
-                <MapPin size={10} /> Địa chỉ giao *
-              </label>
-              <input
-                value={customerAddress}
-                onChange={e => setCustomerAddress(e.target.value)}
-                placeholder="Nhập địa chỉ"
-                className="w-full px-2.5 py-1.5 rounded-lg border border-border bg-background text-sm outline-none focus:border-primary"
-              />
-            </div>
-            <div>
-              <label className="text-[11px] text-muted-foreground mb-1">Phương thức giao</label>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  onClick={() => setDeliveryMethod("store_delivery")}
-                  className={`flex items-center gap-1.5 p-2 rounded-lg border text-xs transition-all ${deliveryMethod === "store_delivery" ? "border-primary bg-primary/5 text-primary" : "border-border text-muted-foreground"}`}
-                >
-                  <Bike size={14} /> NV cửa hàng
-                </button>
-                <button
-                  onClick={() => setDeliveryMethod("third_party")}
-                  className={`flex items-center gap-1.5 p-2 rounded-lg border text-xs transition-all ${deliveryMethod === "third_party" ? "border-primary bg-primary/5 text-primary" : "border-border text-muted-foreground"}`}
-                >
-                  <Building2 size={14} /> Bên thứ 3
-                </button>
-              </div>
-            </div>
-            {deliveryMethod === "store_delivery" && (
-              <div>
-                <label className="text-[11px] text-muted-foreground mb-1">NV giao hàng</label>
-                <select
-                  value={selectedDeliveryStaff}
-                  onChange={e => setSelectedDeliveryStaff(e.target.value)}
-                  className="w-full px-2.5 py-1.5 rounded-lg border border-border bg-background text-sm outline-none"
-                >
-                  {deliveryStaff.map(s => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-            {deliveryMethod === "third_party" && (
-              <div>
-                <label className="text-[11px] text-muted-foreground mb-1">Đối tác</label>
-                <select
-                  value={thirdPartyName}
-                  onChange={e => setThirdPartyName(e.target.value)}
-                  className="w-full px-2.5 py-1.5 rounded-lg border border-border bg-background text-sm outline-none"
-                >
-                  <option>GrabFood</option>
-                  <option>ShopeeFood</option>
-                  <option>Baemin</option>
-                  <option>GoFood</option>
-                </select>
-              </div>
-            )}
-          </>
         )}
       </div>
 
@@ -570,11 +471,6 @@ export default function POS() {
           </div>
         )}
       </div>
-
-      {/* Order note
-      {cart.length > 0 && (
-        
-      )} */}
 
       {/* Payment section */}
       {cart.length > 0 && (
@@ -668,8 +564,6 @@ export default function POS() {
             )}
           </div>
 
-          {/* Submit */}
-
           <button
             onClick={() => {
               setContactModal(true);
@@ -743,12 +637,10 @@ export default function POS() {
 
   return (
     <div className="fixed inset-0 z-40 bg-background flex">
-      {/* Left Sidebar - Navigation & Categories */}
       <div
         className={`hidden md:flex bg-white flex-col shrink-0 shadow-xl border-sidebar-border transition-all duration-300 ${posCollapsed ? "w-[72px]" : "w-64"}`}
       >
-        {/* Logo */}
-        <div className="flex items-center gap-3 px-4 py-5 border-b border-gray-300">
+        <div className="flex items-center gap-3 px-4 py-2 h-[62px] border-b border-gray-300">
           <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center shrink-0">
             <Pizza size={22} className="text-white" />
           </div>
@@ -774,7 +666,6 @@ export default function POS() {
           ))}
         </nav>
 
-        {/* Back to dashboard button */}
         <div className="px-3 pb-2">
           <Link
             href="/is/dashboard"
@@ -787,7 +678,6 @@ export default function POS() {
           </Link>
         </div>
 
-        {/* User info */}
         <div className="border-t border-gray-300 p-4">
           <div className={`flex items-center ${posCollapsed ? "justify-center" : "gap-3"}`}>
             <div className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
@@ -806,7 +696,6 @@ export default function POS() {
           </div>
         </div>
 
-        {/* Collapse button */}
         <button
           onClick={() => setPosCollapsed(!posCollapsed)}
           className="hidden lg:flex items-center justify-center py-3 border-t border-gray-300 text-black hover:text-primary transition-colors"
@@ -815,32 +704,15 @@ export default function POS() {
         </button>
       </div>
 
-      {/* Center: Menu area */}
-      <div className="flex-1 flex flex-col min-w-0">
-        {/* Top bar */}
-        <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-border bg-card shadow-sm">
-          {/* Mobile menu button */}
-          <button onClick={() => setActiveCategory(activeCategory)} className="md:hidden p-2 rounded-lg bg-sidebar text-white">
-            <Pizza size={16} />
-          </button>
+      <div className="flex-1 flex flex-col min-w-0 ">
+        <div className="flex items-center h-[62px] justify-between gap-3 px-4 py-3 border-b border-border bg-card shadow-sm">
           <div className="hidden md:flex items-center gap-2">
             <h3 className="text-foreground text-sm">POS PaoPizza</h3>
             <span className="text-[10px] text-muted-foreground flex items-center gap-1 bg-muted px-2 py-0.5 rounded-full">
               <Clock size={9} /> {timeStr}
             </span>
           </div>
-          {/* Mobile: category chips */}
-          <div className="md:hidden flex gap-1.5 overflow-x-auto flex-1 mx-2">
-            {categories.map(cat => (
-              <button
-                key={cat.slug}
-                onClick={() => setActiveCategory(cat.slug)}
-                className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-[10px] whitespace-nowrap transition-all ${activeCategory === cat.slug ? "bg-primary text-white" : "bg-muted text-muted-foreground"}`}
-              >
-                <Image src={cat.icon || ""} width={18} height={18} alt={cat.name} /> {cat.name}
-              </button>
-            ))}
-          </div>
+
           <div className="relative flex-1 max-w-xs">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input
@@ -850,15 +722,6 @@ export default function POS() {
               className="w-full pl-9 pr-4 py-2 rounded-xl border border-border bg-background text-sm outline-none focus:border-primary"
             />
           </div>
-          {/* Mobile cart toggle */}
-          <button onClick={() => setShowMobileCart(true)} className="lg:hidden relative p-2 rounded-lg bg-primary text-white">
-            <ShoppingCart size={18} />
-            {cartCount > 0 && (
-              <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center">
-                {cartCount}
-              </span>
-            )}
-          </button>
         </div>
 
         {/* Product grid */}
@@ -930,7 +793,7 @@ export default function POS() {
 
       {/* Right: Order panel - Desktop */}
       <div className="hidden lg:flex w-[380px] border-l border-border bg-card flex-col shrink-0">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+        <div className="flex items-center justify-between px-4 py-3 h-[62px] border-b border-border">
           <h3 className="text-foreground text-sm flex items-center gap-2">
             <Receipt size={16} className="text-primary" /> Đơn hàng mới
           </h3>
@@ -939,22 +802,6 @@ export default function POS() {
         {orderPanel}
       </div>
 
-      {/* Right: Order panel - Mobile overlay */}
-      {showMobileCart && (
-        <div className="lg:hidden fixed inset-0 z-50 flex justify-end bg-black/50" onClick={() => setShowMobileCart(false)}>
-          <div className="w-full max-w-md h-full bg-card flex flex-col" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-              <h3 className="text-foreground text-sm flex items-center gap-2">
-                <Receipt size={16} className="text-primary" /> Đơn hàng mới
-              </h3>
-              <button onClick={() => setShowMobileCart(false)} className="p-2 rounded-lg hover:bg-muted">
-                <X size={18} />
-              </button>
-            </div>
-            {orderPanel}
-          </div>
-        </div>
-      )}
       {contactModal && (
         <>
           <div
@@ -1019,10 +866,11 @@ export default function POS() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm mb-1.5 font-medium">Địa chỉ</label>
+                    <label className="block text-sm mb-1.5 font-medium">Địa chỉ *</label>
                     <input
                       placeholder="42 pham nhu tang"
                       value={customerAddress}
+                      required
                       onChange={e => setCustomerAddress(e.target.value)}
                       className="w-full px-4 py-2.5 rounded-xl border border-border bg-background focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
                     />
