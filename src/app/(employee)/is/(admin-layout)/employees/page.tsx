@@ -167,8 +167,7 @@ export default function Employees() {
       await deleteEmployee(editItem?._id || "");
       setModalConfirm(false);
       setEditItem(null);
-      resetForm();
-      fetchEmployees();
+      await fetchEmployees(managerStoreId ?? null);
       toast.success("Xoá nhân viên thành công!");
     } catch (e) {
       toast.error(`Lỗi: ${e}`);
