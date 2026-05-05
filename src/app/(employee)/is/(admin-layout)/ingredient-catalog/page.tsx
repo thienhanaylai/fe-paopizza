@@ -8,21 +8,7 @@ import {
   updateIngredient,
 } from "@/src/services/ingredient.service";
 import { useEffect, useState } from "react";
-import {
-  Search,
-  Plus,
-  Edit2,
-  Trash2,
-  Warehouse,
-  Filter,
-  Truck,
-  Eye,
-  X,
-  CheckCircle2,
-  Clock,
-  Package,
-  FileText,
-} from "lucide-react";
+import { Search, Plus, Edit2, Trash2, Warehouse, Filter, X, CheckCircle2, Package } from "lucide-react";
 import { toast, Toaster } from "sonner";
 
 export interface Unit {
@@ -40,8 +26,13 @@ interface Ingredient {
   name: string;
   unit: string;
   category: string;
+  cost_per_unit: number;
   is_active: boolean;
   isDeleted: boolean;
+}
+
+function formatVND(n: number) {
+  return new Intl.NumberFormat("vi-VN").format(n) + "đ";
 }
 
 export default function IngredientCatalog() {
@@ -54,6 +45,7 @@ export default function IngredientCatalog() {
   const [units, SetUnits] = useState<Unit[]>();
   const [fromName, setFromName] = useState("");
   const [fromUnit, setFromUnit] = useState("");
+  const [fromCostPerUnit, setCostPerUnit] = useState(0);
   const [fromCategory, setFromCategory] = useState("");
   const [fromIsActive, setFromIsActive] = useState("");
   const [confirmModal, setCongirmModal] = useState(false);
@@ -96,6 +88,7 @@ export default function IngredientCatalog() {
           name: fromName,
           unit: fromUnit,
           category: fromCategory,
+          cost_per_unit: fromCostPerUnit,
           is_active: fromIsActive === "true",
         });
         toast.success("Cập nhật thành công !");
@@ -104,8 +97,13 @@ export default function IngredientCatalog() {
           toast.warning("Vui lòng nhập đầy đủ thông tin!");
           return;
         }
-        console.log({ name: fromName, unit: fromUnit, category: fromCategory });
-        await addIngredient({ name: fromName, unit: fromUnit, category: fromCategory });
+
+        await addIngredient({
+          name: fromName,
+          cost_per_unit: fromCostPerUnit,
+          unit: fromUnit,
+          category: fromCategory,
+        });
         toast.success("Thêm thành công !");
       }
 
@@ -216,6 +214,7 @@ export default function IngredientCatalog() {
                 <th className="px-4 py-3">Tên nguyên liệu</th>
                 <th className="px-4 py-3 hidden md:table-cell">Danh mục</th>
                 <th className="px-4 py-3">Đơn vị tính</th>
+                <th className="px-4 py-3">Giá nhập</th>
                 <th className="px-4 py-3">Trạng thái</th>
                 <th className="px-4 py-3 text-right">Thao tác</th>
               </tr>
@@ -249,7 +248,9 @@ export default function IngredientCatalog() {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-foreground">{units?.find(i => i.slug === item.unit)?.name}</td>
-
+                  <td className="px-4 py-3 text-foreground">
+                    {formatVND(item.cost_per_unit)}/{units?.find(i => i.slug === item.unit)?.name}
+                  </td>
                   <td className="px-4 py-3">
                     <span
                       className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs ${
@@ -368,7 +369,19 @@ export default function IngredientCatalog() {
                   </select>
                 </div>
               </div>
-
+              <div>
+                <label className="block text-sm text-foreground mb-1.5">Giá nhập</label>
+                <input
+                  defaultValue={editItem?.cost_per_unit}
+                  type="number"
+                  onChange={e => {
+                    const value = e.target.valueAsNumber;
+                    setCostPerUnit(isNaN(value) ? 0 : value);
+                  }}
+                  placeholder="VD: 2500000"
+                  className="w-full px-4 py-2.5 rounded-xl border border-border bg-background focus:border-primary outline-none text-sm"
+                />
+              </div>
               <div>
                 <label className="block text-sm text-foreground mb-1.5">Trạng thái</label>
                 <select

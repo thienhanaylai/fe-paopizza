@@ -40,7 +40,7 @@ const navItems: NavItem[] = [
   { label: "Quản lý sản phẩm", path: "/is/products", icon: <Pizza size={20} />, roles: ["admin"] },
   { label: "Danh mục nguyên liệu", path: "/is/ingredient-catalog", icon: <Warehouse size={20} />, roles: ["admin"] },
   { label: "Nhà cung cấp", path: "/is/suppliers", icon: <Truck size={20} />, roles: ["admin"] },
-  { label: "Kho nguyên liệu", path: "/is/ingredients", icon: <Package size={20} />, roles: ["manager"] },
+  { label: "Kho nguyên liệu", path: "/is/inventory", icon: <Package size={20} />, roles: ["manager"] },
   { label: "Quản lý nhân viên", path: "/is/employees", icon: <Users size={20} />, roles: ["manager"] },
   // { label: "Quản lý ca", path: "/is/shifts", icon: <Clock size={20} />, roles: ["manager", "staff"] },
   { label: "Lương dự kiến", path: "/is/my-salary", icon: <DollarSign size={20} />, roles: ["staff"] },
@@ -59,7 +59,7 @@ const navItems: NavItem[] = [
 ];
 
 export function Sidebar() {
-  const { user, logout, getInfo } = useEmployeeAuth();
+  const { user, logout } = useEmployeeAuth();
   const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -106,18 +106,20 @@ export function Sidebar() {
         ))}
       </nav>
 
-      <div className="px-3 pb-2">
-        <Link
-          href="/is/pos"
-          onClick={() => setMobileOpen(false)}
-          className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 bg-primary/10 text-primary hover:bg-primary hover:text-white border border-primary/20 hover:border-primary ${collapsed ? "justify-center" : ""}`}
-        >
-          <span className="shrink-0">
-            <Monitor size={20} />
-          </span>
-          {!collapsed && <span className="text-sm truncate">POS Bán hàng</span>}
-        </Link>
-      </div>
+      {user.role != "admin" && (
+        <div className="px-3 pb-2">
+          <Link
+            href="/is/pos"
+            onClick={() => setMobileOpen(false)}
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 bg-primary/10 text-primary hover:bg-primary hover:text-white border border-primary/20 hover:border-primary ${collapsed ? "justify-center" : ""}`}
+          >
+            <span className="shrink-0">
+              <Monitor size={20} />
+            </span>
+            {!collapsed && <span className="text-sm truncate">POS Bán hàng</span>}
+          </Link>
+        </div>
+      )}
 
       <div className="border-t border-sidebar-border p-4">
         <div className={`flex items-center ${collapsed ? "justify-center" : "gap-3"}`}>

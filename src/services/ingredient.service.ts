@@ -36,11 +36,12 @@ export const getUnitIngredient = async () => {
   }
 };
 
-export const addIngredient = async (payload: { name: string; unit: string; category: string }) => {
+export const addIngredient = async (payload: { name: string; cost_per_unit: number; unit: string; category: string }) => {
   const response = await http("/api/v1/ingredient/create", {
     method: "POST",
     body: JSON.stringify(payload),
   });
+
   return response.data;
 };
 
@@ -57,6 +58,7 @@ export const updateIngredient = async (payload: {
   name: string;
   unit: string;
   category: string;
+  cost_per_unit: number;
   is_active: boolean;
 }) => {
   const response = await http("/api/v1/ingredient/update", {

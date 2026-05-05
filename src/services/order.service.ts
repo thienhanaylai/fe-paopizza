@@ -134,6 +134,7 @@ export const cancelOrder = async (order_id: string, typeUser: string) => {
       },
       typeUser,
     );
+    console.log(response);
     return response.data;
   } catch (error) {
     console.error("Lỗi fetch :", error);

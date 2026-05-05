@@ -40,8 +40,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { getAllCategories } from "@/src/services/category.service";
 import { getAllProducts } from "@/src/services/product.service";
-import { toast } from "sonner";
-import { createOrder, createPosOrder, PosOrder } from "@/src/services/order.service";
+import { toast, Toaster } from "sonner";
+import { cancelOrder, createOrder, createPosOrder, PosOrder } from "@/src/services/order.service";
 import { checkPaymentStatus } from "@/src/services/payment.service";
 
 type OrderType = "dine_in" | "carry_out" | "delivery";
@@ -167,7 +167,6 @@ export default function POS() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [lastOrderId, setLastOrderId] = useState("");
   const [editNoteIndex, setEditNoteIndex] = useState<number | null>(null);
-  const [showMobileCart, setShowMobileCart] = useState(false);
   const [posCollapsed, setPosCollapsed] = useState(true);
 
   const [activeCategory, setActiveCategory] = useState<string>("all");
@@ -339,8 +338,20 @@ export default function POS() {
     setCashReceived("");
     setOrderNote("");
     setShowSuccess(false);
-    setShowMobileCart(false);
     setContactModal(false);
+  };
+
+  const handleCancelOrder = async (order_id: string) => {
+    try {
+      const res = await cancelOrder(order_id, "");
+      if (res) {
+        toast.success(`Đã huỷ đơn hàng`);
+        setOder(undefined);
+        resetOrder();
+      }
+    } catch (error) {
+      toast.error(`Lỗi: ${error}`);
+    }
   };
 
   const now = new Date();
@@ -839,8 +850,18 @@ export default function POS() {
                       expiresAt={testtime}
                       onExpire={() => {
                         stopPolling();
+                        handleCancelOrder(order.data?._id);
                       }}
                     />
+                    <button
+                      onClick={() => {
+                        stopPolling();
+                        handleCancelOrder(order.data?._id);
+                      }}
+                      className="flex-1 py-2.5 rounded-xl border border-border text-foreground hover:bg-muted transition-colors px-3 text-red-500"
+                    >
+                      Huỷ đơn hàng
+                    </button>
                   </div>
                 </>
               ) : (
@@ -898,6 +919,16 @@ export default function POS() {
           </div>
         </>
       )}
+      <Toaster
+        toastOptions={{
+          classNames: {
+            success: "bg-green-500! text-white! border-green-600!",
+            error: "bg-red-500! text-white! border-red-600!",
+            warning: "bg-yellow-500! text-white! border-yellow-600!",
+            toast: "bg-gray-800! text-white!",
+          },
+        }}
+      />
     </div>
   );
 }

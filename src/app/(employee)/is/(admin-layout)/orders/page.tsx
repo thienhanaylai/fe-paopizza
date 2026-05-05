@@ -22,6 +22,7 @@ import {
   OrderHistory,
   OrderMethod,
   OrderStatus,
+  paymentStatus,
   PaymentMethod,
   updatePaymentStatusOrder,
   updateStatusOrder,
@@ -43,6 +44,12 @@ const typeConfig: Record<OrderMethod, { label: string; icon: React.ReactNode; co
   dine_in: { label: "Dine-in", icon: <UtensilsCrossed size={14} />, color: "bg-orange-100 text-orange-700" },
   carry_out: { label: "Carry out", icon: <ShoppingBag size={14} />, color: "bg-cyan-100 text-cyan-700" },
   delivery: { label: "Delivery", icon: <Truck size={14} />, color: "bg-green-100 text-green-700" },
+};
+
+const paymentStatusConfig: Record<paymentStatus, { label: string; color: string }> = {
+  pending: { label: "Chờ thanh toán", color: "bg-yellow-100 text-yellow-700" },
+  failed: { label: "Đã huỷ", color: "bg-red-100 text-red-700" },
+  success: { label: "Đã thanh toán", color: "bg-green-100 text-green-700" },
 };
 
 const flowConfig: Record<OrderMethod, OrderStatus[]> = {
@@ -117,7 +124,6 @@ export default function Orders() {
     const info = await getInfo();
     if (info.ref_id.store_id != "") {
       const res = await getAllOrder(`store_id=${info.ref_id.store_id}`, "");
-      console.log(res);
       setAllOrders(res);
     }
     setIsLoading(false);
@@ -387,6 +393,7 @@ export default function Orders() {
                 {filtered?.map(order => {
                   const st = statusConfig[order.status];
                   const tc = typeConfig[order.order_type];
+                  const pmst = paymentStatusConfig[order.paymentStatus];
                   return (
                     <tr key={order._id} className="border-t border-border/50 hover:bg-muted/30">
                       <td className="px-4 py-3 text-primary">..{order._id.slice(-8)}</td>
@@ -402,12 +409,9 @@ export default function Orders() {
                         </span>
                       </td>
                       <td className={`px-4 py-3 text-foreground `}>
-                        <p
-                          className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs ${order.paymentStatus === "pending" ? "bg-yellow-100 text-yellow-700" : "bg-green-100 text-green-700"}`}
-                        >
-                          {paymentMethodMap[order.paymentMethod]} -{" "}
-                          {order.paymentStatus === "pending" ? "Chờ thanh toán" : "Đã thanh toán"}
-                        </p>
+                        <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs ${pmst.color}`}>
+                          {paymentMethodMap[order.paymentMethod]} - {pmst.label}
+                        </span>
                       </td>
                       <td className="px-4 py-3 text-foreground">{formatVND(order.total)}</td>
                       <td className="px-4 py-3">

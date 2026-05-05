@@ -541,9 +541,9 @@ export default function Accounts() {
                     >
                       <option value="">Chọn cửa hàng làm việc</option>
                       {listStore?.map(store => (
-                        <>
-                          <option value={store._id}>{store.name}</option>
-                        </>
+                        <option key={store._id} value={store._id}>
+                          {store.name}
+                        </option>
                       ))}
                     </select>
                   </div>
