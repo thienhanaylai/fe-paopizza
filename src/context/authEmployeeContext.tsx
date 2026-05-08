@@ -22,6 +22,7 @@ export interface Employee {
   level?: EmployeeLevel;
   station?: EmployeeStation;
   store_id?: string;
+  employee_id?: string;
 }
 
 interface LoginApiResponse {
@@ -135,7 +136,8 @@ export function EmployeeAuthProvider({ children }: { children: ReactNode }) {
 
       const normalizedRole: EmployeeRole = data.user.role ? data.user.role : preferredRole;
       let storeId: string | undefined;
-
+      let emp_id: string | undefined;
+      let info = {};
       try {
         const infoData = await http(
           "/api/v1/users/me",
@@ -148,8 +150,10 @@ export function EmployeeAuthProvider({ children }: { children: ReactNode }) {
           null,
           { skipUnauthorized: true },
         );
+        info = infoData.data.ref_id;
         const storeRef = infoData?.data?.ref_id?.store_id;
         storeId = typeof storeRef === "string" ? storeRef : storeRef?._id;
+        emp_id = infoData?.data?.ref_id?._id;
       } catch {
         storeId = undefined;
       }
@@ -160,8 +164,9 @@ export function EmployeeAuthProvider({ children }: { children: ReactNode }) {
         email: data.user.email || username,
         role: normalizedRole,
         level: data.user.level,
-        station: data.user.station,
+        station: info?.station || "",
         store_id: storeId,
+        employee_id: emp_id,
       };
 
       setUser(mappedUser);

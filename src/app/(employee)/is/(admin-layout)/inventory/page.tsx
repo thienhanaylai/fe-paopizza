@@ -16,7 +16,15 @@ import {
   ArrowLeft,
 } from "lucide-react";
 import { useEmployeeAuth } from "@/src/context/authEmployeeContext";
-import { getInventory, Inventory, InventoryIngredientItem } from "@/src/services/inventory.service";
+import {
+  createOrUpdateInventory,
+  getInventory,
+  Inventory,
+  InventoryIngredientItem,
+  summaryShift,
+  SummaryShiftPayload,
+} from "@/src/services/inventory.service";
+import { toast } from "sonner";
 
 function formatVND(n: number) {
   return new Intl.NumberFormat("vi-VN").format(n) + "đ";
@@ -35,6 +43,12 @@ export default function IndexPage() {
   const [remaining, setRemaining] = useState<Record<string, number>>({});
   const [currentInput, setCurrentInput] = useState("");
   const stocktakeInputRef = useRef<HTMLInputElement>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [selectedIngredientId, setSelectedIngredientId] = useState("");
+  const [addStockInput, setAddStockInput] = useState("");
+  const [addMinStockInput, setAddMinStockInput] = useState("");
+  const [editStockInput, setEditStockInput] = useState("");
+  const [editMinStockInput, setEditMinStockInput] = useState("");
 
   const startStocktake = () => {
     setStocktakeStep("entry");
@@ -46,6 +60,16 @@ export default function IndexPage() {
 
   const closeStocktake = () => {
     setShowStocktake(false);
+  };
+
+  const closeModal = () => {
+    setShowModal(false);
+    setEditItem(null);
+    setSelectedIngredientId("");
+    setAddStockInput("");
+    setAddMinStockInput("");
+    setEditStockInput("");
+    setEditMinStockInput("");
   };
 
   const revCurrent = () => {
@@ -91,10 +115,29 @@ export default function IndexPage() {
       return;
     }
   };
+
+  const handleSummary = async () => {
+    try {
+      const payload: SummaryShiftPayload = {
+        store_id: user?.store_id || "",
+        employee_id: user?.employee_id || "",
+        payload: remaining,
+      };
+      const res = await summaryShift(payload, "");
+      if (res) {
+        closeStocktake();
+        toast.success("Tổng kết ca thành công!");
+      }
+    } catch (error) {
+      console.log(error);
+      return;
+    }
+  };
+
   useEffect(() => {
     fetchData();
   }, []);
-  console.log(remaining);
+
   const categories = ["all", ...Array.from(new Set(inventory?.ingredients.map(i => i.ingredient_id.category)))];
   const filtered = inventory?.ingredients.filter(
     i =>
@@ -103,15 +146,102 @@ export default function IndexPage() {
   );
 
   const lowStockCount = inventory?.ingredients.filter(i => i.current_stock <= i.min_stock_level).length;
+  const selectedIngredient = inventory?.ingredients.find(ing => ing.ingredient_id._id === selectedIngredientId);
+
+  const syncSelectedIngredient = (ingredientId: string) => {
+    setSelectedIngredientId(ingredientId);
+    const ingredient = inventory?.ingredients.find(ing => ing.ingredient_id._id === ingredientId);
+    setAddStockInput(ingredient ? String(ingredient.current_stock) : "");
+    setAddMinStockInput(ingredient ? String(ingredient.min_stock_level) : "");
+  };
+
+  const handleCreateInventory = async () => {
+    if (!selectedIngredientId) {
+      toast.warning("Vui lòng chọn nguyên liệu");
+      return;
+    }
+
+    const nextStock = Number.parseFloat(addStockInput);
+    const nextMin = Number.parseFloat(addMinStockInput);
+
+    if (Number.isNaN(nextStock) || nextStock < 0) {
+      toast.warning("Số lượng tồn kho không hợp lệ");
+      return;
+    }
+
+    if (!Number.isNaN(nextMin) && nextMin < 0) {
+      toast.warning("Mức tối thiểu không hợp lệ");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const res = await createOrUpdateInventory(
+        {
+          store_id: user?.store_id || "",
+          ingredient_id: selectedIngredientId,
+          current_stock: nextStock,
+          min_stock_level: Number.isNaN(nextMin) ? undefined : nextMin,
+        },
+        "",
+      );
+      if (res) {
+        setInventory(res);
+        closeModal();
+        toast.success("Thêm nguyên liệu thành công!");
+      }
+    } catch (error) {
+      console.log(error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleUpdateInventory = async () => {
+    if (!editItem) return;
+
+    const nextStock = Number.parseFloat(editStockInput);
+    const nextMin = Number.parseFloat(editMinStockInput);
+
+    if (Number.isNaN(nextStock) || nextStock < 0) {
+      toast.warning("Số lượng tồn kho không hợp lệ");
+      return;
+    }
+
+    if (!Number.isNaN(nextMin) && nextMin < 0) {
+      toast.warning("Mức tối thiểu không hợp lệ");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const res = await createOrUpdateInventory(
+        {
+          store_id: user?.store_id || "",
+          ingredient_id: editItem.ingredient_id._id,
+          current_stock: nextStock,
+          min_stock_level: Number.isNaN(nextMin) ? undefined : nextMin,
+        },
+        "",
+      );
+      if (res) {
+        setInventory(res);
+        closeModal();
+        toast.success("Cập nhật nguyên liệu thành công!");
+      }
+    } catch (error) {
+      console.log(error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-foreground">Kho nguyên liệu</h1>
-          <p className="text-muted-foreground mt-1">
-            Theo dõi tồn kho nguyên liệu {user?.storeName ? `- ${user.storeName}` : ""}
-          </p>
+          <p className="text-muted-foreground mt-1">Theo dõi tồn kho nguyên liệu</p>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -123,6 +253,7 @@ export default function IndexPage() {
           <button
             onClick={() => {
               setEditItem(null);
+              syncSelectedIngredient(inventory?.ingredients[0]?.ingredient_id._id ?? "");
               setShowModal(true);
             }}
             className="flex items-center gap-2 bg-primary text-white px-4 py-2.5 rounded-xl hover:bg-primary/90 transition-colors shadow-lg shadow-primary/25"
@@ -236,6 +367,8 @@ export default function IndexPage() {
                         <button
                           onClick={() => {
                             setEditItem(item);
+                            setEditStockInput(String(item.current_stock));
+                            setEditMinStockInput(String(item.min_stock_level));
                             setShowModal(true);
                           }}
                           className="p-2 rounded-lg hover:bg-primary/10 text-primary transition-colors"
@@ -257,51 +390,105 @@ export default function IndexPage() {
 
       {/* Modal */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowModal(false)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={closeModal}>
           <div className="bg-card rounded-2xl p-6 w-full max-w-lg shadow-2xl" onClick={e => e.stopPropagation()}>
             <h3 className="text-foreground mb-4">{editItem ? "Chỉnh sửa nguyên liệu" : "Nhập nguyên liệu mới"}</h3>
             <div className="space-y-4">
-              <div className="bg-muted/40 rounded-xl p-4 border border-border">
-                <p className="text-xs text-muted-foreground">Nguyên liệu</p>
-                <p className="text-foreground text-lg mt-1">{editItem?.ingredient_id.name ?? "—"}</p>
-                <div className="text-sm text-muted-foreground mt-2">
-                  <span>{editItem?.ingredient_id.category ?? "—"}</span>
-                  <span className="mx-2">•</span>
-                  <span>{editItem?.ingredient_id.unit ?? "—"}</span>
+              {editItem ? (
+                <div className="bg-muted/40 rounded-xl p-4 border border-border">
+                  <p className="text-xs text-muted-foreground">Nguyên liệu</p>
+                  <p className="text-foreground text-lg mt-1">{editItem?.ingredient_id.name ?? "—"}</p>
+                  <div className="text-sm text-muted-foreground mt-2">
+                    <span>{editItem?.ingredient_id.category ?? "—"}</span>
+                    <span className="mx-2">•</span>
+                    <span>{editItem?.ingredient_id.unit ?? "—"}</span>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div>
+                  <label className="block text-sm mb-1">Nguyên liệu</label>
+                  <select
+                    value={selectedIngredientId}
+                    onChange={e => syncSelectedIngredient(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl border border-border bg-background outline-none"
+                  >
+                    {(inventory?.ingredients ?? []).map(ing => (
+                      <option key={ing.ingredient_id._id} value={ing.ingredient_id._id}>
+                        {ing.ingredient_id.name}
+                      </option>
+                    ))}
+                  </select>
+                  {selectedIngredient && (
+                    <div className="text-sm text-muted-foreground mt-2">
+                      <span>{selectedIngredient.ingredient_id.category ?? "—"}</span>
+                      <span className="mx-2">•</span>
+                      <span>{selectedIngredient.ingredient_id.unit ?? "—"}</span>
+                    </div>
+                  )}
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm mb-1">Số lượng tồn kho</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    defaultValue={editItem?.current_stock}
-                    className="w-full px-4 py-2.5 rounded-xl border border-border bg-background outline-none"
-                  />
+                  {editItem ? (
+                    <input
+                      type="number"
+                      step="1"
+                      value={editStockInput}
+                      onChange={e => setEditStockInput(e.target.value)}
+                      className="w-full px-4 py-2.5 rounded-xl border border-border bg-background outline-none"
+                    />
+                  ) : (
+                    <input
+                      type="number"
+                      step="1"
+                      value={addStockInput}
+                      onChange={e => setAddStockInput(e.target.value)}
+                      className="w-full px-4 py-2.5 rounded-xl border border-border bg-background outline-none"
+                    />
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm mb-1">Mức tối thiểu</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    defaultValue={editItem?.min_stock_level}
-                    className="w-full px-4 py-2.5 rounded-xl border border-border bg-background outline-none"
-                  />
+                  {editItem ? (
+                    <input
+                      type="number"
+                      step="1"
+                      value={editMinStockInput}
+                      onChange={e => setEditMinStockInput(e.target.value)}
+                      className="w-full px-4 py-2.5 rounded-xl border border-border bg-background outline-none"
+                    />
+                  ) : (
+                    <input
+                      type="number"
+                      step="1"
+                      value={addMinStockInput}
+                      onChange={e => setAddMinStockInput(e.target.value)}
+                      className="w-full px-4 py-2.5 rounded-xl border border-border bg-background outline-none"
+                    />
+                  )}
                 </div>
               </div>
               <div className="flex gap-3 pt-2">
                 <button
-                  onClick={() => setShowModal(false)}
+                  onClick={closeModal}
                   className="flex-1 py-2.5 rounded-xl border border-border text-foreground hover:bg-muted transition-colors"
+                  disabled={isLoading}
                 >
                   Hủy
                 </button>
                 <button
-                  onClick={() => setShowModal(false)}
+                  onClick={() => {
+                    if (editItem) {
+                      handleUpdateInventory();
+                    } else {
+                      handleCreateInventory();
+                    }
+                  }}
                   className="flex-1 py-2.5 rounded-xl bg-primary text-white hover:bg-primary/90 transition-colors"
+                  disabled={isLoading}
                 >
-                  {editItem ? "Cập nhật" : "Thêm mới"}
+                  {isLoading ? "Đang lưu..." : editItem ? "Cập nhật" : "Thêm mới"}
                 </button>
               </div>
             </div>
@@ -542,7 +729,12 @@ export default function IndexPage() {
                   >
                     Quay lại
                   </button>
-                  <button onClick={closeStocktake} className="px-4 py-2.5 rounded-xl bg-primary text-white hover:bg-primary/90">
+                  <button
+                    onClick={() => {
+                      handleSummary();
+                    }}
+                    className="px-4 py-2.5 rounded-xl bg-primary text-white hover:bg-primary/90"
+                  >
                     Xác nhận
                   </button>
                 </>

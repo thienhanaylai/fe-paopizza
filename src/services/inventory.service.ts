@@ -48,6 +48,17 @@ export interface UpdateInventoryStockPayload {
   type?: "add" | "reduce";
 }
 
+export interface SummaryShiftItemPayload {
+  ingredient_id?: string;
+  current_stock: number;
+}
+
+export interface SummaryShiftPayload {
+  store_id: string;
+  employee_id?: string;
+  payload: SummaryShiftItemPayload[] | Record<string, number>;
+}
+
 export const getInventory = async (store_id: string | null, typeUser: string): Promise<Inventory> => {
   try {
     const response = await http(
@@ -87,6 +98,24 @@ export const updateInventoryStock = async (payload: UpdateInventoryStockPayload,
   try {
     const response = (await http(
       "/api/v1/inventory/stock",
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+      typeUser,
+    )) as InventoryResponse;
+
+    return response.data;
+  } catch (error) {
+    console.error("Lỗi fetch :", error);
+    throw error;
+  }
+};
+
+export const summaryShift = async (payload: SummaryShiftPayload, typeUser: string): Promise<Inventory> => {
+  try {
+    const response = (await http(
+      "/api/v1/inventory/summaryShift",
       {
         method: "POST",
         body: JSON.stringify(payload),
