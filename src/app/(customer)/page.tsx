@@ -362,11 +362,9 @@ export default function IndexPage() {
             </button>
             <Tabs defaultValue={product.variants[0].sku} className="p-2 grid grid-cols-2">
               {product.variants.map(item => (
-                <div key={item.sku}>
-                  <TabsContent value={item.sku}>
-                    <Image src={item.image.url} alt="Pizza" fill className="relative! rounded-2xl aspect-square" />
-                  </TabsContent>
-                </div>
+                <TabsContent key={item.sku} value={item.sku}>
+                  <Image src={item.image.url} alt="Pizza" fill className="relative! rounded-2xl aspect-square" />
+                </TabsContent>
               ))}
               <div className="m-3">
                 <h4 className="text-foreground mb-1">{product.name}</h4>
