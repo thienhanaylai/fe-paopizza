@@ -182,7 +182,6 @@ export default function POS() {
 
         if (res.data.paymentStatus === "success") {
           stopPolling();
-          resetOrder();
           setShowSuccess(true);
         }
       } catch (err) {
@@ -302,6 +301,7 @@ export default function POS() {
         setTestime(new Date(Date.now() + 5 * 60 * 1000));
         startPolling(payment.orderId);
         setOder(result);
+        setLastOrderId(result.data._id);
       }
       if (res.paymentMethod === "cash") {
         setLastOrderId(result.data._id);
@@ -344,7 +344,7 @@ export default function POS() {
 
   const orderPanel = (
     <div className="flex flex-col h-[95vh] max-h-screen">
-      der-b border-border">
+      <div className="p-2 border-b border-border">
         <div className="flex gap-1 bg-muted rounded-xl p-1">
           {[
             { key: "dine_in" as OrderType, label: "Tại chỗ", icon: <UtensilsCrossed size={14} /> },
@@ -387,8 +387,7 @@ export default function POS() {
         )}
       </div>
 
-      
-      to p-3">
+      <div className="flex-1 overflow-y-auto p-3">
         {cart.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-muted-foreground/40 py-8">
             <ShoppingCart size={40} className="mb-2" />
@@ -467,10 +466,8 @@ export default function POS() {
         )}
       </div>
 
-      
       {cart.length > 0 && (
         <div className="shrink-0 bg-white bottom-0 border-t border-border p-3 space-y-3">
-          
           <div>
             <div className="px-3 pb-2">
               <input
@@ -495,7 +492,6 @@ export default function POS() {
             </div>
           </div>
 
-          
           {paymentMethod === "cash" && (
             <div>
               <label className="text-[11px] text-muted-foreground mb-1 block">Tiền khách đưa</label>
@@ -529,7 +525,6 @@ export default function POS() {
             </div>
           )}
 
-          
           <div className="space-y-1.5 text-sm">
             <div className="flex justify-between text-muted-foreground">
               <span className="text-xs">Tạm tính ({cartCount} sản phẩm)</span>
@@ -619,7 +614,7 @@ export default function POS() {
               <Printer size={16} /> In hóa đơn
             </button>
             <button
-              onClick={resetOrder}
+              onClick={() => resetOrder()}
               className="flex-1 py-3 rounded-xl bg-primary text-white hover:bg-primary/90 transition-colors flex items-center justify-center gap-2 text-sm"
             >
               <Plus size={16} /> Đơn mới
@@ -647,7 +642,6 @@ export default function POS() {
           )}
         </div>
 
-        
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
           {categories.map(cat => (
             <button
@@ -719,7 +713,6 @@ export default function POS() {
           </div>
         </div>
 
-        
         <div className="flex-1 overflow-y-auto p-4">
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
             {filteredMenu.map(item => {
@@ -786,7 +779,6 @@ export default function POS() {
         </div>
       </div>
 
-      
       <div className="hidden lg:flex w-[380px] border-l border-border bg-card flex-col shrink-0">
         <div className="flex items-center justify-between px-4 py-3 h-[62px] border-b border-border">
           <h3 className="text-foreground text-sm flex items-center gap-2">

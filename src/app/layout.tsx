@@ -13,7 +13,7 @@ export const metadata: Metadata = {
   title: "PaoPizza",
   description: "PaoPizza - Pizza ngon, giao nhanh",
   icons: {
-    icon: "/favicon.ico",
+    icon: "/logopao.svg",
   },
 };
 
