@@ -1,5 +1,5 @@
 "use client";
-import { useState, useMemo, useEffect, use, useRef } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import {
   Search,
   Plus,
@@ -9,31 +9,18 @@ import {
   UtensilsCrossed,
   ShoppingBag,
   Truck,
-  CreditCard,
   Banknote,
   QrCode,
-  Wallet,
   CheckCircle2,
-  User,
-  Phone,
-  MapPin,
-  Hash,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
   X,
   Pizza,
-  Soup,
-  CakeSlice,
-  Wine,
   Receipt,
   Printer,
   ArrowLeft,
   Clock,
-  Star,
-  Percent,
-  Bike,
-  Building2,
 } from "lucide-react";
 import { getRoleLabel, getRoleColor, useEmployeeAuth } from "@/src/context/authEmployeeContext";
 import Link from "next/link";
@@ -41,11 +28,11 @@ import Image from "next/image";
 import { getAllCategories } from "@/src/services/category.service";
 import { getAllProducts } from "@/src/services/product.service";
 import { toast, Toaster } from "sonner";
-import { cancelOrder, createOrder, createPosOrder, PosOrder } from "@/src/services/order.service";
+import { cancelOrder, createPosOrder, PosOrder } from "@/src/services/order.service";
 import { checkPaymentStatus } from "@/src/services/payment.service";
+import { formatVND } from "@/src/utils/formatVND";
 
 type OrderType = "dine_in" | "carry_out" | "delivery";
-type DeliveryMethod = "store_delivery" | "third_party";
 type PaymentMethod = "cash" | "qrCode" | "card" | "momo";
 
 type MenuCategoryUI = {
@@ -113,10 +100,6 @@ const paymentOptions: { key: PaymentMethod; label: string; icon: React.ReactNode
   // { key: "card", label: "Thẻ", icon: <CreditCard size={18} /> },
   // { key: "momo", label: "MoMo", icon: <Wallet size={18} /> },
 ];
-
-function formatVND(n: number) {
-  return new Intl.NumberFormat("vi-VN").format(n) + "đ";
-}
 
 export function CountdownTimer({ expiresAt, onExpire }) {
   const [timeLeft, setTimeLeft] = useState(null);
@@ -232,7 +215,9 @@ export default function POS() {
         ];
         setCategories(finalCategories);
         setProducts(products);
-      } catch (error) {}
+      } catch (error) {
+        return;
+      }
     };
     fectData();
   }, []);
@@ -359,8 +344,7 @@ export default function POS() {
 
   const orderPanel = (
     <div className="flex flex-col h-[95vh] max-h-screen">
-      {/* Order type tabs */}
-      <div className="p-2 border-b border-border">
+      der-b border-border">
         <div className="flex gap-1 bg-muted rounded-xl p-1">
           {[
             { key: "dine_in" as OrderType, label: "Tại chỗ", icon: <UtensilsCrossed size={14} /> },
@@ -403,8 +387,8 @@ export default function POS() {
         )}
       </div>
 
-      {/* Cart items */}
-      <div className="flex-1 overflow-y-auto p-3">
+      
+      to p-3">
         {cart.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-muted-foreground/40 py-8">
             <ShoppingCart size={40} className="mb-2" />
@@ -483,10 +467,10 @@ export default function POS() {
         )}
       </div>
 
-      {/* Payment section */}
+      
       {cart.length > 0 && (
         <div className="shrink-0 bg-white bottom-0 border-t border-border p-3 space-y-3">
-          {/* Payment method */}
+          
           <div>
             <div className="px-3 pb-2">
               <input
@@ -511,7 +495,7 @@ export default function POS() {
             </div>
           </div>
 
-          {/* Cash received input */}
+          
           {paymentMethod === "cash" && (
             <div>
               <label className="text-[11px] text-muted-foreground mb-1 block">Tiền khách đưa</label>
@@ -545,7 +529,7 @@ export default function POS() {
             </div>
           )}
 
-          {/* Totals */}
+          
           <div className="space-y-1.5 text-sm">
             <div className="flex justify-between text-muted-foreground">
               <span className="text-xs">Tạm tính ({cartCount} sản phẩm)</span>
@@ -663,7 +647,7 @@ export default function POS() {
           )}
         </div>
 
-        {/* Category nav */}
+        
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
           {categories.map(cat => (
             <button
@@ -735,7 +719,7 @@ export default function POS() {
           </div>
         </div>
 
-        {/* Product grid */}
+        
         <div className="flex-1 overflow-y-auto p-4">
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
             {filteredMenu.map(item => {
@@ -802,7 +786,7 @@ export default function POS() {
         </div>
       </div>
 
-      {/* Right: Order panel - Desktop */}
+      
       <div className="hidden lg:flex w-[380px] border-l border-border bg-card flex-col shrink-0">
         <div className="flex items-center justify-between px-4 py-3 h-[62px] border-b border-border">
           <h3 className="text-foreground text-sm flex items-center gap-2">

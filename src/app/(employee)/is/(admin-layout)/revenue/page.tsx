@@ -6,6 +6,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { useEmployeeAuth } from "@/src/context/authEmployeeContext";
 import { getRevenue } from "@/src/services/revenue.service";
 import { getAllStore, type StoreData } from "@/src/services/store.service";
+import { formatVND } from "@/src/utils/formatVND";
 
 type Period = "day" | "month" | "quarter" | "year";
 
@@ -97,10 +98,6 @@ const periodSeriesKeys: Record<Period, string[]> = {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function formatVND(n: number) {
-  return new Intl.NumberFormat("vi-VN").format(n) + "đ";
 }
 
 function formatShort(n: number) {
@@ -624,7 +621,7 @@ export default function Revenue() {
         const storeList = (await getAllStore()) as StoreData[];
         if (cancelled) return;
 
-        setStores(storeList || []);
+        setStores(storeList.sort((a, b) => a.name.localeCompare(b.name)) || []);
 
         const initialStore = isAdmin ? "all" : employeeInfo?.ref_id?.store_id || "all";
         if (!isAdmin) {

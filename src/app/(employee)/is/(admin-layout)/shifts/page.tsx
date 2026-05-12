@@ -21,8 +21,8 @@ import {
 import { useEmployeeAuth } from "@/src/context/authEmployeeContext";
 import { getShifts, registerShift, RegisterShiftPayload } from "@/src/services/shifts.service";
 import { toast } from "sonner";
+import { formatVND } from "@/src/utils/formatVND";
 
-// ── Types ──
 interface Availability {
   empName: string;
   startTime: string;
@@ -121,9 +121,6 @@ function getHours(start: string, end: string): number {
   const [sh, sm] = start.split(":").map(Number);
   const [eh, em] = end.split(":").map(Number);
   return Math.round(((eh * 60 + em - sh * 60 - sm) / 60) * 10) / 10;
-}
-function formatVND(n: number) {
-  return new Intl.NumberFormat("vi-VN").format(n) + "đ";
 }
 function initials(name: string) {
   return name
@@ -697,7 +694,6 @@ export default function Shifts() {
   // ── Render ──
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-foreground">{isStaff ? "Đăng ký lịch rảnh" : "Quản lý ca làm việc"}</h1>
@@ -727,7 +723,6 @@ export default function Shifts() {
 
       {activeTab === "calendar" ? (
         <>
-          {/* ════════════ TODAY'S SHIFTS ════════════ */}
           {(() => {
             const today = currentWeek.find(d => d.date === TODAY_DATE);
             if (!today) return null;
@@ -891,8 +886,7 @@ export default function Shifts() {
             );
           })()}
 
-          {/* Week toggle */}
-          <div className="flex flex-col sm:flex-row gap-3">
+          x flex-col sm:flex-row gap-3">
             <div className="flex items-center gap-1 bg-card border border-border rounded-xl p-1">
               <button
                 onClick={() => setWeekView("current")}
@@ -910,7 +904,7 @@ export default function Shifts() {
             <div className="flex items-center gap-2 text-sm text-muted-foreground bg-card px-4 py-2.5 rounded-xl border border-border">
               <Calendar size={16} className="text-primary" /> {weekLabel}
             </div>
-            {/* Manager sub-tabs for next week */}
+            
             {isManager && weekView === "next" && (
               <div className="flex items-center gap-1 bg-card border border-border rounded-xl p-1">
                 <button
@@ -929,7 +923,7 @@ export default function Shifts() {
             )}
           </div>
 
-          {/* Summary cards */}
+          
           {weekView === "next" && (
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {isManager ? (
@@ -954,7 +948,7 @@ export default function Shifts() {
             </div>
           )}
 
-          {/* ════════════ STAFF VIEW ════════════ */}
+          
           {isStaff && weekView === "next" && (
             <>
               <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 flex items-start gap-3">
@@ -996,7 +990,7 @@ export default function Shifts() {
                       </div>
 
                       <div className="p-2.5 flex flex-col flex-1 gap-2 min-h-[120px]">
-                        {/* Hiển thị các khung giờ đã đăng ký */}
+                        
                         {shiftsForDay.length > 0 && (
                           <div className="space-y-1.5">
                             {shiftsForDay.map((s: any, si: number) => {
@@ -1028,7 +1022,7 @@ export default function Shifts() {
                           </div>
                         )}
 
-                        {/* Nút đăng ký thêm giờ (luôn hiển thị ở dưới cùng) */}
+                        
                         <button
                           onClick={() => {
                             setAvailStart("07:00");
@@ -1049,7 +1043,7 @@ export default function Shifts() {
                 })}
               </div>
 
-              {/* Staff: summary of assigned shifts */}
+              
               {myAssignedShifts > 0 && (
                 <div className="bg-card rounded-2xl border border-border p-5">
                   <h3 className="text-foreground mb-3 flex items-center gap-2">
@@ -1146,7 +1140,7 @@ export default function Shifts() {
               );
             })()}
 
-          {/* ════════════ MANAGER: Current week Gantt timeline ════════════ */}
+          
           {isManager &&
             weekView === "current" &&
             (() => {
@@ -1224,7 +1218,7 @@ export default function Shifts() {
                                   <td key={day.date} className={`px-1 py-1.5 ${isToday ? "bg-primary/[0.02]" : ""}`}>
                                     {myShifts.length > 0 ? (
                                       <div>
-                                        {/* Gantt bar */}
+                                        
                                         <div className="relative h-7">
                                           <div className="absolute inset-0 rounded bg-muted/30" />
                                           {myShifts.map((s, si) => {
@@ -1251,7 +1245,7 @@ export default function Shifts() {
                                             );
                                           })}
                                         </div>
-                                        {/* Info line below bar */}
+                                        
                                         <div className="flex items-center justify-center gap-1 mt-0.5">
                                           {isSplit && (
                                             <span className="text-[8px] px-1 py-px rounded bg-amber-100 text-amber-700">
@@ -1278,7 +1272,7 @@ export default function Shifts() {
                           );
                         })}
                       </tbody>
-                      {/* Footer: total employees per day */}
+                      
                       <tfoot>
                         <tr className="border-t border-border bg-muted/30">
                           <td className="px-3 py-2.5 sticky left-0 bg-muted/30 z-10 text-xs text-muted-foreground">
@@ -1316,7 +1310,7 @@ export default function Shifts() {
                       </tfoot>
                     </table>
                   </div>
-                  {/* Timeline legend */}
+                  
                   <div className="px-4 py-2 border-t border-border bg-muted/20">
                     <div className="flex items-center gap-1 overflow-x-auto">
                       <span className="text-[9px] text-muted-foreground shrink-0">Trục giờ:</span>
@@ -1333,7 +1327,7 @@ export default function Shifts() {
               );
             })()}
 
-          {/* ════════════ MANAGER: Next week - Availability view ════════════ */}
+          
           {isManager && weekView === "next" && managerTab === "availability" && (
             <div className="space-y-4">
               <div className="bg-card rounded-2xl border border-border overflow-hidden">
@@ -1413,7 +1407,7 @@ export default function Shifts() {
             </div>
           )}
 
-          {/* ════════════ MANAGER: Next week - Schedule view ════════════ */}
+          
           {isManager && weekView === "next" && managerTab === "schedule" && (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-7 gap-3">
               {nextWeek.map((day, dayIdx) => (
@@ -1497,7 +1491,7 @@ export default function Shifts() {
                             </span>
                           </div>
 
-                          {/* Assigned employees */}
+                          
                           <div className="space-y-1 mb-1.5">
                             {shift.assignedEmployees.map(name => {
                               const ec = getEmpColor(name);
@@ -1527,7 +1521,7 @@ export default function Shifts() {
                             })}
                           </div>
 
-                          {/* Quick assign: show available employees */}
+                          
                           {!isFull && availableForShift.length > 0 && (
                             <div className="border-t border-border/30 pt-1.5 mt-1">
                               <p className="text-[9px] text-muted-foreground mb-1">NV rảnh khung giờ này:</p>
@@ -1549,7 +1543,7 @@ export default function Shifts() {
                             </div>
                           )}
 
-                          {/* Manual assign button */}
+                          
                           {!isFull && (
                             <button
                               onClick={() => setAssignModal({ dayIdx, shiftId: shift.id })}
@@ -1563,7 +1557,7 @@ export default function Shifts() {
                     })}
                   </div>
 
-                  {/* Day availability preview */}
+                  
                   {day.availabilities.length > 0 && (
                     <div className="px-2 pb-2">
                       <p className="text-[9px] text-muted-foreground mb-1 px-1">Rảnh ngày này ({day.availabilities.length}):</p>
@@ -1688,7 +1682,7 @@ export default function Shifts() {
         </div>
       )}
 
-      {/* Thêm khung giwof */}
+      
       {addAvailModal &&
         (() => {
           const day = nextWeekDates[addAvailModal.dayIdx];
@@ -1755,7 +1749,7 @@ export default function Shifts() {
           );
         })()}
 
-      {/* ── Create Shift Modal (Manager) ── */}
+      
       {createShiftModal &&
         isManager &&
         (() => {
@@ -1802,7 +1796,7 @@ export default function Shifts() {
                     className="w-full px-3 py-2.5 rounded-xl border border-border bg-background outline-none text-sm"
                   />
                 </div>
-                {/* Show who's available */}
+                
                 {shiftStart && shiftEnd && shiftEnd > shiftStart && (
                   <>
                     <div className="text-xs text-muted-foreground bg-muted/30 p-3 rounded-xl flex items-center gap-2">
@@ -1848,7 +1842,7 @@ export default function Shifts() {
           );
         })()}
 
-      {/* ── Assign Employee Modal ── */}
+      
       {assignModal &&
         isManager &&
         (() => {
@@ -1926,7 +1920,7 @@ export default function Shifts() {
           );
         })()}
 
-      {/* ── Edit Shift Modal ── */}
+      
       {editModal &&
         isManager &&
         (() => {

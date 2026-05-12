@@ -10,6 +10,7 @@ import {
 import { useEffect, useState } from "react";
 import { Search, Plus, Edit2, Trash2, Warehouse, Filter, X, CheckCircle2, Package } from "lucide-react";
 import { toast, Toaster } from "sonner";
+import { formatVND } from "@/src/utils/formatVND";
 
 export interface Unit {
   name: string;
@@ -29,10 +30,6 @@ interface Ingredient {
   cost_per_unit: number;
   is_active: boolean;
   isDeleted: boolean;
-}
-
-function formatVND(n: number) {
-  return new Intl.NumberFormat("vi-VN").format(n) + "đ";
 }
 
 export default function IngredientCatalog() {

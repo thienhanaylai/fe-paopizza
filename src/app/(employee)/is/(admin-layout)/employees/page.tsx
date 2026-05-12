@@ -3,10 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Search, Plus, Edit2, Trash2, Phone, Mail, UserCircle, Briefcase, Clock, Filter, MapPinned } from "lucide-react";
 import {
   EmployeeRole,
-  EmployeeLevel,
   EmployeeStation,
-  getLevelLabel,
-  getLevelColor,
   getStationLabel,
   getStationColor,
   useEmployeeAuth,
@@ -19,6 +16,7 @@ import {
   updateEmployee,
 } from "@/src/services/employee.service";
 import { toast, Toaster } from "sonner";
+import { formatVND } from "@/src/utils/formatVND";
 
 export type EmployeeType = "fulltime" | "parttime";
 
@@ -43,10 +41,6 @@ export interface Employee {
   isDeleted?: boolean;
   updatedAt?: string;
   __v?: number;
-}
-
-function formatVND(n: number) {
-  return new Intl.NumberFormat("vi-VN").format(n) + "đ";
 }
 
 function getEstimatedSalary(employee: Employee, totalHoursMonth: number): number {
@@ -114,8 +108,8 @@ export default function Employees() {
         }
         const list = await getEmployeesByStore(storeId);
 
-        const ress = await getInfo();
-        setInfo(ress);
+        const res = await getInfo();
+        setInfo(res);
         setListEmployee(list);
         return;
       }
@@ -278,7 +272,6 @@ export default function Employees() {
         </button>
       </div>
 
-      {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div className="bg-card rounded-2xl p-4 border border-border flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
@@ -318,7 +311,6 @@ export default function Employees() {
         </div>
       </div>
 
-      {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1 max-w-md">
           <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -361,7 +353,6 @@ export default function Employees() {
         </div>
       </div>
 
-      {/* Employee cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
         {filtered.map((employee, i) => {
           const station = getEmployeeStation(employee);
@@ -463,7 +454,6 @@ export default function Employees() {
         })}
       </div>
 
-      {/* Modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={closeModal}>
           <div

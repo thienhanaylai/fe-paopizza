@@ -73,7 +73,7 @@ type AdminDataState = {
   stores: AdminStoreRow[];
 };
 
-type ManagerDataState = {
+type DasStoreDataState = {
   todayRevenue: number;
   todayOrders: number;
   averageOrderValue: number;
@@ -168,18 +168,18 @@ function getRevenueMetricsValue(response: RevenueOverview, key: string) {
   return toNumber(response.metrics?.[key]);
 }
 
-function StaffDashboard({ userName }: { userName: string }) {
-  return (
-    <div className="space-y-4">
-      <h1 className="text-foreground">Xin chào, {userName}!</h1>
-      <p className="text-muted-foreground">
-        Dashboard nhân viên sẽ được cập nhật sau. Hiện tại đã ưu tiên hoàn thiện phần admin và manager.
-      </p>
-    </div>
-  );
-}
+// function StaffDashboard({ userName }: { userName: string }) {
+//   return (
+//     <div className="space-y-4">
+//       <h1 className="text-foreground">Xin chào, {userName}!</h1>
+//       <p className="text-muted-foreground">
+//         Dashboard nhân viên sẽ được cập nhật sau. Hiện tại đã ưu tiên hoàn thiện phần admin và manager.
+//       </p>
+//     </div>
+//   );
+// }
 
-function ManagerDashboard({
+function StoreDashboard({
   userName,
   storeName,
   data,
@@ -187,7 +187,7 @@ function ManagerDashboard({
 }: {
   userName: string;
   storeName: string;
-  data: ManagerDataState;
+  data: DasStoreDataState;
   loading: boolean;
 }) {
   const stats = [
@@ -454,23 +454,25 @@ function AdminDashboard({ userName, data, loading }: { userName: string; data: A
               </tr>
             </thead>
             <tbody>
-              {data.stores.map(store => (
-                <tr key={store.id} className="border-b border-border/50 last:border-0 hover:bg-muted/30">
-                  <td className="py-3 pr-4 text-foreground">{store.name}</td>
-                  <td className="py-3 pr-4 text-muted-foreground">{store.manager}</td>
-                  <td className="py-3 pr-4 text-foreground">{formatVND(store.revenue)}</td>
-                  <td className="py-3 pr-4 text-muted-foreground">{store.orders.toLocaleString("vi-VN")}</td>
-                  <td className="py-3">
-                    <span
-                      className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs ${
-                        store.status === "active" ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"
-                      }`}
-                    >
-                      <CheckCircle2 size={12} /> {store.status === "active" ? "Hoạt động" : "Bảo trì"}
-                    </span>
-                  </td>
-                </tr>
-              ))}
+              {data.stores
+                ?.sort((a, b) => a.name.localeCompare(b.name))
+                .map(store => (
+                  <tr key={store.id} className="border-b border-border/50 last:border-0 hover:bg-muted/30">
+                    <td className="py-3 pr-4 text-foreground">{store.name}</td>
+                    <td className="py-3 pr-4 text-muted-foreground">{store.manager}</td>
+                    <td className="py-3 pr-4 text-foreground">{formatVND(store.revenue)}</td>
+                    <td className="py-3 pr-4 text-muted-foreground">{store.orders.toLocaleString("vi-VN")}</td>
+                    <td className="py-3">
+                      <span
+                        className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs ${
+                          store.status === "active" ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"
+                        }`}
+                      >
+                        <CheckCircle2 size={12} /> {store.status === "active" ? "Hoạt động" : "Bảo trì"}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
             </tbody>
           </table>
         </div>
@@ -495,7 +497,7 @@ export default function DashboardPage() {
     stores: [],
   });
 
-  const [managerData, setManagerData] = useState<ManagerDataState>({
+  const [DasStoreData, setDasStoreData] = useState<DasStoreDataState>({
     todayRevenue: 0,
     todayOrders: 0,
     averageOrderValue: 0,
@@ -577,14 +579,14 @@ export default function DashboardPage() {
           return;
         }
 
-        if (role === "manager") {
-          const managerStoreId = info?.ref_id?.store_id || "";
-          if (!managerStoreId) return;
+        if (role === "manager" || role === "staff") {
+          const StoreId = info?.ref_id?.store_id || "";
+          if (!StoreId) return;
 
           setManagerLoading(true);
 
           const today = dateToYmd(new Date());
-          const todayOverview = (await getRevenue(today, "", managerStoreId, "", "", "")) as RevenueOverview;
+          const todayOverview = (await getRevenue(today, "", StoreId, "", "", "")) as RevenueOverview;
 
           const weekDates = Array.from({ length: 7 }, (_, idx) => {
             const d = new Date();
@@ -595,15 +597,16 @@ export default function DashboardPage() {
           const weeklyRevenue = await Promise.all(
             weekDates.map(async d => {
               const date = dateToYmd(d);
-              const overview = (await getRevenue(date, "", managerStoreId, "", "", "")) as RevenueOverview;
+              const overview = (await getRevenue(date, date, StoreId, "", "", "")) as RevenueOverview;
+              console.log(overview);
               return {
-                name: `T${d.getDate()}/${d.getMonth() + 1}`,
+                name: `${d.getDate()}/${d.getMonth() + 1}`,
                 value: getRevenueMetricsValue(overview, "total_revenue"),
               };
             }),
           );
 
-          const allOrders = (await getAllOrder(`store_id=${managerStoreId}`, "")) as OrderHistory[];
+          const allOrders = (await getAllOrder(`store_id=${StoreId}`, "")) as OrderHistory[];
           const safeOrders = Array.isArray(allOrders) ? allOrders : [];
 
           const monthStart = getStartOfMonth();
@@ -623,7 +626,7 @@ export default function DashboardPage() {
 
           if (cancelled) return;
 
-          setManagerData({
+          setDasStoreData({
             todayRevenue: getRevenueMetricsValue(todayOverview, "total_revenue"),
             todayOrders: getRevenueMetricsValue(todayOverview, "total_orders"),
             averageOrderValue:
@@ -659,19 +662,19 @@ export default function DashboardPage() {
   }, [getInfo, role]);
 
   const userName = user?.name || "User";
-  const managerStoreName = employeeInfo?.ref_id?.store_name || "Cửa hàng";
+  const EmpStoreName = employeeInfo?.ref_id?.store_name || "Cửa hàng";
 
   const content = useMemo(() => {
     if (role === "admin") {
       return <AdminDashboard userName={userName} data={adminData} loading={adminLoading} />;
     }
 
-    if (role === "manager") {
-      return <ManagerDashboard userName={userName} storeName={managerStoreName} data={managerData} loading={managerLoading} />;
+    if (role === "manager" || role === "staff") {
+      return <StoreDashboard userName={userName} storeName={EmpStoreName} data={DasStoreData} loading={managerLoading} />;
     }
 
-    return <StaffDashboard userName={userName} />;
-  }, [role, userName, managerStoreName, adminData, adminLoading, managerData, managerLoading]);
+    return <StoreDashboard userName={userName} storeName={EmpStoreName} data={DasStoreData} loading={managerLoading} />;
+  }, [role, userName, EmpStoreName, adminData, adminLoading, DasStoreData, managerLoading]);
 
   return <div>{content}</div>;
 }

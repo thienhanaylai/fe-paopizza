@@ -12,7 +12,6 @@ import {
   UtensilsCrossed,
   ShoppingBag,
   Bike,
-  Building2,
   CircleCheckBig,
   RefreshCcw,
 } from "lucide-react";
@@ -30,6 +29,7 @@ import {
 import { toast, Toaster } from "sonner";
 import { useEmployeeAuth } from "@/src/context/authEmployeeContext";
 import { Skeleton } from "@/src/components/ui/skeleton";
+import { formatVND } from "@/src/utils/formatVND";
 
 const statusConfig: Record<OrderStatus, { label: string; color: string; icon: React.ReactNode }> = {
   pending: { label: "Chờ xử lý", color: "bg-yellow-100 text-yellow-700", icon: <Clock size={14} /> },
@@ -76,9 +76,6 @@ const actionTextMap = {
   confirmed: "Bắt đầu làm",
   preparing: "Hoàn thành",
 };
-function formatVND(n: number) {
-  return new Intl.NumberFormat("vi-VN").format(n) + "đ";
-}
 const formatDateTime = (isoString: string) => {
   if (!isoString) return "";
 
@@ -257,7 +254,6 @@ export default function Orders() {
         </button>
       </div>
 
-      {/* Status tabs */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {(
           [
@@ -286,7 +282,6 @@ export default function Orders() {
         ))}
       </div>
 
-      {/* Type filter tabs */}
       <div className="flex flex-wrap gap-2">
         <button
           onClick={() => setTypeFilter("all")}
@@ -330,8 +325,8 @@ export default function Orders() {
         })}
       </div>
 
-      {/* Search & Filters */}
-      <div className="flex flex-col sm:flex-row gap-3">
+      
+      x-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <input
@@ -358,7 +353,7 @@ export default function Orders() {
         </div>
       </div>
 
-      {/* Orders table */}
+      
 
       <div className="bg-card rounded-2xl border border-border overflow-hidden">
         <div className="overflow-x-auto">
@@ -437,7 +432,7 @@ export default function Orders() {
         </div>
       </div>
 
-      {/* Order detail modal */}
+      
       {selectedOrder && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 m-0"

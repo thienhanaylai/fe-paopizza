@@ -9,10 +9,7 @@ import { useCustomerAuth } from "@/src/context/authCustomerContext";
 import { useCart } from "@/src/context/cartContext";
 import { Textarea } from "@/src/components/ui/textarea";
 import { Toaster } from "sonner";
-
-function formatVND(n: number) {
-  return new Intl.NumberFormat("vi-VN").format(n) + "đ";
-}
+import { formatVND } from "@/src/utils/formatVND";
 
 type MenuCategoryUI = {
   slug: string;

@@ -4,8 +4,7 @@ import { Minus, Plus, ShoppingCart, Trash2, X } from "lucide-react";
 import { useCart } from "@/src/context/cartContext";
 import { useCustomerAuth } from "@/src/context/authCustomerContext";
 import Image from "next/image";
-
-const formatVND = (price: number) => new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(price);
+import { formatVND } from "@/src/utils/formatVND";
 
 export const CartModal = () => {
   const { cart, showCart, setShowCart, updateQuantity, removeItem, cartCount, cartTotal,  setCheckout } = useCart();
@@ -85,7 +84,7 @@ export const CartModal = () => {
                             <Plus size={14} />
                           </button>
                         </div>
-                        <p className="font-semibold text-primary">{formatVND(item.price * item.quantity)}</p>
+                        <p className="font-semibold text-primary">{formatVND(item.price * item.quantity, { style: "currency" })}</p>
                       </div>
                     </div>
                   </div>
@@ -99,7 +98,7 @@ export const CartModal = () => {
           <div className="border-t border-border p-5 bg-card space-y-4 shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.1)]">
             <div className="flex justify-between items-center text-foreground font-medium">
               <span className="text-muted-foreground">Tổng thanh toán:</span>
-              <span className="text-primary text-xl font-bold">{formatVND(cartTotal)}</span>
+              <span className="text-primary text-xl font-bold">{formatVND(cartTotal, { style: "currency" })}</span>
             </div>
             <button
               onClick={() => setCheckout(true)}

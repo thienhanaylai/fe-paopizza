@@ -10,14 +10,11 @@ import { toast } from "sonner";
 import { clearCartApi } from "@/src/services/cart.service";
 import Image from "next/image";
 import { checkPaymentStatus } from "@/src/services/payment.service";
+import { formatVND } from "@/src/utils/formatVND";
 
 type CheckoutStep = "info" | "payment" | "success" | "failed";
 type OrderMethod = "carry_out" | "delivery" | "dine_in";
 type PaymentMethod = "cash" | "qrCode" | "card" | "momo";
-
-function formatVND(n: number) {
-  return new Intl.NumberFormat("vi-VN").format(n) + "đ";
-}
 
 export function CountdownTimer({ expiresAt, onExpire }) {
   const [timeLeft, setTimeLeft] = useState(null);

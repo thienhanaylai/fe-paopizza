@@ -24,16 +24,13 @@ import { createStore, getAllStore, StoreData, updateStore } from "@/src/services
 import { getEmployeeByRole } from "@/src/services/employee.service";
 import { toast, Toaster } from "sonner";
 import { getRevenue } from "@/src/services/revenue.service";
+import { formatVND } from "@/src/utils/formatVND";
 
 const statusConfig = {
   active: { label: "Hoạt động", color: "bg-green-100 text-green-700", icon: <CheckCircle2 size={14} /> },
   close: { label: "Tạm đóng", color: "bg-red-100 text-red-700", icon: <XCircle size={14} /> },
   maintenance: { label: "Đang sửa chữa", color: "bg-yellow-100 text-yellow-700", icon: <Settings size={14} /> },
 };
-
-function formatVND(n: number) {
-  return new Intl.NumberFormat("vi-VN").format(n) + "đ";
-}
 
 function dateToYmd(date: Date) {
   const y = date.getFullYear();
@@ -189,12 +186,14 @@ export default function Stores() {
     }
   };
 
-  const filtered = listStore?.filter(s => {
-    const matchSearch =
-      s.name.toLowerCase().includes(search.toLowerCase()) || s.address.toLowerCase().includes(search.toLowerCase());
-    const matchStatus = filterStatus === "all" || s.status === filterStatus;
-    return matchSearch && matchStatus;
-  });
+  const filtered = listStore
+    ?.sort((a, b) => a.name.localeCompare(b.name))
+    .filter(s => {
+      const matchSearch =
+        s.name.toLowerCase().includes(search.toLowerCase()) || s.address.toLowerCase().includes(search.toLowerCase());
+      const matchStatus = filterStatus === "all" || s.status === filterStatus;
+      return matchSearch && matchStatus;
+    });
 
   const totalRevenue = revenue?.metrics.total_revenue || 0;
   const totalOrders = revenue?.metrics.total_orders || 0;
@@ -203,8 +202,7 @@ export default function Stores() {
 
   return (
     <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      ="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-foreground flex items-center gap-2">
             <Store size={24} className="text-primary" /> Quản lý cửa hàng
@@ -222,8 +220,8 @@ export default function Stores() {
         </button>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+      
+      e="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         {[
           {
             label: "Tổng cửa hàng",
@@ -265,7 +263,7 @@ export default function Stores() {
         ))}
       </div>
 
-      {/* Filters */}
+      
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -290,7 +288,7 @@ export default function Stores() {
         </div>
       </div>
 
-      {/* Store cards */}
+      
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {filtered?.map(store => {
           const st = statusConfig[store.status];
@@ -410,7 +408,7 @@ export default function Stores() {
             </div>
 
             <div className="p-6 space-y-6">
-              {/* Info */}
+              
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {[
                   { icon: <MapPin size={16} />, label: "Địa chỉ", value: selectedStore.address },
@@ -436,7 +434,7 @@ export default function Stores() {
                 ))}
               </div>
 
-              {/* Revenue stats */}
+              
               {selectedStore.status === "active" && (
                 <div>
                   <h3 className="text-foreground mb-3 flex items-center gap-2">
@@ -486,7 +484,7 @@ export default function Stores() {
         </div>
       )}
 
-      {/* Add store modal */}
+      
       {showForm && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 m-0"

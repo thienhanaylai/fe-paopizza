@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Search, Phone, Mail, MapPinned } from "lucide-react";
 import {
   getLevelLabel,
@@ -8,7 +8,9 @@ import {
   getStationColor,
   EmployeeLevel,
   EmployeeStation,
+  useEmployeeAuth,
 } from "@/src/context/authEmployeeContext";
+import { getEmployeesByStore } from "@/src/services/employee.service";
 
 interface StaffContact {
   id: string;
@@ -20,71 +22,16 @@ interface StaffContact {
   status: "online" | "busy" | "offline";
 }
 
-const contacts: StaffContact[] = [
-  {
-    id: "E001",
-    name: "Nguyễn Văn An",
-    level: "store_manager",
-    station: "management",
-    phone: "0901234567",
-    email: "an@paopizza.com",
-    status: "online",
-  },
-  {
-    id: "E002",
-    name: "Trần Thị Bình",
-    level: "senior",
-    station: "crs",
-    phone: "0912345678",
-    email: "binh@paopizza.com",
-    status: "online",
-  },
-  {
-    id: "E003",
-    name: "Lê Minh Cường",
-    level: "junior",
-    station: "kitchen",
-    phone: "0923456789",
-    email: "cuong@paopizza.com",
-    status: "busy",
-  },
-  {
-    id: "E004",
-    name: "Phạm Thu Dung",
-    level: "fresher",
-    station: "crs",
-    phone: "0934567890",
-    email: "dung@paopizza.com",
-    status: "online",
-  },
-  {
-    id: "E006",
-    name: "Vũ Thị Phương",
-    level: "fresher",
-    station: "kitchen",
-    phone: "0956789012",
-    email: "phuong@paopizza.com",
-    status: "offline",
-  },
-  {
-    id: "E007",
-    name: "Đỗ Quốc Bảo",
-    level: "junior",
-    station: "delivery",
-    phone: "0967890123",
-    email: "bao@paopizza.com",
-    status: "online",
-  },
-  {
-    id: "E008",
-    name: "Ngô Thanh Tâm",
-    level: "intern",
-    station: "crs",
-    phone: "0978901234",
-    email: "tam@paopizza.com",
-    status: "offline",
-  },
-];
+type EmployeeRecord = {
+  _id?: string;
+  id?: string;
+  name?: string;
+  level?: EmployeeLevel;
+  station?: EmployeeStation;
+  phone?: string;
+  email?: string;
+  status?: boolean;
+};
 
 const statusConfig: Record<string, { label: string; color: string; dot: string }> = {
   online: { label: "Đang làm", color: "text-green-600", dot: "bg-green-500" },
@@ -103,16 +50,65 @@ const avatarColors = [
 ];
 
 export default function StaffContacts() {
+  const { user, getInfo } = useEmployeeAuth();
   const [search, setSearch] = useState("");
   const [stationFilter, setStationFilter] = useState<"all" | EmployeeStation>("all");
+  const [contacts, setContacts] = useState<StaffContact[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadContacts = async () => {
+      setIsLoading(true);
+      try {
+        let storeId = user?.store_id;
+
+        if (!storeId) {
+          const info = await getInfo();
+          const storeRef = info?.ref_id?.store_id;
+          storeId = typeof storeRef === "string" ? storeRef : storeRef?._id;
+        }
+
+        if (!storeId) {
+          if (!cancelled) setContacts([]);
+          return;
+        }
+
+        const employees: EmployeeRecord[] = await getEmployeesByStore(storeId);
+        if (cancelled) return;
+
+        const normalized = (employees || []).map((employee, index) => ({
+          id: employee?._id || employee?.id || `emp-${index}`,
+          name: employee?.name || "N/A",
+          level: employee?.level || "fresher",
+          station: employee?.station || "cashier",
+          phone: employee?.phone || "",
+          email: employee?.email || "",
+          status: employee?.status === false ? "offline" : "online",
+        }));
+
+        setContacts(normalized);
+      } catch (error) {
+        console.error("Loi tai danh sach nhan vien:", error);
+        if (!cancelled) setContacts([]);
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    };
+
+    loadContacts();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [getInfo, user?.store_id]);
 
   const filtered = contacts.filter(
     c =>
       (stationFilter === "all" || c.station === stationFilter) &&
       (c.name.toLowerCase().includes(search.toLowerCase()) || c.email.toLowerCase().includes(search.toLowerCase())),
   );
-
-  const onlineCount = contacts.filter(c => c.status === "online").length;
 
   return (
     <div className="space-y-6">
@@ -121,7 +117,6 @@ export default function StaffContacts() {
         <p className="text-muted-foreground mt-1">Liên hệ đồng nghiệp khi cần thiết</p>
       </div>
 
-      {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1 max-w-md">
           <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -141,14 +136,14 @@ export default function StaffContacts() {
           >
             <option value="all">Tất cả station</option>
             <option value="kitchen">Bếp</option>
-            <option value="crs">CRS</option>
+            <option value="cashier">CRS</option>
             <option value="delivery">Delivery</option>
-            <option value="management">Quản lý</option>
+            <option value="manager">Quản lý</option>
+            <option value="store_manager">Cửa hàng trưởng</option>
           </select>
         </div>
       </div>
 
-      {/* Contact cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
         {filtered.map((contact, i) => {
           const st = statusConfig[contact.status];
@@ -177,7 +172,7 @@ export default function StaffContacts() {
                     </span>
                   </div>
                 </div>
-                <span className={`text-xs ${st.color}`}>{st.label}</span>
+                {/* <span className={`text-xs ${st.color}`}>{st.label}</span> */}
               </div>
 
               <div className="space-y-2 text-sm mb-4">
@@ -207,6 +202,9 @@ export default function StaffContacts() {
           );
         })}
       </div>
+      {!isLoading && filtered.length === 0 && (
+        <div className="text-sm text-muted-foreground">Khong tim thay nhan vien phu hop.</div>
+      )}
     </div>
   );
 }

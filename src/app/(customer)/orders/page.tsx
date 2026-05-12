@@ -5,9 +5,7 @@ import { History } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast, Toaster } from "sonner";
 import { useCustomerAuth } from "@/src/context/authCustomerContext";
-function formatVND(n: number) {
-  return new Intl.NumberFormat("vi-VN").format(n) + "đ";
-}
+import { formatVND } from "@/src/utils/formatVND";
 
 const formatDateTime = (isoString: string) => {
   if (!isoString) return "";

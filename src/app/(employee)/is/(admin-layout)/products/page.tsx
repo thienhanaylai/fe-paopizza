@@ -8,6 +8,8 @@ import { getAllCategories } from "@/src/services/category.service";
 import { ImageInput } from "@/src/components/ui/input";
 import { getAllIngredients } from "@/src/services/ingredient.service";
 import { toast, Toaster } from "sonner";
+import { formatVND } from "@/src/utils/formatVND";
+import CurrencyInput from "@/src/components/ui/currencyInput";
 
 interface IngredientList {
   _id: string;
@@ -111,10 +113,6 @@ const mapProductToVariants = (product: Product): VariantPayload[] => {
     })),
   }));
 };
-
-function formatVND(n: number) {
-  return new Intl.NumberFormat("vi-VN").format(n) + "đ";
-}
 
 export default function Products() {
   const { user } = useEmployeeAuth();
@@ -544,16 +542,13 @@ export default function Products() {
                     value={basicInfo.category}
                     className="w-full px-4 py-2.5 rounded-xl border border-border bg-background outline-none"
                   >
-                    {categories.map(item =>
-                      item.slug === "all" ? (
-                        <></>
-                      ) : (
-                        <>
+                    {categories.map(
+                      item =>
+                        item.slug === "all" && (
                           <option key={item.slug} value={item._id}>
                             {item.name}
                           </option>
-                        </>
-                      ),
+                        ),
                     )}
                   </select>
                 </div>
@@ -625,10 +620,9 @@ export default function Products() {
                             </div>
                             <div>
                               <label className="block col-span-2 text-xs mb-1">Giá bán (đ) *</label>
-                              <input
-                                type="number"
+                              <CurrencyInput
                                 value={variant.price}
-                                onChange={e => handleVariantChange(i, "price", e.target.value)}
+                                onChange={val => handleVariantChange(i, "price", val)}
                                 placeholder="170000"
                                 className="w-40 px-4 py-2.5 rounded-xl border border-border bg-background focus:border-primary outline-none"
                               />

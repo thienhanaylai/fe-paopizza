@@ -135,13 +135,15 @@ export default function Suppliers() {
     }
   };
 
-  const filtered = listSuppliers.filter(
-    s =>
-      s.name.toLowerCase().includes(search.toLowerCase()) ||
-      supplierCategoryLabels[s.supplier_category].toLowerCase().includes(search.toLowerCase()) ||
-      s.email.toLowerCase().includes(search.toLowerCase()) ||
-      s.phone.toLowerCase().includes(search.toLowerCase()),
-  );
+  const filtered = listSuppliers
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .filter(
+      s =>
+        s.name.toLowerCase().includes(search.toLowerCase()) ||
+        supplierCategoryLabels[s.supplier_category].toLowerCase().includes(search.toLowerCase()) ||
+        s.email.toLowerCase().includes(search.toLowerCase()) ||
+        s.phone.toLowerCase().includes(search.toLowerCase()),
+    );
 
   const totalSuppliers = listSuppliers.length;
   const activeSuppliers = listSuppliers.filter(s => s.isActive).length;
@@ -162,7 +164,6 @@ export default function Suppliers() {
         </button>
       </div>
 
-      {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-card rounded-2xl p-4 border border-border flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
@@ -193,7 +194,6 @@ export default function Suppliers() {
         </div>
       </div>
 
-      {/* Search */}
       <div className="relative max-w-md">
         <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
         <input
@@ -204,7 +204,6 @@ export default function Suppliers() {
         />
       </div>
 
-      {/* Supplier cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
         {filtered.map(sup => (
           <div key={sup._id || sup.id} className="bg-card rounded-2xl border border-border p-5 hover:shadow-lg transition-shadow">
@@ -257,7 +256,7 @@ export default function Suppliers() {
       </div>
 
       {/* Modal */}
-      {showModal && (
+       (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={closeModal}>
           <div
             className="bg-card rounded-2xl p-6 w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto"
