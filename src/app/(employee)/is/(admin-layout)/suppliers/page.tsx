@@ -256,7 +256,7 @@ export default function Suppliers() {
       </div>
 
       {/* Modal */}
-       (
+      {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={closeModal}>
           <div
             className="bg-card rounded-2xl p-6 w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto"

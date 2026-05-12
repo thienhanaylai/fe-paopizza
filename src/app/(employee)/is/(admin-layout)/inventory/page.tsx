@@ -290,7 +290,7 @@ export default function IndexPage() {
         </div>
       </div>
 
-      "flex flex-col sm:flex-row gap-3">
+      <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <input
@@ -316,8 +316,7 @@ export default function IndexPage() {
         </div>
       </div>
 
-      
-      unded-2xl border border-border overflow-hidden">
+      <div className="bg-card rounded-2xl border border-border overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -383,8 +382,7 @@ export default function IndexPage() {
         </div>
       </div>
 
-      
-      
+      {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={closeModal}>
           <div className="bg-card rounded-2xl p-6 w-full max-w-lg shadow-2xl" onClick={e => e.stopPropagation()}>
             <h3 className="text-foreground mb-4">{editItem ? "Chỉnh sửa nguyên liệu" : "Nhập nguyên liệu mới"}</h3>
@@ -490,8 +488,8 @@ export default function IndexPage() {
           </div>
         </div>
       )}
-      
-      
+
+      {showStocktake && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="bg-card rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between p-5 border-b border-border">
@@ -515,7 +513,6 @@ export default function IndexPage() {
 
             {stocktakeStep === "entry" ? (
               <div className="p-6 flex-1 overflow-y-auto">
-                
                 <div className="h-2 bg-muted rounded-full overflow-hidden mb-6">
                   <div
                     className="h-full bg-amber-500 transition-all"
@@ -577,7 +574,6 @@ export default function IndexPage() {
                         </button>
                       </div>
 
-                      
                       {Object.keys(remaining).length > 0 && (
                         <div>
                           <p className="text-sm text-muted-foreground mb-2">Đã nhập ({Object.keys(remaining).length})</p>
@@ -666,7 +662,6 @@ export default function IndexPage() {
                   </table>
                 </div>
 
-                
                 {(() => {
                   const checked = inventory?.ingredients.filter(i => remaining[i._id] !== undefined);
                   const totalLoss = checked?.reduce((sum, i) => {

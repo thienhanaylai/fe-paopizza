@@ -325,8 +325,7 @@ export default function Orders() {
         })}
       </div>
 
-      
-      x-col sm:flex-row gap-3">
+      <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <input
@@ -352,8 +351,6 @@ export default function Orders() {
           </select>
         </div>
       </div>
-
-      
 
       <div className="bg-card rounded-2xl border border-border overflow-hidden">
         <div className="overflow-x-auto">
@@ -432,7 +429,6 @@ export default function Orders() {
         </div>
       </div>
 
-      
       {selectedOrder && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 m-0"
