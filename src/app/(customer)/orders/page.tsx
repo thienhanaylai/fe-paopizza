@@ -123,11 +123,11 @@ export default function Orders() {
                     <span className="text-sm text-muted-foreground">Tổng cộng</span>
                     <span className="text-primary text-lg">{formatVND(order.total)}</span>
                   </div>
-                  {order.status === "completed" && (
+                  {/* {order.status === "completed" && (
                     <button className="mt-3 w-full py-2.5 rounded-xl border border-primary text-primary text-sm hover:bg-primary/5 transition-colors">
                       Đặt lại đơn này
                     </button>
-                  )}
+                  )} */}
                 </div>
               );
             })}
