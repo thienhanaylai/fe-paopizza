@@ -586,7 +586,7 @@ export default function DashboardPage() {
           setManagerLoading(true);
 
           const today = dateToYmd(new Date());
-          const todayOverview = (await getRevenue(today, "", StoreId, "", "", "")) as RevenueOverview;
+          const todayOverview = (await getRevenue(today, today, StoreId, "", "", "")) as RevenueOverview;
 
           const weekDates = Array.from({ length: 7 }, (_, idx) => {
             const d = new Date();
