@@ -24,7 +24,7 @@ import {
   summaryShift,
   SummaryShiftPayload,
 } from "@/src/services/inventory.service";
-import { toast } from "sonner";
+import { toast, Toaster } from "sonner";
 import { formatVND } from "@/src/utils/formatVND";
 
 export default function IndexPage() {
@@ -183,7 +183,7 @@ export default function IndexPage() {
         "",
       );
       if (res) {
-        setInventory(res);
+        fetchData();
         closeModal();
         toast.success("Thêm nguyên liệu thành công!");
       }
@@ -222,7 +222,7 @@ export default function IndexPage() {
         "",
       );
       if (res) {
-        setInventory(res);
+        fetchData();
         closeModal();
         toast.success("Cập nhật nguyên liệu thành công!");
       }
@@ -285,7 +285,7 @@ export default function IndexPage() {
           </div>
           <div>
             <p className="text-muted-foreground text-sm">Đủ hàng</p>
-            <p className="text-foreground text-xl">{inventory?.ingredients.length - lowStockCount}</p>
+            <p className="text-foreground text-xl">{inventory?.ingredients?.length - lowStockCount || 0}</p>
           </div>
         </div>
       </div>
@@ -307,8 +307,8 @@ export default function IndexPage() {
             onChange={e => setCategoryFilter(e.target.value)}
             className="bg-transparent py-2.5 text-sm outline-none text-foreground"
           >
-            {categories.map(c => (
-              <option key={c} value={c}>
+            {categories.map((c, i) => (
+              <option key={i} value={c}>
                 {c === "all" ? "Tất cả loại" : c}
               </option>
             ))}
@@ -383,7 +383,7 @@ export default function IndexPage() {
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={closeModal}>
+        <div className="fixed inset-0 z-50 flex items-center m-0 justify-center bg-black/50 p-4" onClick={closeModal}>
           <div className="bg-card rounded-2xl p-6 w-full max-w-lg shadow-2xl" onClick={e => e.stopPropagation()}>
             <h3 className="text-foreground mb-4">{editItem ? "Chỉnh sửa nguyên liệu" : "Nhập nguyên liệu mới"}</h3>
             <div className="space-y-4">
@@ -490,7 +490,7 @@ export default function IndexPage() {
       )}
 
       {showStocktake && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+        <div className="fixed inset-0 z-50 flex items-center m-0 justify-center bg-black/50 p-4">
           <div className="bg-card rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between p-5 border-b border-border">
               <div className="flex items-center gap-3">
@@ -733,6 +733,16 @@ export default function IndexPage() {
           </div>
         </div>
       )}
+      <Toaster
+        toastOptions={{
+          classNames: {
+            success: "bg-green-500! text-white! border-green-600!",
+            error: "bg-red-500! text-white! border-red-600!",
+            warning: "bg-yellow-500! text-white! border-yellow-600!",
+            toast: "bg-gray-800! text-white!",
+          },
+        }}
+      />
     </div>
   );
 }
