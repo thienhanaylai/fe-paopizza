@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Banknote, CheckCircle2, CreditCard, LoaderCircle, QrCode, ShoppingBag, Truck, Wallet, X } from "lucide-react";
+import { ArrowLeft, Banknote, CheckCircle2, CreditCard, LoaderCircle, QrCode, ShoppingBag, Truck, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useCart } from "@/src/context/cartContext";
 import { getAllStore, StoreData } from "@/src/services/store.service";
@@ -122,8 +122,8 @@ export const CheckoutModal = () => {
     setCustNote("");
     setOrderMethod("carry_out");
     setPaymentMethod("cash");
-    await clearCartApi(user?.id);
-    await fetchCart(user?.id);
+    await clearCartApi(user?.id || "");
+    await fetchCart(user?.id || "");
   };
 
   const hanldeSubmit = async () => {
@@ -162,7 +162,7 @@ export const CheckoutModal = () => {
 
     if (res.paymentMethod != "cash" && res.paymentStatus != "success") {
       setIsPayment(true);
-      setTestime(new Date(Date.now() + 5 * 60 * 1000));
+      setTestime(new Date(Date.now() + 3 * 60 * 1000));
       startPolling(payment.orderId);
       setImgQr(payment.qrUrl);
       setIdOrder(res._id);
@@ -215,7 +215,6 @@ export const CheckoutModal = () => {
         onClick={e => e.stopPropagation()}
       >
         {checkoutStep === "success" && (
-          /* Success */
           <div className="p-8 text-center">
             <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
               <CheckCircle2 size={40} className="text-green-600" />
@@ -423,7 +422,7 @@ export const CheckoutModal = () => {
                   </button>
                 </>
               )}
-              {checkoutStep === "payment" && isPayment === false ? (
+              {checkoutStep === "payment" && isPayment === false && (
                 <>
                   <div>
                     <label className="block text-sm mb-3">Chọn phương thức thanh toán</label>
@@ -483,8 +482,6 @@ export const CheckoutModal = () => {
                     {paymentMethod != "cash" ? "Thanh toán" : "Xác nhận đặt hàng"}
                   </button>
                 </>
-              ) : (
-                <></>
               )}
               {checkoutStep === "payment" && isPayment === true && imgQr && (
                 <>
@@ -505,7 +502,8 @@ export const CheckoutModal = () => {
                           setCustNote("");
                           setOrderMethod("carry_out");
                           setPaymentMethod("cash");
-                          fetchCart(user?.id);
+                          setCheckoutStep("failed");
+                          fetchCart(user?.id || "");
                         }}
                       />
                     </div>
@@ -540,6 +538,35 @@ export const CheckoutModal = () => {
               )}
             </div>
           </>
+        )}
+        {checkoutStep === "failed" && isPayment === true && (
+          <div className="p-5 space-y-5">
+            <div>
+              <h3 className="block  mb-3">Hết thời gian thanh toán</h3>
+              <div className="space-y-3 flex flex-col items-center">
+                <p>Đã hết thời gian thanh toán vui lòng đặt hàng lại!</p>
+              </div>
+            </div>
+
+            <button
+              onClick={() => {
+                stopPolling();
+                setIdOrder("");
+                setCustName("");
+                setCustPhone("");
+                setStoreId("");
+                setCustAddress("");
+                setCustNote("");
+                setOrderMethod("carry_out");
+                setPaymentMethod("cash");
+                setCheckout(false);
+                fetchCart(user?.id || "");
+              }}
+              className="w-full bg-white text-primary border-primary border-2 py-3 rounded-xl hover:text-white hover:bg-primary/90 transition-colors shadow-lg shadow-primary/25"
+            >
+              Đóng
+            </button>
+          </div>
         )}
       </div>
     </div>
