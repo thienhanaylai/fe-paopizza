@@ -13,4 +13,3 @@ echo "[3/3] Đang thực hiện docker compose up -d --build..."
 docker compose up -d --build
 
 echo "--- Quá trình hoàn tất thành công! ---"
-"""
