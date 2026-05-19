@@ -170,7 +170,6 @@ export const CheckoutModal = () => {
     if (res.paymentMethod === "cash") {
       setCheckoutStep("success");
       setIdOrder(res._id);
-      clearData();
     }
   };
 
