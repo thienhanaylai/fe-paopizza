@@ -8,7 +8,6 @@ import { getAllCategories } from "@/src/services/category.service";
 import { ImageInput } from "@/src/components/ui/input";
 import { getAllIngredients } from "@/src/services/ingredient.service";
 import { toast, Toaster } from "sonner";
-import { formatVND } from "@/src/utils/formatVND";
 import CurrencyInput from "@/src/components/ui/currencyInput";
 
 interface IngredientList {
@@ -544,7 +543,7 @@ export default function Products() {
                   >
                     {categories.map(
                       item =>
-                        item.slug === "all" && (
+                        item.slug != "all" && (
                           <option key={item.slug} value={item._id}>
                             {item.name}
                           </option>
