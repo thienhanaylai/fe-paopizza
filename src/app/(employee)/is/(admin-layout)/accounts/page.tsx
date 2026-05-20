@@ -15,7 +15,16 @@ import {
   Unlock,
 } from "lucide-react";
 import { getRoleLabel, getRoleColor, getStationLabel, getStationColor } from "@/src/context/authEmployeeContext";
-import { createUser, getAllUser, updateCustomer, updateEmployee, updateUser, User } from "@/src/services/user.service";
+import {
+  createUser,
+  deleteUser,
+  getAllUser,
+  updateCustomer,
+  updateEmployee,
+  updateUser,
+  updateUserStatus,
+  User,
+} from "@/src/services/user.service";
 import { getAllStore } from "@/src/services/store.service";
 import { toast, Toaster } from "sonner";
 type UserRole = "admin" | "manager" | "staff";
@@ -88,6 +97,32 @@ export default function Accounts() {
     };
     fecthData();
   }, [isLoading]);
+
+  const handleTogleStatus = async (account: User) => {
+    setIsLoading(true);
+    try {
+      await updateUserStatus(account._id, { status: !account.status });
+      toast.success(account.status ? "Khóa tài khoản thành công!" : "Mở khóa thành công!");
+      setActionMenu(null);
+    } catch (error) {
+      toast.error(`Cập nhật trạng thái thất bại: ${error}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDeleteAccount = async (account: User) => {
+    setIsLoading(true);
+    try {
+      await deleteUser(account._id);
+      toast.success("Xóa tài khoản thành công!");
+      setActionMenu(null);
+    } catch (error) {
+      toast.error(`Xóa tài khoản thất bại: ${error}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleSubmit = async () => {
     setIsLoading(true);
@@ -375,7 +410,10 @@ export default function Accounts() {
                             >
                               <Edit2 size={14} /> Chỉnh sửa
                             </button>
-                            <button className="w-full flex items-center gap-2 px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors">
+                            <button
+                              onClick={() => handleTogleStatus(account)}
+                              className="w-full flex items-center gap-2 px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors"
+                            >
                               {account.status === false ? (
                                 <>
                                   <Unlock size={14} /> Mở khóa
@@ -387,7 +425,10 @@ export default function Accounts() {
                               )}
                             </button>
                             {account.role !== "admin" && (
-                              <button className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors">
+                              <button
+                                onClick={() => handleDeleteAccount(account)}
+                                className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                              >
                                 <Trash2 size={14} /> Xóa tài khoản
                               </button>
                             )}

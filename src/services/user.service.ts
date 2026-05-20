@@ -42,7 +42,8 @@ export const getAllUser = async () => {
     const response = await http("/api/v1/users", {
       method: "GET",
     });
-    return response.data;
+    const data = response.data;
+    return Array.isArray(data) ? data.filter(user => user?.isDeleted === false) : data;
   } catch (error) {
     console.error("Lỗi fetch list user:", error);
     throw error;
@@ -64,7 +65,6 @@ export const createUser = async (payload: {
   password: string;
 }) => {
   try {
-    console.log(payload);
     if (payload.role === "customer") {
       const finalPayload = {
         password: payload.password,
@@ -129,6 +129,37 @@ export const updateUser = async (
     return response.data;
   } catch (error) {
     console.error("Lỗi update user:", error);
+    throw error;
+  }
+};
+
+export const updateUserStatus = async (
+  userId: string,
+  payload: {
+    status: boolean;
+  },
+) => {
+  try {
+    const response = await http(`/api/v1/users/${userId}/status`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Lỗi update status user:", error);
+    throw error;
+  }
+};
+
+export const deleteUser = async (userId: string) => {
+  try {
+    const response = await http(`/api/v1/users/${userId}`, {
+      method: "PUT",
+      body: JSON.stringify({ isDeleted: true }),
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Lỗi delete user:", error);
     throw error;
   }
 };

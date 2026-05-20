@@ -1,12 +1,12 @@
 "use client";
 
-import { ArrowLeft, Banknote, CheckCircle2, CreditCard, LoaderCircle, QrCode, ShoppingBag, Truck, X } from "lucide-react";
+import { ArrowLeft, Banknote, CheckCircle2, LoaderCircle, QrCode, ShoppingBag, Truck, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useCart } from "@/src/context/cartContext";
 import { getAllStore, StoreData } from "@/src/services/store.service";
 import { Order, createOrder } from "@/src/services/order.service";
 import { useCustomerAuth } from "@/src/context/authCustomerContext";
-import { toast } from "sonner";
+import { toast, Toaster } from "sonner";
 import { clearCartApi } from "@/src/services/cart.service";
 import Image from "next/image";
 import { checkPaymentStatus } from "@/src/services/payment.service";
@@ -152,6 +152,7 @@ export const CheckoutModal = () => {
       toast.warning("Vui lòng nhập đầy đủ thông tin!");
       return;
     }
+
     if (orderMethod === "delivery" && custAddress === "") {
       toast.warning("Vui lòng nhập địa chỉ giao hàng!");
       return;
@@ -413,7 +414,14 @@ export const CheckoutModal = () => {
                   </div>
 
                   <button
-                    onClick={() => setCheckoutStep("payment")}
+                    onClick={() => {
+                      const phoneRegex = /^(0|84|\+84)[35789]\d{8}$/;
+                      if (!phoneRegex.test(custPhone)) {
+                        toast.warning("Số điện thoại không hợp lệ. Vui lòng kiểm tra lại!");
+                        return;
+                      }
+                      setCheckoutStep("payment");
+                    }}
                     disabled={!custName || !custPhone || (orderMethod === "delivery" && !custAddress)}
                     className="w-full bg-primary text-white py-3 rounded-xl hover:bg-primary/90 transition-colors shadow-lg shadow-primary/25 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
@@ -568,6 +576,16 @@ export const CheckoutModal = () => {
           </div>
         )}
       </div>
+      <Toaster
+        toastOptions={{
+          classNames: {
+            success: "bg-green-500! text-white! border-green-600!",
+            error: "bg-red-500! text-white! border-red-600!",
+            warning: "bg-yellow-500! text-white! border-yellow-600!",
+            toast: "bg-gray-800! text-white!",
+          },
+        }}
+      />
     </div>
   );
 };

@@ -184,15 +184,22 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       const status = (error as { status?: number; data?: { message?: string } })?.status;
       const message = (error as { data?: { message?: string } })?.data?.message;
+
       if (status === 401) {
         return {
           success: false,
           message: message || "Số điện thoại hoặc mật khẩu không chính xác.",
         };
       }
+      if (status === 403) {
+        return {
+          success: false,
+          message: message || "Vui lòng dùng tài khoản khách hàng để đăng nhập.",
+        };
+      }
       return {
         success: false,
-        message: "Không thể kết nối tới máy chủ",
+        message: "Không thể kếtzzzz nối tới máy chủ",
       };
     }
   };
