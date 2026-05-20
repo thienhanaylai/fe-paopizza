@@ -430,7 +430,7 @@ export default function Stores() {
                 ))}
               </div>
 
-              {selectedStore.status === "active" && (
+              {/* {selectedStore.status === "active" && (
                 <div>
                   <h3 className="text-foreground mb-3 flex items-center gap-2">
                     <TrendingUp size={16} className="text-primary" /> Hiệu suất tháng này
@@ -453,7 +453,7 @@ export default function Stores() {
                     </div>
                   </div>
                 </div>
-              )}
+              )} */}
 
               <div className="text-xs text-muted-foreground">Ngày tạo: {selectedStore.createdAt}</div>
             </div>
