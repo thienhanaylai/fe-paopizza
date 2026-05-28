@@ -1,6 +1,7 @@
 "use client";
 import React, { createContext, useContext, useMemo, useState, ReactNode } from "react";
 import { http } from "../utils/config.api";
+import { useRouter } from "next/navigation";
 
 const ACCESS_TOKEN_KEY = "customer_access_token";
 const USER_KEY = "customer";
@@ -11,7 +12,9 @@ export interface Customer {
   id: string;
   name: string;
   phone: string;
-  point?: number;
+  currentPoint?: number;
+  totalPoint?: number;
+  tier?: string;
   address?: string;
   email?: string;
   createAt?: Date;
@@ -86,6 +89,8 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<Customer | null>(readStoredUser);
   const [accessToken, setAccessToken] = useState<string | null>(readStoredToken);
   const [authMode, setAuthMode] = useState<AuthMode>(null);
+
+  const router = useRouter();
 
   const customerRegister = async (fullname: string, phone: string, password: string) => {
     const endpoint = "/customers/register";
@@ -164,12 +169,15 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
         id: dataCustomer.data._id,
         name: dataCustomer.data.ref_id.name,
         phone: dataCustomer.data.ref_id.phone,
-        point: dataCustomer.data.ref_id.point,
+        tier: dataCustomer.data.ref_id.tier,
+        currentPoint: dataCustomer.data.ref_id.currentPoint,
+        totalPoint: dataCustomer.data.ref_id.totalPoint,
         address: dataCustomer.data.ref_id.address,
         email: dataCustomer.data.ref_id.email,
         createAt: dataCustomer.data.createdAt,
         role: null,
       };
+
       setUser(dataCus);
 
       if (typeof window !== "undefined") {
@@ -199,7 +207,7 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
       }
       return {
         success: false,
-        message: "Không thể kếtzzzz nối tới máy chủ",
+        message: "Không thể kết nối tới máy chủ",
       };
     }
   };
@@ -233,8 +241,7 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setAccessToken(null);
     clearStoredAuth();
-    window.location.reload();
-    window.location.replace("/");
+    router.push("/");
   };
 
   const value = useMemo(

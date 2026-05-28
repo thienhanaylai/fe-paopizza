@@ -11,6 +11,7 @@ export type StoreData = {
   email: string;
   time_open: string;
   time_close: string;
+  location: { type: string; coordinates: [number] } | null;
   manager_by: { _id: string; name: string; email: string; phone: string; station: string } | null;
   status: store_status;
   isDeleted: boolean;
