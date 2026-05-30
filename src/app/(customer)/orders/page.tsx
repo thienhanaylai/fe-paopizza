@@ -6,21 +6,8 @@ import { useEffect, useState } from "react";
 import { toast, Toaster } from "sonner";
 import { useCustomerAuth } from "@/src/context/authCustomerContext";
 import { formatVND } from "@/src/utils/formatVND";
+import { formatDateTime } from "@/src/utils/formatDateTime";
 
-const formatDateTime = (isoString: string) => {
-  if (!isoString) return "";
-
-  const date = new Date(isoString);
-  const pad = (num: number) => String(num).padStart(2, "0");
-
-  const hours = pad(date.getHours());
-  const minutes = pad(date.getMinutes());
-  const day = pad(date.getDate());
-  const month = pad(date.getMonth() + 1);
-  const year = date.getFullYear();
-
-  return `${hours}:${minutes} ${day}/${month}/${year}`;
-};
 const orderStatusConfig: Record<string, { label: string; color: string }> = {
   pending: { label: "Chờ xử lý", color: "bg-yellow-100 text-yellow-700" },
   confirmed: { label: "Đã xác nhận", color: "bg-teal-100 text-teal-700" },
@@ -47,7 +34,7 @@ export default function Orders() {
   useEffect(() => {
     const fecthData = async () => {
       const customer = await getInfo();
-      console.log(customer);
+
       const res = await getAllOrder(`customer_id=${customer.ref_id?._id}`, "customer");
       setOrderHistory(res);
     };

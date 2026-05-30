@@ -41,7 +41,7 @@ export const getAllEmployee = async () => {
     });
     return response.data;
   } catch (error) {
-    console.error("Lỗi fetch products:", error);
+    console.error("Lỗi:", error);
     throw error;
   }
 };
@@ -53,7 +53,7 @@ export const getEmployeesByStore = async (storeId: string) => {
     });
     return response.data;
   } catch (error) {
-    console.error("Lỗi fetch products:", error);
+    console.error("Lỗi:", error);
     throw error;
   }
 };
@@ -65,7 +65,7 @@ export const getEmployeeByRole = async (role: string) => {
     });
     return response.data;
   } catch (error) {
-    console.error("Lỗi fetch products:", error);
+    console.error("Lỗi:", error);
     throw error;
   }
 };
@@ -78,7 +78,7 @@ export const createEmployee = async (payload: CreateEmployeePayload) => {
     });
     return response.data;
   } catch (error) {
-    console.error("Lỗi fetch products:", error);
+    console.error("Lỗi:", error);
     throw error;
   }
 };
@@ -91,7 +91,7 @@ export const updateEmployee = async (payload: UpdateEmployeePayload) => {
     });
     return response.data;
   } catch (error) {
-    console.error("Lỗi fetch products:", error);
+    console.error("Lỗi:", error);
     throw error;
   }
 };

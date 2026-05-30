@@ -216,7 +216,7 @@ export default function Header() {
                           <p className=" text-end">{tierBadges[user?.tier || 0]}</p>
                         </div>
                         <Link
-                          href={"/"}
+                          href={"/profile"}
                           onClick={() => setShowNavMenu(false)}
                           className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-foreground hover:bg-muted text-left"
                         >
