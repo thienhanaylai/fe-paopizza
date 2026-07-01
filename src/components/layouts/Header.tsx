@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  ArrowRight,
   Check,
   ChevronDown,
   Clock,
@@ -11,6 +12,7 @@ import {
   LogOut,
   MapPin,
   Minus,
+  Navigation,
   Pizza,
   Plus,
   ShoppingCart,
@@ -65,20 +67,37 @@ const tierBadges: Record<string, React.ReactNode> = {
   ),
 };
 
+const updateSelectedStore = (storeId: string) => {
+  localStorage.setItem("selected_store", storeId);
+  window.dispatchEvent(new CustomEvent("selected-store-changed", { detail: { storeId } }));
+};
+
 export default function Header() {
   const { isAuthenticated, user, logout, setAuthMode } = useCustomerAuth();
   const { setShowCart, cartCount } = useCart();
   const [isMounted, setIsMounted] = useState(false);
   const [listStore, setListStore] = useState<StoreData[]>([]);
-  const [selectedStore, setSelectedStore] = useState<StoreData>(listStore[0]);
+  const [selectedStore, setSelectedStore] = useState<StoreData | null>(null);
   const [showStorePicker, setShowStorePicker] = useState(false);
   const [showNavMenu, setShowNavMenu] = useState(false);
 
   const fectData = async () => {
     const liststr = await getAllStore();
     setListStore(liststr);
-    setSelectedStore(liststr[0]);
+
+    const selectedStoreId = localStorage.getItem("selected_store");
+    const matchedStore = liststr.find((store: StoreData) => store._id === selectedStoreId) || null;
+    const defaultStore = matchedStore || liststr[0] || null;
+
+    setSelectedStore(defaultStore);
+    setShowInitialStoreModal(!matchedStore);
   };
+  const [showInitialStoreModal, setShowInitialStoreModal] = useState(() => {
+    if (typeof window !== "undefined") {
+      return !localStorage.getItem("selected_store");
+    }
+    return false;
+  });
 
   useEffect(() => {
     setIsMounted(true);
@@ -110,7 +129,7 @@ export default function Header() {
                 >
                   <MapPin size={13} className="text-primary shrink-0" />
                   <span className="text-[11px] sm:text-xs font-bold text-foreground truncate max-w-[70px] sm:max-w-[120px]">
-                    {selectedStore?.name}
+                    {selectedStore?.name || "Chọn cửa hàng"}
                   </span>
                   <ChevronDown
                     size={10}
@@ -133,6 +152,7 @@ export default function Header() {
                               key={s._id}
                               onClick={() => {
                                 setSelectedStore(s);
+                                updateSelectedStore(s._id);
                                 setShowStorePicker(false);
                               }}
                               className={`w-full flex items-start gap-3 px-4 py-3 text-left hover:bg-muted transition-colors ${isSelected ? "bg-primary/5" : ""}`}
@@ -144,14 +164,11 @@ export default function Header() {
                               </div>
                               <div className="flex-1 min-w-0">
                                 <p className="text-sm font-bold text-foreground">{s.name}</p>
-                                <p className="text-xs text-muted-foreground truncate">{s.address}</p>
+                                <p className="text-xs text-muted-foreground truncate">
+                                  {s.address.streetNumber}, {s.address.district}, {s.address.city}
+                                </p>
                                 <p className="text-[11px] text-muted-foreground mt-0.5 flex items-center gap-1">
-                                  <Clock size={10} /> {s.hours}
-                                  {/* {s.unavailableItems.length > 0 && (
-                                    <span className="ml-1.5 text-amber-600 font-medium">
-                                      · {s.unavailableItems.length} món không phục vụ
-                                    </span>
-                                  )} */}
+                                  <Clock size={10} /> {s.time_open} - {s.time_close}
                                 </p>
                               </div>
                             </button>
@@ -281,6 +298,108 @@ export default function Header() {
           </div>
         </div>
       </header>
+      {showInitialStoreModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-300">
+          <div
+            className="relative bg-card w-full max-w-lg rounded-[28px] border border-border shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-300 text-left"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="px-6 pt-6 pb-4 border-b border-border/80 flex items-center justify-between bg-muted/20">
+              <div className="flex items-center gap-3">
+                <div
+                  className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shrink-0 animate-bounce"
+                  style={{ animationDuration: "3s" }}
+                >
+                  <MapPin size={20} className="fill-primary/20" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-extrabold text-foreground flex items-center gap-1.5">
+                    Chào mừng bạn đến với PaoPizza!
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Vui lòng chọn chi nhánh gần nhất để bắt đầu xem menu và đặt hàng nhé
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Body */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-5">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                    {`Danh sách chi nhánh`}
+                  </label>
+                </div>
+
+                <div className="space-y-2 max-h-85 overflow-y-auto pr-1">
+                  {listStore.map(s => {
+                    const isSelected = s._id === selectedStore?._id;
+
+                    return (
+                      <button
+                        key={s._id}
+                        onClick={() => setSelectedStore(s)}
+                        className={`w-full flex items-start gap-3.5 px-4 py-3.5 text-left border rounded-2xl transition-all duration-200 cursor-pointer ${
+                          isSelected
+                            ? "bg-primary/5 border-primary shadow-sm"
+                            : "bg-muted/30 border-border hover:border-primary/30 hover:bg-muted/50"
+                        }`}
+                      >
+                        <div
+                          className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors duration-200 ${
+                            isSelected ? "bg-primary text-white" : "bg-muted text-muted-foreground"
+                          }`}
+                        >
+                          {isSelected ? <Check size={16} /> : <StoreIcon size={16} />}
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <p className="text-xs font-black text-foreground">{s.name}</p>
+                          </div>
+                          <p className="text-[10px] text-muted-foreground truncate mt-0.5">
+                            {s.address.streetNumber}, {s.address.district}, {s.address.city}
+                          </p>
+
+                          <div className="flex items-center gap-3 mt-1.5 flex-wrap text-[10px]">
+                            <span className="text-muted-foreground flex items-center gap-1">
+                              <Clock size={10} /> {s.time_open} - {s.time_close}
+                            </span>
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            <div className="px-6 py-4 border-t border-border bg-muted/20 flex items-center justify-between gap-3 shrink-0">
+              <div className="min-w-0">
+                <span className="text-[9px] text-muted-foreground uppercase block font-bold tracking-wider">
+                  Đang chọn chi nhánh
+                </span>
+                <span className="text-xs font-bold text-foreground truncate block max-w-[180px] sm:max-w-[240px]">
+                  {selectedStore?.name || "Chưa chọn"}
+                </span>
+              </div>
+              <button
+                onClick={() => {
+                  if (!selectedStore) return;
+                  updateSelectedStore(selectedStore._id);
+                  setShowInitialStoreModal(false);
+                }}
+                disabled={!selectedStore}
+                className="px-6 py-2.5 rounded-xl bg-primary text-white hover:bg-primary/95 text-xs font-extrabold shadow-md shadow-primary/25 hover:shadow-lg transition-all cursor-pointer flex items-center gap-1"
+              >
+                Vào xem thực đơn <ArrowRight size={14} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

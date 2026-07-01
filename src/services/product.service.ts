@@ -10,6 +10,7 @@ export interface VariantPayload {
   sku: string;
   size: string;
   price: number;
+  crust: string;
   recipe: RecipeItemPayload[];
   imageFile: File;
 }

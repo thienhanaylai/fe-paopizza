@@ -1,6 +1,6 @@
 "use client";
 
-import { getAllOrder, OrderHistory } from "@/src/services/order.service";
+import { customerCancelOrder, getAllOrder, OrderHistory } from "@/src/services/order.service";
 import { History } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast, Toaster } from "sonner";
@@ -16,13 +16,12 @@ const orderStatusConfig: Record<string, { label: string; color: string }> = {
   completed: { label: "Hoàn thành", color: "bg-green-200 text-green-700" },
   cancelled: { label: "Đã hủy", color: "bg-red-100 text-red-700" },
 };
+const paymentStatusConfig: Record<string, { label: string; color: string }> = {
+  pending: { label: "Chờ thanh toán", color: "bg-yellow-100 text-yellow-700" },
+  success: { label: "Hoàn thành", color: "bg-green-200 text-green-700" },
+  failed: { label: "Đã hủy", color: "bg-red-100 text-red-700" },
+};
 
-// const orderStatusConfig: Record<string, { label: string; color: string }> = {
-//   completed: { label: "Hoàn thành", color: "bg-green-100 text-green-700" },
-//   pending: { label: "Đợi xác nhận", color: "bg-gray-100 text-green-700" },
-//   delivering: { label: "Đang giao", color: "bg-blue-100 text-blue-700" },
-//   cancelled: { label: "Đã hủy", color: "bg-red-100 text-red-600" },
-// };
 const orderTypeLabels: Record<string, string> = {
   carry_out: "Đến lấy",
   delivery: "Giao hàng",
@@ -30,16 +29,29 @@ const orderTypeLabels: Record<string, string> = {
 
 export default function Orders() {
   const { getInfo } = useCustomerAuth();
+  const [modalConfirm, setModalConfirm] = useState(false);
+  const [confirmId, setConfirmId] = useState("");
   const [ordersHistory, setOrderHistory] = useState<OrderHistory[]>();
-  useEffect(() => {
-    const fecthData = async () => {
-      const customer = await getInfo();
+  const fecthData = async () => {
+    const customer = await getInfo();
 
-      const res = await getAllOrder(`customer_id=${customer.ref_id?._id}`, "customer");
-      setOrderHistory(res);
-    };
+    const res = await getAllOrder(`customer_id=${customer.ref_id?._id}`, "customer");
+    setOrderHistory(res);
+  };
+  useEffect(() => {
     fecthData();
   }, []);
+
+  const handleCancelOrder = async (oder_id: string) => {
+    try {
+      const res = await customerCancelOrder(oder_id, "customer");
+      if (res) {
+        toast.success("Huỷ đơn hàng thành công!");
+        fecthData();
+        setModalConfirm(false);
+      }
+    } catch (error) {}
+  };
 
   return (
     <>
@@ -60,7 +72,7 @@ export default function Orders() {
             )}
             {ordersHistory?.map(order => {
               const st = orderStatusConfig[order.status];
-
+              const pt = paymentStatusConfig[order.paymentStatus];
               return (
                 <div key={order._id} className="bg-card rounded-2xl border border-border p-5 hover:shadow-md transition-shadow">
                   <div className="flex  sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 ">
@@ -89,11 +101,16 @@ export default function Orders() {
                         <span className="text-sm text-muted-foreground underline">{order.store_id.address}</span>
                       </div>
                     </div>
-                    <div className="flex flex-col items-center gap-2">
-                      <span className={`px-2 py-1 rounded-full text-xs ${st.color}`}>{st.label}</span>
-                      <span className="px-2 py-1 rounded-full text-xs bg-muted text-foreground">
-                        {orderTypeLabels[order.order_type]}
-                      </span>
+                    <div className="flex flex-col items-end gap-2">
+                      <div className="flex gap-2">
+                        <span className="px-2 py-1 rounded-full text-xs bg-muted text-foreground">
+                          {orderTypeLabels[order.order_type]}
+                        </span>
+                        <span className={`px-2 py-1 rounded-full text-xs ${pt.color}`}>{pt.label}</span>
+                      </div>
+                      {order.status !== "cancelled" && (
+                        <span className={`px-2 py-1 rounded-full text-xs ${st.color}`}>{st.label}</span>
+                      )}
                     </div>
                   </div>
                   <div className="space-y-2 mb-4">
@@ -102,6 +119,7 @@ export default function Orders() {
                         <span className="text-muted-foreground">
                           {item.product_id.name} x{item.quantity}
                         </span>
+
                         <span className="text-foreground">{formatVND(item.price * item.quantity)}</span>
                       </div>
                     ))}
@@ -110,6 +128,36 @@ export default function Orders() {
                     <span className="text-sm text-muted-foreground">Tổng cộng</span>
                     <span className="text-primary text-lg">{formatVND(order.total)}</span>
                   </div>
+                  {order.paymentStatus === "pending" && order.status !== "confirmed" && (
+                    <div className="flex gap-2 justify-end mt-2">
+                      <button
+                        onClick={() => {
+                          setModalConfirm(true);
+                          setConfirmId(order._id);
+                        }}
+                        className="w-[20%] bg-white text-primary py-2 rounded-xl border-primary border-1 hover:text-white hover:bg-primary/90 transition-all active:scale-[0.98] "
+                      >
+                        Huỷ đơn hàng
+                      </button>
+                      <button
+                        onClick={() => {}}
+                        className="w-[20%] bg-primary text-primary-foreground py-2 rounded-xl hover:bg-primary/90 transition-all active:scale-[0.98] "
+                      >
+                        Thanh toán
+                      </button>
+                    </div>
+                  )}
+                  {order.status === "completed" ||
+                    (order.status === "cancelled" && (
+                      <div className="flex gap-2 justify-end mt-2">
+                        <button
+                          onClick={() => {}}
+                          className="w-[30%] sm:w-[20%] p-1 sm:p-2 bg-white text-primary py-2 rounded-xl border-primary border-1 hover:text-white hover:bg-primary/90 transition-all active:scale-[0.98] "
+                        >
+                          Đặt lại đơn hàng
+                        </button>
+                      </div>
+                    ))}
                   {/* {order.status === "completed" && (
                     <button className="mt-3 w-full py-2.5 rounded-xl border border-primary text-primary text-sm hover:bg-primary/5 transition-colors">
                       Đặt lại đơn này
@@ -120,6 +168,48 @@ export default function Orders() {
             })}
           </div>
         </div>
+        {modalConfirm && (
+          <>
+            <div
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 m-0"
+              onClick={() => {
+                setModalConfirm(false);
+                setConfirmId("");
+              }}
+            >
+              <div
+                className="bg-card rounded-2xl p-6 w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto"
+                onClick={e => {
+                  e.stopPropagation();
+                  setConfirmId("");
+                }}
+              >
+                <h3>Xác nhận huỷ đơn hàng</h3>
+                <div className="flex gap-1 m-2">Bạn có chắc chắn muốn huỷ đơn hàng này!</div>
+                <div className="flex gap-3 pt-3">
+                  <button
+                    onClick={() => {
+                      setModalConfirm(false);
+                      setConfirmId("");
+                    }}
+                    className="flex-1 py-2.5 rounded-xl border border-red-200 text-black hover:bg-red-50 transition-colors"
+                  >
+                    Thoát
+                  </button>
+                  <button
+                    onClick={() => {
+                      handleCancelOrder(confirmId);
+                      setConfirmId("");
+                    }}
+                    className="flex-1 py-2.5 disabled:bg-gray-400 disabled:cursor-not-allowed disabled:opacity-70 rounded-xl bg-red-600 text-white hover:bg-red-700/90 transition-colors"
+                  >
+                    Huỷ đơn hàng
+                  </button>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
         <Toaster
           toastOptions={{
             classNames: {

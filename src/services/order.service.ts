@@ -142,6 +142,23 @@ export const cancelOrder = async (order_id: string, typeUser: string) => {
   }
 };
 
+export const customerCancelOrder = async (order_id: string, typeUser: string) => {
+  try {
+    const response = await http(
+      `/api/v1/orders/customer/cancel/${order_id}`,
+      {
+        method: "PATCH",
+      },
+      typeUser,
+    );
+
+    return response.data;
+  } catch (error) {
+    console.error("Lỗi fetch :", error);
+    throw error;
+  }
+};
+
 export const updatePaymentStatusOrder = async (order_id: string, typeUser: string) => {
   try {
     const response = await http(

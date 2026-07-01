@@ -1,78 +1,190 @@
 "use client";
-import { ArrowRight, Award, ChefHat, Clock, Dot, MapPin, Minus, Phone, Plus, Star, Truck, X } from "lucide-react";
+import { ArrowRight, Award, ChefHat, Clock, MapPin, Phone, Plus, Star, Truck, X } from "lucide-react";
 import Image from "next/image";
-import { useEffect, useState } from "react";
-import { getAllProductsActive } from "@/src/services/product.service";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { getAllCategories } from "@/src/services/category.service";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/src/components/ui/tabs";
 import { useCustomerAuth } from "@/src/context/authCustomerContext";
 import { useCart } from "@/src/context/cartContext";
 import { Textarea } from "@/src/components/ui/textarea";
 import { Toaster } from "sonner";
 import { formatVND } from "@/src/utils/formatVND";
+import { getMenuByStoreId, MenuData, Product } from "@/src/services/menu.service";
+import { getAllIngredients } from "@/src/services/ingredient.service";
 
 type MenuCategoryUI = {
   slug: string;
   name: string;
   icon: string;
 };
-export type ProductCategory = {
+
+type ExtraTopping = {
   _id: string;
   name: string;
-  slug: string;
-};
-
-export type ProductImage = {
-  _id: string;
-  url: string;
-  public_id: string;
-};
-
-export type Ingredient = {
-  _id: string;
-  name: string;
-};
-
-export type RecipeIngredient = {
-  ingredient: Ingredient;
-  quantity: number;
   unit: string;
-};
-
-export type ProductVariant = {
-  sku: string;
-  price: number;
-  size: string;
-  image: ProductImage;
-  recipe: RecipeIngredient[];
-};
-
-type Product = {
-  _id: string;
-  category: ProductCategory;
-  name: string;
-  description: string;
+  category: string;
+  cost_per_unit: number;
   is_active: boolean;
-  variants: ProductVariant[];
   isDeleted: boolean;
 };
+
+const parseCrustOptions = (value: string | string[] | undefined): string[] => {
+  if (!value) return [];
+
+  if (Array.isArray(value)) {
+    return Array.from(new Set(value.flatMap(item => parseCrustOptions(item))));
+  }
+
+  const raw = value.trim();
+  if (!raw) return [];
+
+  const splitByDelimiter = raw
+    .split(/[\s,|/;]+/)
+    .map(item => item.trim().toLowerCase())
+    .filter(Boolean);
+
+  if (splitByDelimiter.length > 1) {
+    return Array.from(new Set(splitByDelimiter));
+  }
+
+  const compact = raw.replace(/\s+/g, "").toLowerCase();
+  const mergedMatches = compact.match(/traditional|thin|medium|thick|stuffed|cheese/g);
+
+  if (mergedMatches && mergedMatches.length > 1 && mergedMatches.join("") === compact) {
+    return Array.from(new Set(mergedMatches));
+  }
+
+  return [raw.toLowerCase()];
+};
+
+const formatCrustLabel = (value: string) => value.replace(/[_-]+/g, " ").replace(/\b\w/g, character => character.toUpperCase());
 
 export default function IndexPage() {
   const { isAuthenticated, setAuthMode, user } = useCustomerAuth();
   const { addToCart, fetchCart, cart } = useCart();
+
   const [activeCategory, setActiveCategory] = useState<string>("all");
   const [categories, setCategories] = useState<MenuCategoryUI[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
+
   const [product, setProduct] = useState<Product | null>(null);
   const [note, setNote] = useState<string>("");
+  const [menu, setMenu] = useState<MenuData>();
+  const [selectedStoreId, setSelectedStoreId] = useState<string>("");
+  const [selectedSize, setSelectedSize] = useState<string>("");
+  const [selectedCrust, setSelectedCrust] = useState<string>("");
+  const [extraToppings, setExtraToppings] = useState<ExtraTopping[]>([]);
+  const [selectedExtraToppingIds, setSelectedExtraToppingIds] = useState<string[]>([]);
 
-  const filteredMenu = activeCategory === "all" ? products : products.filter(m => m?.category.slug === activeCategory);
+  const productListRef = useRef<HTMLDivElement | null>(null);
+  const handleCategoryClick = (categorySlug: string) => {
+    setActiveCategory(categorySlug);
+    if (productListRef.current) {
+      productListRef.current.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }
+  };
+
+  const filteredMenu1 =
+    activeCategory === "all" ? menu?.products : menu?.products.filter(m => m?.category.slug === activeCategory);
+
+  const availableSizes = useMemo(() => {
+    if (!product) return [];
+    return Array.from(new Set(product.variants.map(variant => variant.size)));
+  }, [product]);
+
+  const availableCrusts = useMemo(() => {
+    if (!product || !selectedSize) return [];
+    return Array.from(
+      new Set(
+        product.variants
+          .filter(variant => variant.size === selectedSize)
+          .flatMap(variant => parseCrustOptions(variant.crust))
+          .filter(Boolean),
+      ),
+    );
+  }, [product, selectedSize]);
+
+  const isPizzaProduct = useMemo(() => {
+    if (!product) return false;
+    const categorySlug = product.category?.slug?.toLowerCase() || "";
+    const productName = product.name?.toLowerCase() || "";
+    return categorySlug.includes("pizza") || productName.includes("pizza");
+  }, [product]);
+
+  const selectedVariant = useMemo(() => {
+    if (!product) return null;
+
+    const exactVariant = product.variants.find(
+      variant =>
+        variant.size === selectedSize &&
+        (!isPizzaProduct || !selectedCrust || parseCrustOptions(variant.crust).includes(selectedCrust)),
+    );
+
+    if (exactVariant) return exactVariant;
+
+    const fallbackBySize = product.variants.find(variant => variant.size === selectedSize);
+    return fallbackBySize || product.variants[0] || null;
+  }, [isPizzaProduct, product, selectedCrust, selectedSize]);
+
+  const ingredientSummary = useMemo(() => {
+    if (!selectedVariant) return "";
+    return selectedVariant.recipe.map(item => item.ingredient.name).join(" ");
+  }, [selectedVariant]);
+
+  const baseIngredientIdSet = useMemo(() => {
+    if (!selectedVariant) return new Set<string>();
+    return new Set(selectedVariant.recipe.map(item => item.ingredient._id));
+  }, [selectedVariant]);
+
+  const extraToppingOptions = useMemo(() => {
+    return extraToppings.filter(item => item.is_active && !item.isDeleted && !baseIngredientIdSet.has(item._id));
+  }, [baseIngredientIdSet, extraToppings]);
+
+  const selectedExtraToppings = useMemo(() => {
+    return extraToppingOptions.filter(item => selectedExtraToppingIds.includes(item._id));
+  }, [extraToppingOptions, selectedExtraToppingIds]);
+
+  const extraToppingTotal = useMemo(() => {
+    return selectedExtraToppings.reduce((total, item) => total + Number(item.cost_per_unit || 0), 0);
+  }, [selectedExtraToppings]);
+
+  const unitPrice = useMemo(() => {
+    if (!selectedVariant) return 0;
+    return Number(selectedVariant.price || 0) + extraToppingTotal;
+  }, [extraToppingTotal, selectedVariant]);
+
+  useEffect(() => {
+    const syncSelectedStore = () => {
+      const currentStoreId = localStorage.getItem("selected_store") || "";
+      setSelectedStoreId(prev => (prev === currentStoreId ? prev : currentStoreId));
+    };
+
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === "selected_store") {
+        syncSelectedStore();
+      }
+    };
+
+    const handleStoreChanged = () => {
+      syncSelectedStore();
+    };
+
+    syncSelectedStore();
+    window.addEventListener("storage", handleStorage);
+    window.addEventListener("selected-store-changed", handleStoreChanged);
+
+    return () => {
+      window.removeEventListener("storage", handleStorage);
+      window.removeEventListener("selected-store-changed", handleStoreChanged);
+    };
+  }, []);
 
   useEffect(() => {
     const fectData = async () => {
       try {
         const categories = await getAllCategories();
-        const products = await getAllProductsActive();
+        const menu = selectedStoreId ? await getMenuByStoreId(selectedStoreId) : null;
 
         const mappedCategories: MenuCategoryUI[] = categories
           .filter((cat: { is_active: boolean; isDeleted: boolean }) => cat.is_active && !cat.isDeleted)
@@ -91,31 +203,98 @@ export default function IndexPage() {
           ...mappedCategories,
         ];
         setCategories(finalCategories);
-        setProducts(products);
-      } catch (error) {}
+        setMenu(menu || undefined);
+      } catch {}
     };
     fectData();
+  }, [selectedStoreId]);
+
+  useEffect(() => {
+    const fetchExtraToppings = async () => {
+      try {
+        const ingredientList = await getAllIngredients();
+        setExtraToppings(ingredientList || []);
+      } catch {
+        setExtraToppings([]);
+      }
+    };
+
+    fetchExtraToppings();
   }, []);
 
+  // (() => {
+  //   filteredMenu1?.map(item => {
+  //     console.log(item);
+  //   });
+  // })();
   const hanldeProduct = (selectedProduct: Product) => {
     setProduct(selectedProduct);
-    const productInCart = cart?.items.find(i => i.sku === selectedProduct.variants[0].sku);
+
+    const firstVariant = selectedProduct.variants[0];
+    const isPizza =
+      selectedProduct.category?.slug?.toLowerCase().includes("pizza") || selectedProduct.name?.toLowerCase().includes("pizza");
+    const firstCrust = parseCrustOptions(firstVariant?.crust)[0] || "";
+
+    setSelectedSize(firstVariant?.size || "");
+    setSelectedCrust(isPizza ? firstCrust : "");
+    setSelectedExtraToppingIds([]);
+
+    const productInCart = cart?.items.find(i => i.sku === firstVariant?.sku);
     setNote(productInCart ? productInCart?.note : "");
+  };
+
+  const syncNoteBySku = (sku: string) => {
+    const productInCart = cart?.items.find(item => item.sku === sku);
+    setNote(productInCart ? productInCart.note : "");
+  };
+
+  const handleSelectSize = (size: string) => {
+    if (!product) return;
+
+    const nextVariant = isPizzaProduct
+      ? product.variants.find(
+          variant => variant.size === size && (!selectedCrust || parseCrustOptions(variant.crust).includes(selectedCrust)),
+        ) ||
+        product.variants.find(variant => variant.size === size) ||
+        null
+      : product.variants.find(variant => variant.size === size) || null;
+
+    setSelectedSize(size);
+    setSelectedCrust(isPizzaProduct ? parseCrustOptions(nextVariant?.crust)[0] || "" : "");
+
+    if (nextVariant) {
+      syncNoteBySku(nextVariant.sku);
+    }
+  };
+
+  const handleSelectCrust = (crust: string) => {
+    if (!product || !isPizzaProduct) return;
+
+    setSelectedCrust(crust);
+    const nextVariant = product.variants.find(
+      variant => variant.size === selectedSize && parseCrustOptions(variant.crust).includes(crust),
+    );
+    if (nextVariant) {
+      syncNoteBySku(nextVariant.sku);
+    }
+  };
+
+  const handleToggleExtraTopping = (toppingId: string) => {
+    setSelectedExtraToppingIds(prev => (prev.includes(toppingId) ? prev.filter(id => id !== toppingId) : [...prev, toppingId]));
   };
 
   const handleCart = async (product_id: string, size: string, quantity: number = 1, sku: string, note: string = "") => {
     if (!isAuthenticated) setAuthMode("login");
     else {
       await addToCart(user?.id || "", product_id, size, quantity, note);
-      const fectCart = await fetchCart(user?.id || "");
-      const productInCart = fectCart?.items.find((i: { sku: string }) => i.sku === sku);
-      setNote(productInCart?.note);
+      const fetchedCart = (await fetchCart(user?.id || "")) as
+        | {
+            items?: Array<{ sku: string; note?: string }>;
+          }
+        | undefined;
+      const productInCart = fetchedCart?.items?.find(item => item.sku === sku);
+      setNote(productInCart?.note || "");
     }
-  };
-
-  const handleChangeSize = async (item: ProductVariant) => {
-    const productInCart = cart?.items.find(i => i.sku === item.sku);
-    setNote(productInCart ? productInCart?.note : "");
   };
 
   return (
@@ -224,18 +403,89 @@ export default function IndexPage() {
               Khám phá bộ sưu tập món ăn thủ công với nguyên liệu tươi ngon nhất
             </p>
           </div>
-          <div className="flex flex-wrap justify-center gap-2 mb-10">
-            {categories.map(cat => (
-              <button
-                key={cat.slug}
-                onClick={() => setActiveCategory(cat.slug)}
-                className={`relative flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm transition-all ${activeCategory === cat.slug ? "bg-primary text-white shadow-lg shadow-primary/25" : "bg-card border border-border text-muted-foreground hover:border-primary/30 hover:text-primary"}`}
-              >
-                <Image src={cat.icon || ""} width={18} height={18} alt={cat.name} /> {cat.name}
-              </button>
-            ))}
+          <div className="sticky top-[72px] w-full z-20 bg-white/90 backdrop-blur-md py-2 px-3 sm:px-5 border border-border/80 shadow-sm rounded-2xl sm:rounded-[24px] mx-3 sm:mx-auto max-w-7xl transition-all duration-300">
+            <div
+              className="flex flex-nowrap items-center gap-2 overflow-x-auto no-scrollbar py-1 w-full justify-start sm:justify-center"
+              style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+            >
+              {categories.map(cat => (
+                <button
+                  key={cat.slug}
+                  onClick={() => handleCategoryClick(cat.slug)}
+                  className={`flex items-center gap-2 px-4 sm:px-5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
+                    activeCategory === cat.slug
+                      ? "border-primary/30 bg-primary/5 text-primary shadow-lg shadow-primary/10 border "
+                      : "bg-card border border-border text-muted-foreground hover:border-primary/30 hover:text-primary hover:bg-primary/5"
+                  }`}
+                >
+                  <Image src={cat.icon || ""} width={18} height={18} alt={cat.name} /> {cat.name}
+                </button>
+              ))}
+            </div>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+
+          {categories
+            .filter(item => item.slug !== "all")
+            .map(cat => {
+              const categoryItems = filteredMenu1?.filter(item => item.category.slug === cat.slug);
+
+              if (categoryItems?.length === 0) return null;
+              return (
+                <>
+                  <div ref={productListRef} key={cat.slug} className="space-y-6 mt-5 scroll-mt-42">
+                    <div className="border-l-4 border-primary pl-4 py-1">
+                      <h3 className="text-xl sm:text-2xl font-black text-foreground flex items-center gap-2">
+                        <Image src={cat.icon || ""} width={18} height={18} alt={cat.name} /> {cat.name}
+                      </h3>
+                      <p className="text-xs sm:text-sm text-muted-foreground mt-1">{""}</p>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                      {" "}
+                      {categoryItems?.map(item => (
+                        <div
+                          onClick={() => {
+                            hanldeProduct(item);
+                          }}
+                          key={item._id}
+                          className="bg-card rounded-2xl border border-border overflow-hidden hover:shadow-xl transition-all duration-300 group"
+                        >
+                          <div className="relative aspect-square overflow-hidden">
+                            <Image
+                              src={item.variants[0].image.url}
+                              alt={item.name}
+                              fill
+                              loading="eager"
+                              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                            />
+                            <span className="absolute bottom-3 left-3 px-2 py-1 bg-black/60 text-white text-[10px] rounded-full capitalize">
+                              {categories.find(c => c.slug === item.category.slug)?.name}
+                            </span>
+                          </div>
+                          <div className="p-5">
+                            <h4 className="text-foreground mb-1">{item.name}</h4>
+                            <span className="text-[14px]">{item.description}</span>
+                            <div className="flex items-center justify-end mt-2">
+                              <button
+                                onClick={() => {
+                                  hanldeProduct(item);
+                                }}
+                                className="flex items-center gap-1.5 px-4 py-2 bg-primary text-white rounded-lg text-sm hover:bg-primary/90 transition-colors cursor-pointer"
+                              >
+                                {item.variants.length > 1
+                                  ? `Chỉ từ ${formatVND(item.variants[0].price)}`
+                                  : `${formatVND(item.variants[0].price)}`}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              );
+            })}
+          {/* <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-5">
             {filteredMenu.map(item => (
               <div
                 onClick={() => {
@@ -275,7 +525,7 @@ export default function IndexPage() {
                 </div>
               </div>
             ))}
-          </div>
+          </div> */}
         </div>
       </section>
       <section id="about" className="py-16 bg-card border-y border-border">
@@ -338,7 +588,7 @@ export default function IndexPage() {
         </div>
       </section>
 
-      {product && (
+      {product && selectedVariant && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
           onClick={() => {
@@ -346,91 +596,154 @@ export default function IndexPage() {
           }}
         >
           <div
-            className="bg-card relative rounded-2xl p-3 w-full max-w-[968px] overflow-hidden shadow-2xl"
+            className="bg-card rounded-3xl w-full max-w-3xl shadow-2xl overflow-hidden max-h-[92vh] flex flex-col md:flex-row"
             onClick={e => e.stopPropagation()}
           >
-            <button
-              onClick={() => {
-                setProduct(null);
-              }}
-              className="absolute p-2 m-2 rounded-lg hover:bg-muted text-muted-foreground top-0 right-0"
-            >
-              <X size={22} />
-            </button>
-            <Tabs defaultValue={product.variants[0].sku} className="p-2 grid grid-cols-2">
-              {product.variants.map(item => (
-                <TabsContent key={item.sku} value={item.sku}>
-                  <Image src={item.image.url} alt="Pizza" fill className="relative! rounded-2xl aspect-square" />
-                </TabsContent>
-              ))}
-              <div className="m-3">
-                <h4 className="text-foreground mb-1">{product.name}</h4>
-                <span className="text-[14px]">{product.description}</span>
-
-                <TabsList className={` grid w-full grid-cols-${product.variants.length} grid-rows-1 my-2`}>
-                  {product.variants.map(item => (
-                    <>
-                      <TabsTrigger onClick={() => handleChangeSize(item)} value={item.sku}>
-                        {item.size}
-                      </TabsTrigger>
-                    </>
-                  ))}
-                </TabsList>
-                {product.variants.map(item => {
-                  const recipeProduct = item.recipe.map(item => ({
-                    name: item.ingredient.name,
-                    quantity: item.quantity,
-                    unit: item.unit,
-                  }));
-
-                  return (
-                    <>
-                      <TabsContent value={item.sku} className="flex flex-col h-full max-h-[350px]">
-                        <div className="flex-1 overflow-y-auto pr-2 pb-4">
-                          <div className="text-sm text-gray-700 leading-relaxed white-space">
-                            Nguyên liệu:
-                            <ul>
-                              {recipeProduct.map(item => (
-                                <div key={item.name}>
-                                  <li className="flex justify-between items-center p-1 ">
-                                    - {item.name}{" "}
-                                    <div>
-                                      {item.quantity} {item.unit}
-                                    </div>
-                                  </li>
-                                </div>
-                              ))}
-                            </ul>
-                          </div>
-                        </div>
-
-                        <div className="mt-auto pt-4 border-t border-gray-200 bg-white">
-                          <Textarea
-                            placeholder="Ghi chú"
-                            className="placeholder:text-[16px] text-[16px]!"
-                            onChange={e => setNote(e.target.value)}
-                            value={note}
-                          />
-                          <div className="mt-2">
-                            <button
-                              onClick={() => {
-                                handleCart(product._id, item.size, 1, item.sku, note);
-                              }}
-                              className="w-full flex items-center justify-center px-4 py-3 bg-primary text-white rounded-xl font-semibold text-base hover:bg-primary/90 transition-colors cursor-pointer"
-                            >
-                              + {formatVND(item.price)} <Dot /> Thêm vào giỏ hàng
-                            </button>
-                          </div>
-                        </div>
-                      </TabsContent>
-                    </>
-                  );
-                })}
+            {/* Image side */}
+            <div className="md:w-2/5 bg-white border-b md:border-b-0 md:border-r border-border/60 flex items-center justify-center p-5 sm:p-6 shrink-0">
+              <div className="relative w-full max-w-[320px] aspect-square">
+                <Image
+                  src={selectedVariant.image.url}
+                  alt={product.name}
+                  fill
+                  sizes="(max-width: 768px) 90vw, (max-width: 1024px) 60vw, 35vw"
+                  className="object-contain "
+                />
               </div>
-            </Tabs>
+            </div>
+
+            {/* Config side */}
+            <div className="flex-1 flex flex-col min-h-0">
+              <div className="flex items-start justify-between p-5 pb-3">
+                <div className="pr-3">
+                  <h3 className="text-xl text-foreground">{product.name}</h3>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    {selectedVariant.size}
+                    {isPizzaProduct && selectedCrust ? ` - ${formatCrustLabel(selectedCrust)}` : ""}
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-2 leading-relaxed">{product.description}</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Nguyên liệu: {selectedVariant.recipe.map(item => item.ingredient.name).join(", ")}
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    setProduct(null);
+                  }}
+                  className="p-2 rounded-lg hover:bg-muted text-muted-foreground shrink-0"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto px-5 space-y-5">
+                <div className="space-y-3">
+                  <div>
+                    <p className="text-sm font-semibold text-foreground mb-2">Chọn kích thước</p>
+                    <div
+                      className="grid gap-2 bg-muted rounded-xl p-1"
+                      style={{ gridTemplateColumns: `repeat(${Math.max(availableSizes.length, 1)}, minmax(0, 1fr))` }}
+                    >
+                      {availableSizes.map(size => (
+                        <button
+                          key={size}
+                          onClick={() => handleSelectSize(size)}
+                          className={`py-2 rounded-lg text-center transition-all ${
+                            selectedSize === size
+                              ? "bg-card shadow text-foreground"
+                              : "text-muted-foreground hover:text-foreground"
+                          }`}
+                        >
+                          <p className="text-sm truncate">{size}</p>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {isPizzaProduct && availableCrusts.length > 0 && (
+                    <div>
+                      <p className="text-sm font-semibold text-foreground mb-2">Chọn loại đế</p>
+                      <div
+                        className="grid gap-2 bg-muted rounded-xl p-1"
+                        style={{ gridTemplateColumns: `repeat(${Math.max(availableCrusts.length, 1)}, minmax(0, 1fr))` }}
+                      >
+                        {availableCrusts.map(crust => (
+                          <button
+                            key={crust}
+                            onClick={() => handleSelectCrust(crust)}
+                            className={`py-2 rounded-lg text-center transition-all ${
+                              selectedCrust === crust
+                                ? "bg-card shadow text-foreground"
+                                : "text-muted-foreground hover:text-foreground"
+                            }`}
+                          >
+                            <p className="text-sm truncate">{formatCrustLabel(crust)}</p>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {extraToppingOptions.length > 0 && (
+                  <div>
+                    <p className="text-sm font-semibold text-foreground mb-2">Chọn extra topping</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {extraToppingOptions.map(item => {
+                        const isActive = selectedExtraToppingIds.includes(item._id);
+                        return (
+                          <button
+                            key={item._id}
+                            onClick={() => handleToggleExtraTopping(item._id)}
+                            className={`px-3 py-2 rounded-lg border text-left transition-all ${
+                              isActive
+                                ? "border-primary bg-primary/10 text-primary"
+                                : "border-border bg-muted/50 text-muted-foreground hover:border-primary/40"
+                            }`}
+                          >
+                            <p className="text-sm truncate">{item.name}</p>
+                            <p className="text-xs">+ {formatVND(item.cost_per_unit)}</p>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                <div>
+                  <p className="text-sm font-semibold text-foreground mb-2">Ghi chú</p>
+                  <Textarea
+                    placeholder="Thêm ghi chú cho món này"
+                    className="min-h-[88px]"
+                    value={note}
+                    onChange={e => setNote(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="p-5 border-t border-border">
+                <button
+                  onClick={() => {
+                    const extraToppingNote = selectedExtraToppings.map(item => item.name).join(", ");
+                    const finalNote = [note.trim(), extraToppingNote ? `Extra topping: ${extraToppingNote}` : ""]
+                      .filter(Boolean)
+                      .join(" | ");
+
+                    handleCart(product._id, selectedVariant.size, 1, selectedVariant.sku, finalNote);
+                  }}
+                  className="w-full flex items-center justify-between gap-2 bg-primary text-white pl-5 pr-4 py-3 rounded-xl hover:bg-primary/90 transition-colors shadow-lg shadow-primary/25"
+                >
+                  <span className="flex items-center gap-2">
+                    <Plus size={18} /> {"Thêm vào giỏ"}
+                  </span>
+                  <span>{formatVND(unitPrice)}</span>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
+
       <Toaster
         toastOptions={{
           classNames: {

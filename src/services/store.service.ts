@@ -5,7 +5,7 @@ export type store_status = "active" | "maintenance" | "close";
 export type StoreData = {
   _id: string;
   name: string;
-  address: string;
+  address: { streetNumber: string; district: string; city: string };
   employee_count: number;
   phone: string;
   email: string;
