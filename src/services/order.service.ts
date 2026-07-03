@@ -1,55 +1,128 @@
 import { http } from "../utils/config.api";
 
 export type OrderMethod = "carry_out" | "delivery" | "dine_in";
-export type PaymentMethod = "cash" | "qrCode" | "card" | "momo";
+export type PaymentMethod = "cash" | "qrCode" | "card" | "ewallet";
 export type OrderStatus = "pending" | "confirmed" | "preparing" | "completed" | "cancelled" | "delivering";
 export type paymentStatus = "pending" | "success" | "failed";
-export interface CartItem {
-  product_id: string;
-  size: string;
+
+export interface OrderItemTopping {
+  ingredient: string;
   quantity: number;
-  note: string;
 }
 
-export interface CartItemHistory extends CartItem {
+export interface ComboSelection {
+  product_id: string;
+  sku: string;
+  size: string;
+  crust?: string;
+  added_topping?: OrderItemTopping[];
+}
+
+export interface OrderItem {
+  item_type: "product" | "combo";
+  product_id?: string;
+  sku: string;
+  price: number;
+  crust?: string;
+  size: string;
+  quantity: number;
+  note?: string;
+  added_topping?: OrderItemTopping[];
+  combo_id?: string;
+  combo_selections?: ComboSelection[];
+}
+
+export interface OrderItemToppingPopulated {
+  ingredient: {
+    _id: string;
+    name: string;
+    unit: string;
+    price: number;
+  };
+  quantity: number;
+}
+
+export interface ComboSelectionPopulated {
   product_id: {
+    _id: string;
     name: string;
   };
-  price: number;
+  sku: string;
+  size: string;
+  added_topping?: OrderItemToppingPopulated[];
 }
+
+export interface OrderItemHistory {
+  item_type: "product" | "combo";
+  product_id?: {
+    _id: string;
+    name: string;
+  };
+  sku: string;
+  price: number;
+  size: string;
+  quantity: number;
+  note?: string;
+  added_topping?: OrderItemToppingPopulated[];
+  combo_id?: {
+    _id: string;
+    name: string;
+    image?: string;
+    price: number;
+  };
+  combo_selections?: ComboSelectionPopulated[];
+}
+
 export interface Order {
+  order_type: OrderMethod;
+  paymentMethod: PaymentMethod;
+  paymentStatus?: paymentStatus;
+  contact_info: {
+    full_name: string;
+    phone: string;
+    address?: string;
+    email?: string;
+  };
+  store_id: string;
+  items: OrderItem[];
+  sub_total?: number;
+  discount_amount?: number;
+  promotion_code?: string;
+  total?: number;
+  note?: string;
+  customer_id?: string | null;
+}
+
+export interface PosOrder extends Order {
+  employee_id: string;
+}
+
+export interface OrderHistory {
+  _id: string;
   order_type: OrderMethod;
   paymentMethod: PaymentMethod;
   paymentStatus: paymentStatus;
   contact_info: {
     full_name: string;
     phone: string;
-    address: string | null;
+    address?: string;
+    email?: string;
   };
-  store_id: string;
-  items: CartItem[] | [];
-  note: string;
-  customer_id: string | null;
-}
-export interface PosOrder extends Order {
-  employee_id: string;
-}
-
-export interface OrderHistory extends Order {
-  _id: string;
-  sub_total: number;
-  items: CartItemHistory[] | [];
-  discount_amount: number;
-  total: number;
-  status: OrderStatus;
   store_id: {
     _id: string;
     name: string;
-    address: string;
+    address: string | { streetNumber: string; district: string; city: string };
     phone: string;
     email: string;
   };
-  employee_id: string | null;
+  items: OrderItemHistory[];
+  sub_total: number;
+  discount_amount: number;
+  total: number;
+  status: OrderStatus;
+  customer_id?: string | null;
+  employee_id?: string | null;
+  note?: string;
   createdAt: string;
 }
 
@@ -80,7 +153,7 @@ export const createOrder = async (payload: Order, typeUser: string) => {
       },
       typeUser,
     );
-
+    console.log(payload);
     return response;
   } catch (error) {
     console.error("Lỗi fetch :", error);
@@ -98,8 +171,7 @@ export const createPosOrder = async (payload: PosOrder, typeUser: string) => {
       },
       typeUser,
     );
-    console.log(payload);
-    console.log(response);
+
     return response;
   } catch (error) {
     console.error("Lỗi fetch :", error);
@@ -134,7 +206,7 @@ export const cancelOrder = async (order_id: string, typeUser: string) => {
       },
       typeUser,
     );
-    console.log(response);
+
     return response.data;
   } catch (error) {
     console.error("Lỗi fetch :", error);

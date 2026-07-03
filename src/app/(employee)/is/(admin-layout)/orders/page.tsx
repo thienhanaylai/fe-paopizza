@@ -61,7 +61,7 @@ const flowConfig: Record<OrderMethod, OrderStatus[]> = {
 const paymentMethodMap: Record<PaymentMethod, string> = {
   cash: "Tiền mặt",
   qrCode: "Chuyển khoản",
-  momo: "Momo",
+  ewallet: "Ví điện tử",
   card: "Thẻ",
 };
 
@@ -119,7 +119,7 @@ export default function Orders() {
   const fecthData = async () => {
     setIsLoading(true);
     const info = await getInfo();
-    if (info.ref_id.store_id != "") {
+    if (info?.ref_id?.store_id) {
       const res = await getAllOrder(`store_id=${info.ref_id.store_id}`, "");
       setAllOrders(res);
     }
@@ -492,16 +492,88 @@ export default function Orders() {
 
               <div>
                 <p className="text-sm text-muted-foreground mb-2">Sản phẩm:</p>
-                <div className="space-y-2">
+                <div className="space-y-3">
                   {selectedOrder.items.map((item, i) => (
-                    <div key={i} className="flex justify-between text-sm bg-muted/30 rounded-lg p-3">
-                      <span className="text-foreground">
-                        {item.product_id.name} x{item.quantity}
-                      </span>
-                      <span className="text-foreground">{formatVND(item.price * item.quantity)}</span>
+                    <div key={i} className="bg-muted/30 rounded-lg p-3 space-y-2">
+                      {/* Item header */}
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {item.item_type === "combo" ? (
+                              <span className="text-foreground font-medium">
+                                {item.combo_id?.name || "Combo"}
+                                <span className="text-xs text-muted-foreground ml-1">(Combo)</span>
+                              </span>
+                            ) : (
+                              <span className="text-foreground font-medium">{item.product_id?.name || item.sku}</span>
+                            )}
+                            <span className="text-xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{item.size}</span>
+                          </div>
+                          <span className="text-xs text-muted-foreground">x{item.quantity}</span>
+                        </div>
+                        <span className="text-foreground text-sm">{formatVND(item.price * item.quantity)}</span>
+                      </div>
+
+                      {/* Note */}
+                      {item.note && <p className="text-xs text-muted-foreground italic">{item.note}</p>}
+
+                      {/* Extra toppings for product items */}
+                      {item.item_type === "product" && item.added_topping && item.added_topping.length > 0 && (
+                        <div className="pl-2 border-l-2 border-primary/20">
+                          <p className="text-xs text-muted-foreground mb-1">Topping thêm:</p>
+                          {item.added_topping.map((t, j) => (
+                            <div key={j} className="flex justify-between text-xs text-muted-foreground">
+                              <span>
+                                + {t.ingredient.name} x{t.quantity}
+                              </span>
+                              <span>{formatVND(t.ingredient.price * t.quantity)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Combo selections */}
+                      {item.item_type === "combo" && item.combo_selections && item.combo_selections.length > 0 && (
+                        <div className="pl-2 border-l-2 border-primary/20 space-y-2">
+                          <p className="text-xs text-muted-foreground">Chi tiết combo:</p>
+                          {item.combo_selections.map((sel, j) => (
+                            <div key={j} className="bg-muted/50 rounded p-2 space-y-1">
+                              <div className="flex justify-between text-xs">
+                                <span className="text-foreground font-medium">{sel.product_id.name}</span>
+                                <span className="text-muted-foreground">{sel.size}</span>
+                              </div>
+                              {sel.added_topping && sel.added_topping.length > 0 && (
+                                <div className="pl-2">
+                                  {sel.added_topping.map((t, k) => (
+                                    <div key={k} className="flex justify-between text-xs text-muted-foreground">
+                                      <span>
+                                        + {t.ingredient.name} x{t.quantity}
+                                      </span>
+                                      <span>{formatVND(t.ingredient.price * t.quantity)}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
+              </div>
+
+              <div className="space-y-1 pt-3 border-t border-border">
+                <div className="flex justify-between text-sm text-muted-foreground">
+                  <span>Tạm tính:</span>
+                  <span>{formatVND(selectedOrder.sub_total)}</span>
+                </div>
+                {(selectedOrder.discount_amount ?? 0) > 0 && (
+                  <div className="flex justify-between text-sm text-red-500">
+                    <span>Giảm giá:</span>
+                    <span>-{formatVND(selectedOrder.discount_amount)}</span>
+                  </div>
+                )}
               </div>
 
               <div className="flex justify-between pt-3 border-t border-border">

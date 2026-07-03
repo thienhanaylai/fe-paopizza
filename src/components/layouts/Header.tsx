@@ -104,8 +104,7 @@ export default function Header() {
     fectData();
   }, []);
   const handleCart = () => {
-    if (!isAuthenticated) setAuthMode("login");
-    else setShowCart(true);
+    setShowCart(true);
   };
   const handleLogout = async () => {
     await logout();

@@ -42,11 +42,48 @@ export type Product = {
   isDeleted: boolean;
 };
 
+export type ComboCategory = {
+  _id: string;
+  name: string;
+  slug: string;
+  is_active: boolean;
+  isDeleted: boolean;
+  icon: string;
+};
+
+export type ComboRule = {
+  groupName: string;
+  applicableCategories: ComboCategory[];
+  applicableProducts: string[]; // product IDs
+  requiredQuantity: number;
+};
+
+export type Combo = {
+  _id: string;
+  name: string;
+  description: string;
+  dateStart: string;
+  dateEnd: string;
+  image: string;
+  rules: ComboRule[];
+  disscountType: "percent" | "fixed";
+  disscount: number;
+  price: number;
+  is_active: boolean;
+  isDeleted: boolean;
+};
+
+/** Mỗi phần tử trong mảng combos của menu được bọc trong { combo, _id } */
+export type MenuComboEntry = {
+  combo: Combo;
+  _id: string;
+};
+
 export type MenuData = {
   _id: string;
   store: string;
   products: Product[];
-  combos: [];
+  combos: MenuComboEntry[];
   status: boolean;
   createdAt: string;
   updatedAt: string;
@@ -61,7 +98,7 @@ export const getMenuByStoreId = async (store_id: string) => {
       },
       "customer",
     );
-
+    console.log(response.data);
     return response.data;
   } catch (error) {
     console.error("Lỗi fetch menu:", error);

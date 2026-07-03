@@ -18,7 +18,7 @@ export function MenuProvider({ children }: { children: ReactNode }) {
     try {
       const data = await getMenuByStoreId(storeId);
       setMenu(data);
-      console.log(data);
+    
       return data;
     } catch (error) {
       console.error("Lỗi khi tải menu:", error);

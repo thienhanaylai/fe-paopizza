@@ -14,9 +14,7 @@ export default function CustomerLayoutContent({ children }: { children: React.Re
   const { showCart, fetchCart, checkout } = useCart();
 
   useEffect(() => {
-    if (user?.id) {
-      fetchCart(user.id);
-    }
+    fetchCart(user?.id);
   }, [user?.id, fetchCart]);
   useEffect(() => {
     const handleUnauthorized = () => {

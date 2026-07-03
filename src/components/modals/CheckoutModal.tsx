@@ -1,20 +1,19 @@
 "use client";
 
-import { ArrowLeft, Banknote, CheckCircle2, LoaderCircle, QrCode, ShoppingBag, Truck, X } from "lucide-react";
+import { ArrowLeft, Banknote, CheckCircle2, LoaderCircle, QrCode, ShoppingBag, TicketPercent, Truck, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useCart } from "@/src/context/cartContext";
 import { getAllStore, StoreData } from "@/src/services/store.service";
-import { Order, createOrder } from "@/src/services/order.service";
+import { Order, createOrder, PaymentMethod } from "@/src/services/order.service";
 import { useCustomerAuth } from "@/src/context/authCustomerContext";
 import { toast, Toaster } from "sonner";
-import { clearCartApi } from "@/src/services/cart.service";
 import Image from "next/image";
 import { checkPaymentStatus } from "@/src/services/payment.service";
+import { applyPromoCode, PromoCodeResult } from "@/src/services/promotion.service";
 import { formatVND } from "@/src/utils/formatVND";
 
 type CheckoutStep = "info" | "payment" | "success" | "failed";
 type OrderMethod = "carry_out" | "delivery" | "dine_in";
-type PaymentMethod = "cash" | "qrCode" | "card" | "momo";
 
 export function CountdownTimer({ expiresAt, onExpire }) {
   const [timeLeft, setTimeLeft] = useState(null);
@@ -54,9 +53,8 @@ export function CountdownTimer({ expiresAt, onExpire }) {
 }
 
 export const CheckoutModal = () => {
-  const { cart, cartTotal, setCheckout, fetchCart } = useCart();
-  const { user } = useCustomerAuth();
-  const { getInfo } = useCustomerAuth();
+  const { cart, cartTotal, setCheckout, fetchCart, clearCart } = useCart();
+  const { user, getInfo } = useCustomerAuth();
   const [checkoutStep, setCheckoutStep] = useState<CheckoutStep>("info");
   const [listStore, setListStore] = useState<StoreData[]>();
   const [idOrder, setIdOrder] = useState("");
@@ -70,6 +68,14 @@ export const CheckoutModal = () => {
   const [custAddress, setCustAddress] = useState("");
   const [custNote, setCustNote] = useState("");
   const [imgQr, setImgQr] = useState("");
+
+  // Promotion/Discount
+  const [promoCode, setPromoCode] = useState("");
+  const [promoError, setPromoError] = useState("");
+  const [appliedPromo, setAppliedPromo] = useState<PromoCodeResult | null>(null);
+  const [isApplyingPromo, setIsApplyingPromo] = useState(false);
+
+  const discountAmount = appliedPromo?.valid ? appliedPromo.discountAmount : 0;
 
   const [testtime, setTestime] = useState<Date>();
 
@@ -103,7 +109,10 @@ export const CheckoutModal = () => {
         const stores = await getAllStore();
         const finalList = stores.filter(item => item.status == "active");
         setListStore(finalList);
-        setStoreId(stores[0]._id);
+
+        const selectedStoreId = localStorage.getItem("selected_store");
+        const matchedStore = finalList.find(s => s._id === selectedStoreId);
+        setStoreId(matchedStore?._id || finalList[0]?._id || "");
       } catch (error) {
         console.log(error);
         setListStore([]);
@@ -120,14 +129,45 @@ export const CheckoutModal = () => {
     setStoreId("");
     setCustAddress("");
     setCustNote("");
+    setPromoCode("");
+    setPromoError("");
+    setAppliedPromo(null);
     setOrderMethod("carry_out");
     setPaymentMethod("cash");
-    await clearCartApi(user?.id || "");
-    await fetchCart(user?.id || "");
+    await clearCart(user?.id);
+  };
+
+  const handleApplyPromo = async () => {
+    if (!promoCode.trim()) {
+      setPromoError("Vui lòng nhập mã khuyến mãi");
+      return;
+    }
+    setIsApplyingPromo(true);
+    setPromoError("");
+    try {
+      const result = await applyPromoCode(promoCode, cartTotal, storeId);
+      if (result.valid) {
+        setAppliedPromo(result);
+        setPromoError("");
+      } else {
+        setAppliedPromo(null);
+        setPromoError(result.message || "Mã khuyến mãi không hợp lệ");
+      }
+    } catch {
+      setAppliedPromo(null);
+      setPromoError("Không thể kiểm tra mã khuyến mãi");
+    } finally {
+      setIsApplyingPromo(false);
+    }
   };
 
   const hanldeSubmit = async () => {
-    const customer = await getInfo();
+    let customer;
+    if (user) {
+      customer = user?.id ? await getInfo() : null;
+    } else {
+      customer = null;
+    }
 
     const order: Order = {
       order_type: orderMethod,
@@ -141,11 +181,32 @@ export const CheckoutModal = () => {
       items: cart
         ? cart?.items?.map(cartItem => ({
             ...cartItem,
-            product_id: cartItem.product_id?._id,
+            product_id: typeof cartItem.product_id === "string" ? cartItem.product_id : cartItem.product_id?._id,
+            added_topping: Array.isArray(cartItem.added_topping)
+              ? cartItem.added_topping.map(topping => ({
+                  ingredient: typeof topping === "string" ? topping : topping._id,
+                  quantity: 1,
+                }))
+              : [],
+            combo_selections: Array.isArray(cartItem.combo_selections)
+              ? cartItem.combo_selections.map(selection => ({
+                  ...selection,
+                  product_id: typeof selection.product_id === "string" ? selection.product_id : selection.product_id?._id,
+                  crust: selection.crust,
+                  added_topping: Array.isArray(selection.added_topping)
+                    ? selection.added_topping.map(topping => ({
+                        ingredient: typeof topping === "string" ? topping : topping._id,
+                        quantity: 1,
+                      }))
+                    : [],
+                }))
+              : [],
           }))
         : [],
       note: custNote,
-      customer_id: customer.ref_id?._id || "",
+      promotion_code: appliedPromo?.valid ? appliedPromo.code : undefined,
+      discount_amount: appliedPromo?.valid ? discountAmount : 0,
+      customer_id: customer?.ref_id?._id || null,
     };
 
     if (custName === "" || custPhone === "" || storeId === "") {
@@ -157,6 +218,7 @@ export const CheckoutModal = () => {
       toast.warning("Vui lòng nhập địa chỉ giao hàng!");
       return;
     }
+    console.log(order);
     const result = await createOrder(order, "customer");
     const res = result.data;
     const payment = result.payment;
@@ -189,7 +251,7 @@ export const CheckoutModal = () => {
   };
 
   const deliveryFee = orderMethod === "delivery" && cartTotal < 200000 ? 25000 : 0;
-  const grandTotal = cartTotal + deliveryFee;
+  const grandTotal = Math.max(0, cartTotal + deliveryFee - discountAmount);
 
   const paymentOptions: { key: PaymentMethod; label: string; icon: React.ReactNode; desc: string }[] = [
     { key: "cash", label: "Tiền mặt", icon: <Banknote size={20} />, desc: "Thanh toán khi nhận hàng" },
@@ -357,20 +419,6 @@ export const CheckoutModal = () => {
                     </div>
                   )}
                   <div>
-                    <label className="block text-sm mb-1">Chọn cửa hàng *</label>
-                    <select
-                      defaultValue={listStore?.[0]?._id || ""}
-                      onChange={e => setStoreId(e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-xl border border-border top-full bg-background outline-none"
-                    >
-                      {listStore?.map(store => (
-                        <option key={store._id} value={store._id}>
-                          {store.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
                     <label className="block text-sm mb-1">Ghi chú</label>
                     <textarea
                       value={custNote}
@@ -379,6 +427,55 @@ export const CheckoutModal = () => {
                       placeholder="Ghi chú thêm cho đơn hàng..."
                       className="w-full px-4 py-2.5 rounded-xl border border-border bg-background focus:border-primary outline-none resize-none"
                     />
+                  </div>
+
+                  {/* Promotion Code */}
+                  <div>
+                    <label className="block text-sm mb-1">Mã khuyến mãi</label>
+                    <div className="flex gap-2">
+                      <input
+                        value={promoCode}
+                        onChange={e => {
+                          setPromoCode(e.target.value);
+                          if (promoError) setPromoError("");
+                        }}
+                        placeholder="Nhập mã khuyến mãi"
+                        disabled={!!appliedPromo?.valid}
+                        className="flex-1 px-4 py-2.5 rounded-xl border border-border bg-background focus:border-primary outline-none disabled:bg-muted disabled:text-muted-foreground uppercase"
+                      />
+                      {appliedPromo?.valid ? (
+                        <button
+                          onClick={() => {
+                            setAppliedPromo(null);
+                            setPromoCode("");
+                            setPromoError("");
+                          }}
+                          className="px-4 py-2.5 rounded-xl bg-red-50 text-red-600 border border-red-200 text-sm hover:bg-red-100 transition-colors shrink-0"
+                        >
+                          Hủy
+                        </button>
+                      ) : (
+                        <button
+                          onClick={handleApplyPromo}
+                          disabled={!promoCode.trim() || isApplyingPromo}
+                          className="px-4 py-2.5 rounded-xl bg-primary text-white text-sm hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shrink-0 flex items-center gap-1.5"
+                        >
+                          {isApplyingPromo ? <LoaderCircle size={16} className="animate-spin" /> : <TicketPercent size={16} />}
+                          Áp dụng
+                        </button>
+                      )}
+                    </div>
+                    {promoError && (
+                      <p className="text-xs text-red-500 mt-1.5 flex items-center gap-1">
+                        <X size={12} /> {promoError}
+                      </p>
+                    )}
+                    {appliedPromo?.valid && (
+                      <p className="text-xs text-green-600 mt-1.5 flex items-center gap-1">
+                        <CheckCircle2 size={12} />
+                        {appliedPromo.message || `Giảm ${formatVND(discountAmount)} với mã "${appliedPromo.code}"`}
+                      </p>
+                    )}
                   </div>
 
                   <div className="bg-muted/50 rounded-xl p-4 space-y-2">
@@ -405,6 +502,14 @@ export const CheckoutModal = () => {
                       <div className="flex justify-between text-sm pt-1 border-t border-border">
                         <span className="text-muted-foreground">Phí giao hàng</span>
                         <span className="text-green-600">Miễn phí</span>
+                      </div>
+                    )}
+                    {discountAmount > 0 && (
+                      <div className="flex justify-between text-sm pt-1 border-t border-border">
+                        <span className="text-green-600 flex items-center gap-1">
+                          <TicketPercent size={14} /> Giảm giá
+                        </span>
+                        <span className="text-green-600">-{formatVND(discountAmount)}</span>
                       </div>
                     )}
                     <div className="flex justify-between pt-2 border-t border-border">

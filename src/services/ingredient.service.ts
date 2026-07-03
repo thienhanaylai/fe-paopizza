@@ -1,5 +1,19 @@
 import { http } from "../utils/config.api";
 
+export type IngredientData = {
+  _id: string;
+  name: string;
+  unit: string;
+  category: string;
+  cost_per_unit: number;
+  price: number;
+  image?: string;
+  is_active: boolean;
+  isDeleted: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
 export const getAllIngredients = async () => {
   try {
     const data = await http("/api/v1/ingredient", {

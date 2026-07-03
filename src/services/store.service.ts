@@ -2,16 +2,19 @@ import { http } from "../utils/config.api";
 
 export type store_status = "active" | "maintenance" | "close";
 
+export type StoreAddress = { streetNumber: string; district: string; city: string };
+export type StoreLocation = { type: "Point"; coordinates: [number, number] };
+
 export type StoreData = {
   _id: string;
   name: string;
-  address: { streetNumber: string; district: string; city: string };
+  address: StoreAddress;
   employee_count: number;
   phone: string;
   email: string;
   time_open: string;
   time_close: string;
-  location: { type: string; coordinates: [number] } | null;
+  location: StoreLocation | null;
   manager_by: { _id: string; name: string; email: string; phone: string; station: string } | null;
   status: store_status;
   isDeleted: boolean;
@@ -33,12 +36,14 @@ export const getAllStore = async () => {
 
 export const createStore = async (payload: {
   name: string;
-  address: string;
+  address: StoreAddress;
   phone: string;
   email: string;
   time_open: string;
   time_close: string;
   manager_by: string;
+  location?: StoreLocation;
+  status?: store_status;
 }) => {
   try {
     const finalPayload = {
@@ -61,13 +66,14 @@ export const createStore = async (payload: {
 export const updateStore = async (payload: {
   store_id: string;
   name: string;
-  address: string;
+  address: StoreAddress;
   phone: string;
   email: string;
   time_open: string;
   time_close: string;
   manager_by: string;
   status?: store_status;
+  location?: StoreLocation;
 }) => {
   try {
     const finalPayload = {

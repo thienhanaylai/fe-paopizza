@@ -8,6 +8,12 @@ import { useCustomerAuth } from "@/src/context/authCustomerContext";
 import { formatVND } from "@/src/utils/formatVND";
 import { formatDateTime } from "@/src/utils/formatDateTime";
 
+function fmtAddress(addr: string | { streetNumber: string; district: string; city: string }): string {
+  if (!addr) return "";
+  if (typeof addr === "string") return addr;
+  return [addr.streetNumber, addr.district, addr.city].filter(Boolean).join(", ");
+}
+
 const orderStatusConfig: Record<string, { label: string; color: string }> = {
   pending: { label: "Chờ xử lý", color: "bg-yellow-100 text-yellow-700" },
   confirmed: { label: "Đã xác nhận", color: "bg-teal-100 text-teal-700" },
@@ -98,7 +104,7 @@ export default function Orders() {
                         <span className="text-sm w-fit px-2 py-1 rounded-full bg-primary/10 text-primary ">
                           {order.store_id.name}
                         </span>
-                        <span className="text-sm text-muted-foreground underline">{order.store_id.address}</span>
+                        <span className="text-sm text-muted-foreground underline">{fmtAddress(order.store_id.address)}</span>
                       </div>
                     </div>
                     <div className="flex flex-col items-end gap-2">
@@ -117,7 +123,7 @@ export default function Orders() {
                     {order.items.map((item, i) => (
                       <div key={i} className="flex justify-between text-sm">
                         <span className="text-muted-foreground">
-                          {item.product_id.name} x{item.quantity}
+                          {item.product_id?.name || item.sku} x{item.quantity}
                         </span>
 
                         <span className="text-foreground">{formatVND(item.price * item.quantity)}</span>

@@ -20,7 +20,7 @@ import {
   Settings,
   LoaderCircle,
 } from "lucide-react";
-import { createStore, getAllStore, StoreData, updateStore } from "@/src/services/store.service";
+import { createStore, getAllStore, StoreAddress, StoreData, updateStore } from "@/src/services/store.service";
 import { getEmployeeByRole } from "@/src/services/employee.service";
 import { toast, Toaster } from "sonner";
 import { getRevenue } from "@/src/services/revenue.service";
@@ -51,6 +51,12 @@ function getMonthRange(offset = 0) {
   };
 }
 
+function formatAddress(addr: StoreData["address"] | string): string {
+  if (!addr) return "";
+  if (typeof addr === "string") return addr;
+  return [addr.streetNumber, addr.district, addr.city].filter(Boolean).join(", ");
+}
+
 export default function Stores() {
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState<"all" | "active" | "close" | "maintenance">("all");
@@ -61,7 +67,11 @@ export default function Stores() {
   const [listManager, setListManager] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [nameStore, setNameStore] = useState("");
-  const [addressStore, setAddressStore] = useState("");
+  const [streetNumber, setStreetNumber] = useState("");
+  const [district, setDistrict] = useState("");
+  const [city, setCity] = useState("");
+  const [latitude, setLatitude] = useState("");
+  const [longitude, setLongitude] = useState("");
   const [phoneStore, setPhoneStore] = useState("");
   const [emailStore, setEmailStore] = useState("");
   const [timeOpenStore, setTimeOpenStore] = useState("10:00");
@@ -102,7 +112,11 @@ export default function Stores() {
 
   const clearFrom = () => {
     setNameStore("");
-    setAddressStore("");
+    setStreetNumber("");
+    setDistrict("");
+    setCity("");
+    setLatitude("");
+    setLongitude("");
     setPhoneStore("");
     setEmailStore("");
     setTimeOpenStore("10:00");
@@ -117,7 +131,11 @@ export default function Stores() {
   const openEditForm = (store: StoreData) => {
     setEditingStore(store);
     setNameStore(store.name || "");
-    setAddressStore(store.address || "");
+    setStreetNumber(typeof store.address === "string" ? "" : store.address?.streetNumber || "");
+    setDistrict(typeof store.address === "string" ? "" : store.address?.district || "");
+    setCity(typeof store.address === "string" ? "" : store.address?.city || "");
+    setLatitude(store.location?.coordinates?.[1]?.toString() || "");
+    setLongitude(store.location?.coordinates?.[0]?.toString() || "");
     setPhoneStore(store.phone || "");
     setEmailStore(store.email || "");
     setTimeOpenStore(store.time_open || "10:00");
@@ -132,7 +150,9 @@ export default function Stores() {
     try {
       if (
         nameStore === "" ||
-        addressStore === "" ||
+        streetNumber === "" ||
+        district === "" ||
+        city === "" ||
         phoneStore === "" ||
         emailStore === "" ||
         timeOpenStore === "" ||
@@ -143,17 +163,30 @@ export default function Stores() {
 
         return;
       }
+
+      const addressPayload: StoreAddress = {
+        streetNumber,
+        district,
+        city,
+      };
+
+      const locationPayload =
+        latitude && longitude
+          ? { type: "Point" as const, coordinates: [parseFloat(longitude), parseFloat(latitude)] as [number, number] }
+          : undefined;
+
       if (editingStore) {
         const res = await updateStore({
           store_id: editingStore._id,
           name: nameStore,
-          address: addressStore,
+          address: addressPayload,
           phone: phoneStore,
           email: emailStore,
           time_open: timeOpenStore,
           time_close: timeCloseStore,
           manager_by: managerStore,
           status: statusStore,
+          location: locationPayload,
         });
 
         if (res) {
@@ -165,12 +198,13 @@ export default function Stores() {
       } else {
         const res = await createStore({
           name: nameStore,
-          address: addressStore,
+          address: addressPayload,
           phone: phoneStore,
           email: emailStore,
           time_open: timeOpenStore,
           time_close: timeCloseStore,
           manager_by: managerStore,
+          location: locationPayload,
         });
 
         if (res) {
@@ -190,7 +224,8 @@ export default function Stores() {
     ?.sort((a, b) => a.name.localeCompare(b.name))
     .filter(s => {
       const matchSearch =
-        s.name.toLowerCase().includes(search.toLowerCase()) || s.address.toLowerCase().includes(search.toLowerCase());
+        s.name.toLowerCase().includes(search.toLowerCase()) ||
+        formatAddress(s.address).toLowerCase().includes(search.toLowerCase());
       const matchStatus = filterStatus === "all" || s.status === filterStatus;
       return matchSearch && matchStatus;
     });
@@ -328,7 +363,7 @@ export default function Stores() {
                 <div className="space-y-2 text-sm">
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <MapPin size={14} className="shrink-0" />
-                    <span className="truncate">{store.address}</span>
+                    <span className="truncate">{formatAddress(store.address)}</span>
                   </div>
                   <div className="flex items-center gap-4 text-muted-foreground">
                     <span className="flex items-center gap-1.5">
@@ -407,7 +442,7 @@ export default function Stores() {
             <div className="p-6 space-y-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {[
-                  { icon: <MapPin size={16} />, label: "Địa chỉ", value: selectedStore.address },
+                  { icon: <MapPin size={16} />, label: "Địa chỉ", value: formatAddress(selectedStore.address) },
                   { icon: <Phone size={16} />, label: "Điện thoại", value: selectedStore.phone },
                   { icon: <Mail size={16} />, label: "Email", value: selectedStore.email },
                   {
@@ -520,13 +555,29 @@ export default function Stores() {
               </div>
               <div>
                 <label className="text-sm text-foreground mb-1.5 block">Địa chỉ</label>
-                <input
-                  type="text"
-                  placeholder={"42 Hưng Gia 1, P. Phú Mỹ, HCM"}
-                  value={addressStore}
-                  onChange={e => setAddressStore(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border border-border bg-background text-sm outline-none focus:border-primary transition-colors"
-                />
+                <div className="space-y-2">
+                  <input
+                    type="text"
+                    placeholder="Số nhà, tên đường"
+                    value={streetNumber}
+                    onChange={e => setStreetNumber(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl border border-border bg-background text-sm outline-none focus:border-primary transition-colors"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Quận / Huyện"
+                    value={district}
+                    onChange={e => setDistrict(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl border border-border bg-background text-sm outline-none focus:border-primary transition-colors"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Tỉnh / Thành phố"
+                    value={city}
+                    onChange={e => setCity(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl border border-border bg-background text-sm outline-none focus:border-primary transition-colors"
+                  />
+                </div>
               </div>
               <div>
                 <label className="text-sm text-foreground mb-1.5 block">Số điện thoại</label>
@@ -547,6 +598,27 @@ export default function Stores() {
                   value={emailStore}
                   className="w-full px-4 py-2.5 rounded-xl border border-border bg-background text-sm outline-none focus:border-primary transition-colors"
                 />
+              </div>
+              <div>
+                <label className="text-sm text-foreground mb-1.5 block">Vị trí (tùy chọn)</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    type="number"
+                    step="any"
+                    placeholder="Vĩ độ (latitude)"
+                    value={latitude}
+                    onChange={e => setLatitude(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl border border-border bg-background text-sm outline-none focus:border-primary transition-colors"
+                  />
+                  <input
+                    type="number"
+                    step="any"
+                    placeholder="Kinh độ (longitude)"
+                    value={longitude}
+                    onChange={e => setLongitude(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl border border-border bg-background text-sm outline-none focus:border-primary transition-colors"
+                  />
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>

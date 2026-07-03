@@ -64,7 +64,7 @@ export const AuthModal = () => {
       setIsSubmitting(true);
       const result = await customerLogin(phone, password);
       setIsSubmitting(false);
-      console.log(result.data);
+ 
       if (result.success) {
         handleClose();
       } else {

@@ -384,7 +384,7 @@ export default function Profile() {
                             <span className={`px-2 py-0.5 rounded-full text-[11px] ${st.color}`}>{st.label}</span>
                           </div>
                           <p className="text-xs text-muted-foreground truncate mb-2">
-                            {order.items.map(i => `${i.product_id.name} x${i.quantity}`).join(", ")}
+                            {order.items.map(i => `${i.product_id?.name || i.sku} x${i.quantity}`).join(", ")}
                           </p>
                           <div className="flex items-center justify-between">
                             <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-foreground">

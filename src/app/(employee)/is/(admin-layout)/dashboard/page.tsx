@@ -598,7 +598,7 @@ export default function DashboardPage() {
             weekDates.map(async d => {
               const date = dateToYmd(d);
               const overview = (await getRevenue(date, date, StoreId, "", "", "")) as RevenueOverview;
-              console.log(overview);
+          
               return {
                 name: `${d.getDate()}/${d.getMonth() + 1}`,
                 value: getRevenueMetricsValue(overview, "total_revenue"),

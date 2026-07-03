@@ -28,12 +28,11 @@ import Image from "next/image";
 import { getAllCategories } from "@/src/services/category.service";
 import { getAllProducts } from "@/src/services/product.service";
 import { toast, Toaster } from "sonner";
-import { cancelOrder, createPosOrder, PosOrder } from "@/src/services/order.service";
+import { cancelOrder, createPosOrder, PosOrder, PaymentMethod } from "@/src/services/order.service";
 import { checkPaymentStatus } from "@/src/services/payment.service";
 import { formatVND } from "@/src/utils/formatVND";
 
 type OrderType = "dine_in" | "carry_out" | "delivery";
-type PaymentMethod = "cash" | "qrCode" | "card" | "momo";
 
 type MenuCategoryUI = {
   slug: string;
@@ -82,6 +81,7 @@ interface Product {
 }
 
 interface CartItem {
+  item_type: "product";
   product_id: string;
   name: string;
   price: number;
@@ -98,7 +98,7 @@ const paymentOptions: { key: PaymentMethod; label: string; icon: React.ReactNode
   { key: "cash", label: "Tiền mặt", icon: <Banknote size={18} /> },
   { key: "qrCode", label: "Chuyển khoản", icon: <QrCode size={18} /> },
   // { key: "card", label: "Thẻ", icon: <CreditCard size={18} /> },
-  // { key: "momo", label: "MoMo", icon: <Wallet size={18} /> },
+  // { key: "ewallet", label: "Ví điện tử", icon: <Wallet size={18} /> },
 ];
 
 export function CountdownTimer({ expiresAt, onExpire }) {
@@ -277,6 +277,10 @@ export default function POS() {
     if (!canSubmit()) return;
     try {
       const emp = await getInfo();
+      if (!emp?.ref_id?.store_id || !emp?._id) {
+        toast.error("Không thể xác thực nhân viên, vui lòng đăng nhập lại");
+        return;
+      }
       const listItem: CartItem[] = cart;
 
       const order: PosOrder = {
@@ -452,7 +456,7 @@ export default function POS() {
                             onClick={() => setEditNoteIndex(i)}
                             className="text-[10px] text-muted-foreground mt-1 hover:text-primary transition-colors"
                           >
-                            {item.note ? `📝 ${item.note}` : "+ Ghi chú"}
+                            {item.note ? `${item.note}` : "+ Ghi chú"}
                           </button>
                         )}
                         <span className="text-xs text-primary">{formatVND(item.price * item.quantity)}</span>
@@ -722,6 +726,7 @@ export default function POS() {
                     key={prd.sku}
                     onClick={() => {
                       const itemCart: CartItem = {
+                        item_type: "product",
                         product_id: item._id,
                         name: item.name,
                         note: "",
