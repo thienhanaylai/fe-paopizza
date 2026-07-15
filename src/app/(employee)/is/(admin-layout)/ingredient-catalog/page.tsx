@@ -8,7 +8,7 @@ import {
   updateIngredient,
 } from "@/src/services/ingredient.service";
 import { useEffect, useState } from "react";
-import { Search, Plus, Edit2, Trash2, Warehouse, Filter, X, CheckCircle2, Package } from "lucide-react";
+import { Search, Plus, Edit2, Trash2, Warehouse, Filter, X, CheckCircle2, Package, Square, SquareCheckBig } from "lucide-react";
 import { toast, Toaster } from "sonner";
 import { formatVND } from "@/src/utils/formatVND";
 
@@ -46,6 +46,7 @@ export default function IngredientCatalog() {
   const [fromCategory, setFromCategory] = useState("");
   const [fromIsActive, setFromIsActive] = useState("");
   const [confirmModal, setCongirmModal] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const fectData = async () => {
@@ -76,6 +77,28 @@ export default function IngredientCatalog() {
       (categoryFilter === "all" || i.category === categoryFilter) &&
       (i.name.toLowerCase().includes(search.toLowerCase()) || i.category.toLowerCase().includes(search.toLowerCase())),
   );
+
+  const isAllSelected = (filtered?.length ?? 0) > 0 && filtered!.every(i => selectedIds.has(i._id));
+  const isIndeterminate = selectedIds.size > 0 && !isAllSelected;
+
+  const toggleSelectAll = () => {
+    if (isAllSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filtered?.map(i => i._id) ?? []));
+    }
+  };
+
+  const toggleSelectOne = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const clearSelection = () => setSelectedIds(new Set());
 
   const hanldeSumbit = async () => {
     try {
@@ -202,105 +225,159 @@ export default function IngredientCatalog() {
         </div>
       </div>
 
+      {selectedIds.size > 0 && (
+        <div className="flex items-center justify-between gap-3 bg-primary/10 border border-primary/20 rounded-2xl px-5 py-3">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={clearSelection}
+              className="p-1.5 rounded-lg hover:bg-primary/10 text-muted-foreground hover:text-foreground transition-colors"
+              title="Bỏ chọn"
+            >
+              <X size={16} />
+            </button>
+            <span className="text-sm font-medium text-foreground">
+              Đã chọn <span className="text-primary font-semibold">{selectedIds.size}</span> nguyên liệu
+            </span>
+          </div>
+        </div>
+      )}
+
       <div className="bg-card rounded-2xl border border-border overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full">
             <thead>
-              <tr className="bg-muted/50 text-muted-foreground text-left">
-                <th className="px-4 py-3">Mã</th>
-                <th className="px-4 py-3">Tên nguyên liệu</th>
-                <th className="px-4 py-3 hidden md:table-cell">Danh mục</th>
-                <th className="px-4 py-3">Đơn vị tính</th>
-                <th className="px-4 py-3">Giá nhập</th>
-                <th className="px-4 py-3">Trạng thái</th>
-                <th className="px-4 py-3 text-right">Thao tác</th>
+              <tr className="border-b border-border bg-muted/50">
+                <th className="w-12 px-4 py-3.5">
+                  <button
+                    onClick={toggleSelectAll}
+                    className="flex items-center justify-center w-full text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    {isAllSelected ? (
+                      <SquareCheckBig size={18} className="text-primary" />
+                    ) : isIndeterminate ? (
+                      <SquareCheckBig size={18} className="text-primary/60" />
+                    ) : (
+                      <Square size={18} />
+                    )}
+                  </button>
+                </th>
+                <th className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70">Mã</th>
+                <th className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70">Tên nguyên liệu</th>
+                <th className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70 hidden md:table-cell">Danh mục</th>
+                <th className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70">Đơn vị tính</th>
+                <th className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70">Giá nhập</th>
+                <th className="text-center px-5 py-3.5 text-sm font-semibold text-foreground/70">Trạng thái</th>
+                <th className="text-center px-5 py-3.5 text-sm font-semibold text-foreground/70">Thao tác</th>
               </tr>
             </thead>
             <tbody>
-              {filtered?.map(item => (
-                <tr key={item._id} className="border-t border-border/50 hover:bg-muted/30">
-                  <td
-                    className="px-4 py-3 text-primary cursor-pointer hover:underline"
-                    title="Nhấn để copy toàn bộ ID"
-                    onClick={async () => {
-                      try {
-                        await navigator.clipboard.writeText(item._id);
-                        toast.success("Đã sao chép ID!");
-                      } catch (err) {
-                        toast.error("Không thể sao chép ID");
-                      }
-                    }}
-                  >
-                    ...{item._id.slice(-8)}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div>
-                      <p className="text-foreground">{item.name}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5 hidden sm:block">{item.unit}</p>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 hidden md:table-cell">
-                    <span className="px-2 py-1 rounded-lg text-xs bg-muted text-muted-foreground">
-                      {categories?.find(i => i.slug === item.category)?.name}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-foreground">{units?.find(i => i.slug === item.unit)?.name}</td>
-                  <td className="px-4 py-3 text-foreground">
-                    {formatVND(item.cost_per_unit)}/{units?.find(i => i.slug === item.unit)?.name}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs ${
-                        item.is_active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"
-                      }`}
-                    >
-                      {item.is_active ? (
-                        <>
-                          <CheckCircle2 size={12} /> Hoạt động
-                        </>
-                      ) : (
-                        "Ngừng dùng"
-                      )}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <button
-                        onClick={() => {
-                          setEditItem(item);
-                          setShowForm(true);
-                          setFromName(item.name);
-                          setFromCategory(item.category);
-                          setFromUnit(item.unit);
-                        }}
-                        className="p-2 rounded-lg hover:bg-primary/10 text-primary transition-colors"
-                        title="Chỉnh sửa"
-                      >
-                        <Edit2 size={15} />
-                      </button>
-                      <button
-                        onClick={() => {
-                          setCongirmModal(true);
-                          setEditItem(item);
-                        }}
-                        className="p-2 rounded-lg hover:bg-red-50 text-red-500 transition-colors"
-                        title="Xóa"
-                      >
-                        <Trash2 size={15} />
-                      </button>
-                    </div>
+              {!filtered || filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="px-5 py-16 text-center text-muted-foreground">
+                    <Package size={40} className="mx-auto mb-3 text-muted-foreground/20" />
+                    <p className="text-sm">Không tìm thấy nguyên liệu nào</p>
                   </td>
                 </tr>
-              ))}
+              ) : (
+                filtered.map(item => {
+                  const isSelected = selectedIds.has(item._id);
+                  return (
+                    <tr
+                      key={item._id}
+                      className={`border-b border-border last:border-b-0 hover:bg-muted/20 transition-colors ${isSelected ? "bg-primary/5" : ""} ${!item.is_active ? "opacity-50" : ""}`}
+                    >
+                      <td className="px-4 py-3.5">
+                        <button
+                          onClick={() => toggleSelectOne(item._id)}
+                          className="flex items-center justify-center w-full text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          {isSelected ? <SquareCheckBig size={18} className="text-primary" /> : <Square size={18} />}
+                        </button>
+                      </td>
+                      <td
+                        className="px-5 py-3.5 text-xs text-primary cursor-pointer hover:underline font-mono"
+                        title="Nhấn để copy toàn bộ ID"
+                        onClick={async () => {
+                          try {
+                            await navigator.clipboard.writeText(item._id);
+                            toast.success("Đã sao chép ID!");
+                          } catch {
+                            toast.error("Không thể sao chép ID");
+                          }
+                        }}
+                      >
+                        ...{item._id.slice(-8)}
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <p className="text-sm font-semibold text-foreground truncate max-w-[200px]">{item.name}</p>
+                      </td>
+                      <td className="px-5 py-3.5 hidden md:table-cell">
+                        <span className="inline-flex px-2.5 py-1 rounded-lg text-xs bg-muted text-muted-foreground">
+                          {categories?.find(i => i.slug === item.category)?.name || item.category}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <span className="text-sm text-foreground/80">
+                          {units?.find(i => i.slug === item.unit)?.name || item.unit}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <span className="text-sm font-semibold text-foreground">
+                          {formatVND(item.cost_per_unit)}
+                          <span className="text-xs text-muted-foreground font-normal">
+                            /{units?.find(i => i.slug === item.unit)?.name || item.unit}
+                          </span>
+                        </span>
+                      </td>
+                      <td className="px-5 py-3.5 text-center">
+                        <span
+                          className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${item.is_active ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-500"}`}
+                        >
+                          {item.is_active ? (
+                            <>
+                              <CheckCircle2 size={12} /> Hoạt động
+                            </>
+                          ) : (
+                            "Ngừng dùng"
+                          )}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <div className="flex items-center justify-center gap-1">
+                          <button
+                            onClick={() => {
+                              setEditItem(item);
+                              setShowForm(true);
+                              setFromName(item.name);
+                              setFromCategory(item.category);
+                              setFromUnit(item.unit);
+                              setCostPerUnit(item.cost_per_unit);
+                              setFromIsActive(item.is_active.toString());
+                            }}
+                            className="p-2 rounded-lg hover:bg-blue-50 text-muted-foreground hover:text-blue-500 transition-colors"
+                            title="Chỉnh sửa"
+                          >
+                            <Edit2 size={16} />
+                          </button>
+                          <button
+                            onClick={() => {
+                              setCongirmModal(true);
+                              setEditItem(item);
+                            }}
+                            className="p-2 rounded-lg hover:bg-red-50 text-muted-foreground hover:text-red-500 transition-colors"
+                            title="Xóa"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>
-        {filtered?.length === 0 && (
-          <div className="text-center py-12 text-muted-foreground">
-            <Package size={40} className="mx-auto mb-2 opacity-30" />
-            <p>Không tìm thấy nguyên liệu nào</p>
-          </div>
-        )}
       </div>
 
       {showForm && (

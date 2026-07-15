@@ -436,6 +436,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [editingSku, setEditingSku] = useState<string | null>(null);
   const [editingComboId, setEditingComboId] = useState<string | null>(null);
   const syncGuestCartPromiseRef = useRef<Promise<boolean> | null>(null);
+  const cartRef = useRef<Cart | null>(null);
+
+  // Keep cartRef in sync
+  cartRef.current = cart;
 
   const syncGuestCartToServer = useCallback(async (userId: string) => {
     if (syncGuestCartPromiseRef.current) {
@@ -509,6 +513,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
       }
 
       try {
+        // Snapshot current cart to preserve combo metadata that API may not return
+        const prevCart = cartRef.current;
         await syncGuestCartToServer(userId);
         const data = await getCart(userId);
         const normalized = data
@@ -519,6 +525,20 @@ export function CartProvider({ children }: { children: ReactNode }) {
               items: [],
             };
 
+        // Merge back combo_id & combo from previous cart (API may strip them)
+        if (prevCart) {
+          normalized.items = normalized.items.map(item => {
+            if (item.item_type === "combo" && !item.combo_id) {
+              const prevItem = prevCart.items.find(p => p.sku === item.sku && p.item_type === "combo");
+              if (prevItem?.combo_id) {
+                return { ...item, combo_id: prevItem.combo_id, combo: prevItem.combo ?? item.combo };
+              }
+            }
+            return item;
+          });
+        }
+
+        cartRef.current = normalized;
         setCart(normalized);
         return normalized;
       } catch (error) {
@@ -566,7 +586,15 @@ export function CartProvider({ children }: { children: ReactNode }) {
         });
 
         if (updatedCart) {
-          setCart(normalizeCart(updatedCart));
+          const normalized = normalizeCart(updatedCart);
+          // Ensure combo_id & combo are preserved if API doesn't return them
+          if (item_type === "combo" && combo_id) {
+            normalized.items = normalized.items.map(item =>
+              item.sku === sku && item.item_type === "combo" ? { ...item, combo_id, combo: combo ?? item.combo } : item,
+            );
+          }
+          cartRef.current = normalized;
+          setCart(normalized);
         }
         return;
       }
@@ -616,6 +644,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       };
 
       persistGuestCart(nextGuestCart);
+      cartRef.current = nextGuestCart;
       setCart(nextGuestCart);
     } catch (error) {
       console.error("Lỗi cập nhật giỏ hàng:", error);
@@ -626,7 +655,14 @@ export function CartProvider({ children }: { children: ReactNode }) {
     async ({ userId, item_type, product_id, combo_id, sku, size, currentQty, change, combo_selections }: UpdateQuantityInput) => {
       const newQuantity = currentQty + change;
       const itemType: CartItemType = item_type === "combo" ? "combo" : "product";
-      const canUseServerMutation = !!userId && ((itemType === "combo" && !!combo_id) || (itemType === "product" && !!product_id));
+      // Resolve combo_id from current cart if not provided (API may strip it)
+      let resolvedComboId = combo_id;
+      if (itemType === "combo" && !resolvedComboId && userId) {
+        const cartItem = cartRef.current?.items.find(i => i.sku === sku && i.item_type === "combo" && i.combo_id);
+        resolvedComboId = cartItem?.combo_id;
+      }
+      const canUseServerMutation =
+        !!userId && ((itemType === "combo" && !!resolvedComboId) || (itemType === "product" && !!product_id));
 
       try {
         if (canUseServerMutation) {
@@ -635,7 +671,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
               userId,
               item_type: itemType,
               product_id,
-              combo_id,
+              combo_id: resolvedComboId,
               size,
               sku,
             });
@@ -645,7 +681,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
               userId,
               item_type: itemType,
               product_id,
-              combo_id,
+              combo_id: resolvedComboId,
               size,
               sku,
               quantity: newQuantity,
@@ -698,7 +734,14 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const removeItem = useCallback(
     async ({ userId, item_type, product_id, combo_id, sku, size, combo_selections }: RemoveItemInput) => {
       const itemType: CartItemType = item_type === "combo" ? "combo" : "product";
-      const canUseServerMutation = !!userId && ((itemType === "combo" && !!combo_id) || (itemType === "product" && !!product_id));
+      // Resolve combo_id from current cart if not provided (API may strip it)
+      let resolvedComboId = combo_id;
+      if (itemType === "combo" && !resolvedComboId && userId) {
+        const cartItem = cartRef.current?.items.find(i => i.sku === sku && i.item_type === "combo" && i.combo_id);
+        resolvedComboId = cartItem?.combo_id;
+      }
+      const canUseServerMutation =
+        !!userId && ((itemType === "combo" && !!resolvedComboId) || (itemType === "product" && !!product_id));
 
       try {
         if (canUseServerMutation) {
@@ -706,11 +749,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
             userId,
             item_type: itemType,
             product_id,
-            combo_id,
+            combo_id: resolvedComboId,
             size,
             sku,
           });
-          setCart(normalizeCart(updatedCart));
+          cartRef.current = normalizeCart(updatedCart);
+          setCart(cartRef.current);
           return;
         }
 

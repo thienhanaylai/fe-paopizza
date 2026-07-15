@@ -67,11 +67,6 @@ const tierBadges: Record<string, React.ReactNode> = {
   ),
 };
 
-const updateSelectedStore = (storeId: string) => {
-  localStorage.setItem("selected_store", storeId);
-  window.dispatchEvent(new CustomEvent("selected-store-changed", { detail: { storeId } }));
-};
-
 export default function Header() {
   const { isAuthenticated, user, logout, setAuthMode } = useCustomerAuth();
   const { setShowCart, cartCount } = useCart();
@@ -151,7 +146,8 @@ export default function Header() {
                               key={s._id}
                               onClick={() => {
                                 setSelectedStore(s);
-                                updateSelectedStore(s._id);
+                                localStorage.setItem("selected_store", s._id);
+                                window.dispatchEvent(new CustomEvent("selected-store-changed", { detail: { storeId: s._id } }));
                                 setShowStorePicker(false);
                               }}
                               className={`w-full flex items-start gap-3 px-4 py-3 text-left hover:bg-muted transition-colors ${isSelected ? "bg-primary/5" : ""}`}
@@ -387,7 +383,8 @@ export default function Header() {
               <button
                 onClick={() => {
                   if (!selectedStore) return;
-                  updateSelectedStore(selectedStore._id);
+                  localStorage.setItem("selected_store", selectedStore._id);
+                  window.dispatchEvent(new CustomEvent("selected-store-changed", { detail: { storeId: selectedStore._id } }));
                   setShowInitialStoreModal(false);
                 }}
                 disabled={!selectedStore}

@@ -3,7 +3,6 @@
 import { useEmployeeAuth } from "@/src/context/authEmployeeContext";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { Toaster } from "sonner";
 
 export default function EmployeeLayoutContent({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useEmployeeAuth();

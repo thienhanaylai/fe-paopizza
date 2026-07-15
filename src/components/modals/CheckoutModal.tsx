@@ -112,7 +112,7 @@ export const CheckoutModal = () => {
 
         const selectedStoreId = localStorage.getItem("selected_store");
         const matchedStore = finalList.find(s => s._id === selectedStoreId);
-        setStoreId(matchedStore?._id || finalList[0]?._id || "");
+        setStoreId(matchedStore?._id || "");
       } catch (error) {
         console.log(error);
         setListStore([]);
@@ -169,6 +169,9 @@ export const CheckoutModal = () => {
       customer = null;
     }
 
+    // Always read latest store from localStorage to avoid stale storeId
+    const currentStoreId = localStorage.getItem("selected_store") || storeId;
+
     const order: Order = {
       order_type: orderMethod,
       paymentMethod: paymentMethod,
@@ -177,7 +180,7 @@ export const CheckoutModal = () => {
         phone: custPhone,
         address: custAddress,
       },
-      store_id: storeId,
+      store_id: currentStoreId,
       items: cart
         ? cart?.items?.map(cartItem => ({
             ...cartItem,
@@ -208,8 +211,8 @@ export const CheckoutModal = () => {
       discount_amount: appliedPromo?.valid ? discountAmount : 0,
       customer_id: customer?.ref_id?._id || null,
     };
-
-    if (custName === "" || custPhone === "" || storeId === "") {
+    console.log(order);
+    if (custName === "" || custPhone === "" || !currentStoreId) {
       toast.warning("Vui lòng nhập đầy đủ thông tin!");
       return;
     }
@@ -577,6 +580,14 @@ export const CheckoutModal = () => {
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">Phí giao hàng:</span>
                         <span className="text-foreground">{formatVND(deliveryFee)}</span>
+                      </div>
+                    )}
+                    {discountAmount > 0 && (
+                      <div className="flex justify-between text-sm pt-1 border-t border-border">
+                        <span className="text-green-600 flex items-center gap-1">
+                          <TicketPercent size={14} /> Giảm giá
+                        </span>
+                        <span className="text-green-600">-{formatVND(discountAmount)}</span>
                       </div>
                     )}
                     <div className="flex justify-between pt-2 border-t border-border">

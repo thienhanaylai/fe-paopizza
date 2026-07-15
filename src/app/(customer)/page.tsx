@@ -65,13 +65,19 @@ const SlotCard = ({
   variant,
   selectedCrust,
   ruleIdx,
+  slotIdx,
   onChangeVariant,
+  onReplace,
+  showReplace,
 }: {
   product: Product;
   variant: Product["variants"][number];
   selectedCrust?: string;
   ruleIdx: number;
+  slotIdx?: number;
   onChangeVariant: (ruleIdx: number, productId: string, newSku: string, newSize: string, newCrust?: string) => void;
+  onReplace?: (ruleIdx: number, slotIdx: number) => void;
+  showReplace?: boolean;
 }) => {
   const allVariants = product.variants;
   const sizes = Array.from(new Set(allVariants.map(v => v.size)));
@@ -136,6 +142,14 @@ const SlotCard = ({
             {isPizza && activeCrust ? ` - ${formatCrustLabel(activeCrust)}` : ""}
           </p>
         </div>
+        {showReplace && onReplace && slotIdx !== undefined && (
+          <button
+            onClick={() => onReplace(ruleIdx, slotIdx)}
+            className="text-xs text-orange-600 hover:text-orange-700 font-medium underline cursor-pointer shrink-0"
+          >
+            Thay đổi
+          </button>
+        )}
       </div>
 
       {sizes.length > 1 && (
@@ -185,7 +199,8 @@ const SlotCard = ({
 
 export default function IndexPage() {
   const { user } = useCustomerAuth();
-  const { addToCart, fetchCart, cart, editingSku, setEditingSku, editingComboId, setEditingComboId, setShowCart } = useCart();
+  const { addToCart, fetchCart, cart, clearCart, editingSku, setEditingSku, editingComboId, setEditingComboId, setShowCart } =
+    useCart();
 
   const [activeCategory, setActiveCategory] = useState<string>("all");
   const [categories, setCategories] = useState<MenuCategoryUI[]>([]);
@@ -195,6 +210,7 @@ export default function IndexPage() {
   const [menu, setMenu] = useState<MenuData>();
 
   const [selectedStoreId, setSelectedStoreId] = useState<string>("");
+  const prevStoreIdRef = useRef<string>("");
   const [selectedSize, setSelectedSize] = useState<string>("");
   const [selectedCrust, setSelectedCrust] = useState<string>("");
   const [extraToppings, setExtraToppings] = useState<ExtraTopping[]>([]);
@@ -203,6 +219,7 @@ export default function IndexPage() {
   const [selectedCombo, setSelectedCombo] = useState<Combo | null>(null);
   const [comboSelections, setComboSelections] = useState<Record<number, ComboSlotSelection[]>>({});
   const [replacingRule, setReplacingRule] = useState<number | null>(null);
+  const [replacingSlot, setReplacingSlot] = useState<{ ruleIdx: number; slotIdx: number } | null>(null);
   const editingComboOldSkuRef = useRef<string | null>(null);
 
   const productListRef = useRef<HTMLDivElement | null>(null);
@@ -318,10 +335,13 @@ export default function IndexPage() {
     syncSelectedStore();
     window.addEventListener("storage", handleStorage);
     window.addEventListener("selected-store-changed", handleStoreChanged);
+    // Fallback: re-sync on focus in case custom event was missed
+    window.addEventListener("focus", syncSelectedStore);
 
     return () => {
       window.removeEventListener("storage", handleStorage);
       window.removeEventListener("selected-store-changed", handleStoreChanged);
+      window.removeEventListener("focus", syncSelectedStore);
     };
   }, []);
 
@@ -353,7 +373,9 @@ export default function IndexPage() {
       } catch {}
     };
     fectData();
-  }, [selectedStoreId]);
+
+    prevStoreIdRef.current = selectedStoreId;
+  }, [selectedStoreId, clearCart, user?.id]);
 
   useEffect(() => {
     const fetchExtraToppings = async () => {
@@ -522,10 +544,10 @@ export default function IndexPage() {
   };
 
   const computeComboOriginalPrice = (combo: Combo): number => {
-    if (combo.disscountType === "percent") {
-      return Math.round(combo.price / (1 - combo.disscount / 100));
+    if (combo.discountType === "percent") {
+      return Math.round(combo.price / (1 - combo.discount / 100));
     }
-    return combo.price + combo.disscount;
+    return combo.price + combo.discount;
   };
 
   const computeComboSavings = (combo: Combo): number => {
@@ -563,6 +585,20 @@ export default function IndexPage() {
       size: variant?.size || "",
       crust: variant ? parseCrustOptions(variant.crust)[0] || undefined : undefined,
     };
+
+    // Slot-level replacement: thay thế 1 slot cụ thể
+    if (replacingSlot && replacingSlot.ruleIdx === ruleIndex) {
+      setComboSelections(prev => {
+        const current = [...(prev[ruleIndex] || [])];
+        // Không cho chọn trùng product đã có ở slot khác
+        const isDuplicate = current.some((s, i) => s.productId === selection.productId && i !== replacingSlot.slotIdx);
+        if (isDuplicate) return prev;
+        current[replacingSlot.slotIdx] = selection;
+        return { ...prev, [ruleIndex]: current };
+      });
+      setReplacingSlot(null);
+      return;
+    }
 
     setComboSelections(prev => {
       const current = prev[ruleIndex] || [];
@@ -923,8 +959,7 @@ export default function IndexPage() {
           {activeCategory === "all" && menu?.combos && menu.combos.length > 0 && (
             <div className="mt-8 space-y-6">
               <div className="border-l-4 border-orange-500 pl-4 py-1">
-                <h3 className="text-xl sm:text-2xl font-black text-foreground flex items-center gap-2">🎁 Combo Ưu Đãi</h3>
-                <p className="text-xs sm:text-sm text-muted-foreground mt-1">Tiết kiệm hơn khi mua combo</p>
+                <h3 className="text-xl sm:text-2xl font-black text-foreground flex items-center gap-2">Combo Ưu Đãi</h3>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                 {menu.combos.map(entry => {
@@ -990,7 +1025,6 @@ export default function IndexPage() {
             .filter(item => item.slug !== "all")
             .map(cat => {
               const categoryItems = filteredMenu1?.filter(item => item.category.slug === cat.slug);
-
               if (categoryItems?.length === 0) return null;
               return (
                 <div ref={productListRef} key={cat.slug} className="space-y-6 mt-5 scroll-mt-42">
@@ -1000,47 +1034,50 @@ export default function IndexPage() {
                     </h3>
                     <p className="text-xs sm:text-sm text-muted-foreground mt-1">{""}</p>
                   </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                  <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
                     {" "}
-                    {categoryItems?.map(item => (
-                      <div
-                        onClick={() => {
-                          hanldeProduct(item);
-                        }}
-                        key={item._id}
-                        className="bg-card rounded-2xl border border-border overflow-hidden hover:shadow-xl transition-all duration-300 group"
-                      >
-                        <div className="relative aspect-square overflow-hidden">
-                          <Image
-                            src={item.variants[0].image.url}
-                            alt={item.name}
-                            fill
-                            loading="eager"
-                            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                          />
-                          <span className="absolute bottom-3 left-3 px-2 py-1 bg-black/60 text-white text-[10px] rounded-full capitalize">
-                            {categories.find(c => c.slug === item.category.slug)?.name}
-                          </span>
-                        </div>
-                        <div className="p-5">
-                          <h4 className="text-foreground mb-1">{item.name}</h4>
-                          <span className="text-[14px]">{item.description}</span>
-                          <div className="flex items-center justify-end mt-2">
-                            <button
-                              onClick={() => {
-                                hanldeProduct(item);
-                              }}
-                              className="flex items-center gap-1.5 px-4 py-2 bg-primary text-white rounded-lg text-sm hover:bg-primary/90 transition-colors cursor-pointer"
-                            >
-                              {item.variants.length > 1
-                                ? `Chỉ từ ${formatVND(item.variants[0].price)}`
-                                : `${formatVND(item.variants[0].price)}`}
-                            </button>
+                    {categoryItems?.map(item => {
+                      if (item.is_active)
+                        return (
+                          <div
+                            onClick={() => {
+                              hanldeProduct(item);
+                            }}
+                            key={item._id}
+                            className="bg-card rounded-2xl border border-border overflow-hidden hover:shadow-xl transition-all duration-300 group flex flex-col"
+                          >
+                            <div className="relative aspect-square overflow-hidden">
+                              <Image
+                                src={item.variants[0].image.url}
+                                alt={item.name}
+                                fill
+                                loading="eager"
+                                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                              />
+                              <span className="absolute bottom-3 left-3 px-2 py-1 bg-black/60 text-white text-[10px] rounded-full capitalize">
+                                {categories.find(c => c.slug === item.category.slug)?.name}
+                              </span>
+                            </div>
+                            <div className="p-5 flex flex-col flex-1">
+                              <h4 className="text-foreground mb-1 line-clamp-2">{item.name}</h4>
+                              {/* <span className="text-[14px]">{item.description}</span> */}
+                              <div className="flex items-center justify-center mt-auto pt-3">
+                                <button
+                                  onClick={() => {
+                                    hanldeProduct(item);
+                                  }}
+                                  className="flex items-center gap-1.5 px-4 py-2  text-black  rounded-lg font-bold text-sm hover:bg-primary hover:text-white transition-colors cursor-pointer"
+                                >
+                                  {item.variants.length > 1
+                                    ? `Chỉ từ ${formatVND(item.variants[0].price)}`
+                                    : `${formatVND(item.variants[0].price)}`}
+                                </button>
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      </div>
-                    ))}
+                        );
+                    })}
                   </div>
                 </div>
               );
@@ -1119,8 +1156,8 @@ export default function IndexPage() {
             onClick={e => e.stopPropagation()}
           >
             {/* Image side */}
-            <div className="md:w-2/5 bg-white border-b md:border-b-0 md:border-r border-border/60 flex items-center justify-center p-5 sm:p-6 shrink-0">
-              <div className="relative w-full max-w-[320px] aspect-square">
+            <div className="md:w-2/5 bg-white border-b md:border-b-0 md:border-r border-border/60 flex items-center justify-center p-4 sm:p-6 shrink-0">
+              <div className="relative w-full max-w-[320px] aspect-square max-md:aspect-[3/2] max-md:max-h-[200px] max-md:max-w-[200px]">
                 <Image
                   src={selectedVariant.image.url}
                   alt={product.name}
@@ -1133,15 +1170,17 @@ export default function IndexPage() {
 
             {/* Config side */}
             <div className="flex-1 flex flex-col min-h-0">
-              <div className="flex items-start justify-between p-5 pb-3">
+              <div className="flex items-start justify-between p-4 sm:p-5 pb-2 sm:pb-3 shrink-0">
                 <div className="pr-3">
-                  <h3 className="text-xl text-foreground">{product.name}</h3>
+                  <h3 className="text-lg sm:text-xl text-foreground">{product.name}</h3>
                   <p className="text-[11px] text-muted-foreground mt-0.5">
                     {selectedVariant.size}
                     {isPizzaProduct && selectedCrust ? ` - ${formatCrustLabel(selectedCrust)}` : ""}
                   </p>
-                  <p className="text-sm text-muted-foreground mt-2 leading-relaxed">{product.description}</p>
-                  <p className="text-xs text-muted-foreground mt-1">
+                  <p className="text-xs sm:text-sm text-muted-foreground mt-1.5 sm:mt-2 leading-relaxed line-clamp-2 sm:line-clamp-none">
+                    {product.description}
+                  </p>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 line-clamp-2 sm:line-clamp-none">
                     Nguyên liệu: {selectedVariant.recipe.map(item => item.ingredient.name).join(", ")}
                   </p>
                 </div>
@@ -1155,7 +1194,7 @@ export default function IndexPage() {
                 </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto px-5 space-y-5">
+              <div className="flex-1 overflow-y-auto px-4 sm:px-5 space-y-4 sm:space-y-5">
                 <div className="space-y-3">
                   <div>
                     <p className="text-sm font-semibold text-foreground mb-2">Chọn kích thước</p>
@@ -1229,18 +1268,18 @@ export default function IndexPage() {
                   </div>
                 )}
 
-                <div>
+                <div className="pb-2">
                   <p className="text-sm font-semibold text-foreground mb-2">Ghi chú</p>
                   <Textarea
                     placeholder="Thêm ghi chú cho món này"
-                    className="min-h-[88px]"
+                    className="min-h-[52px]"
                     value={note}
                     onChange={e => setNote(e.target.value)}
                   />
                 </div>
               </div>
 
-              <div className="p-5 border-t border-border">
+              <div className="p-4 sm:p-5 border-t border-border shrink-0">
                 <button
                   onClick={() => {
                     const extraToppingNote = selectedExtraToppings.map(item => item.name).join(", ");
@@ -1281,8 +1320,8 @@ export default function IndexPage() {
                 className="bg-card rounded-3xl w-full max-w-4xl shadow-2xl overflow-hidden max-h-[92vh] flex flex-col md:flex-row"
                 onClick={e => e.stopPropagation()}
               >
-                <div className="md:w-2/5 bg-white border-b md:border-b-0 md:border-r border-border/60 flex items-center justify-center p-5 sm:p-6 shrink-0 relative">
-                  <div className="relative w-full max-w-[320px] aspect-square">
+                <div className="md:w-2/5 bg-white border-b md:border-b-0 md:border-r border-border/60 flex items-center justify-center p-4 sm:p-6 shrink-0 relative">
+                  <div className="relative w-full max-w-[320px] aspect-square max-md:aspect-[3/2] max-md:max-h-[200px] max-md:max-w-[200px]">
                     <Image
                       src={comboImg}
                       alt={selectedCombo.name}
@@ -1292,22 +1331,25 @@ export default function IndexPage() {
                     />
                   </div>
                   {savings > 0 && (
-                    <span className="absolute top-5 left-5 px-3 py-1.5 bg-orange-500 text-white text-sm font-semibold rounded-full">
+                    <span className="absolute top-3 sm:top-5 left-3 sm:left-5 px-2.5 sm:px-3 py-1 sm:py-1.5 bg-orange-500 text-white text-xs sm:text-sm font-semibold rounded-full">
                       Tiết kiệm {formatVND(savings)}
                     </span>
                   )}
                 </div>
 
                 <div className="flex-1 flex flex-col min-h-0">
-                  <div className="flex items-start justify-between p-5 pb-2">
+                  <div className="flex items-start justify-between p-4 sm:p-5 pb-2 shrink-0">
                     <div className="pr-3">
-                      <h3 className="text-xl text-foreground font-bold">{selectedCombo.name}</h3>
-                      <p className="text-sm text-muted-foreground mt-1 leading-relaxed">{selectedCombo.description}</p>
+                      <h3 className="text-lg sm:text-xl text-foreground font-bold">{selectedCombo.name}</h3>
+                      <p className="text-xs sm:text-sm text-muted-foreground mt-1 leading-relaxed line-clamp-2 sm:line-clamp-none">
+                        {selectedCombo.description}
+                      </p>
                     </div>
                     <button
                       onClick={() => {
                         setSelectedCombo(null);
                         setReplacingRule(null);
+                        setReplacingSlot(null);
                       }}
                       className="p-2 rounded-lg hover:bg-muted text-muted-foreground shrink-0"
                     >
@@ -1315,11 +1357,12 @@ export default function IndexPage() {
                     </button>
                   </div>
 
-                  <div className="flex-1 overflow-y-auto px-5 space-y-4 pb-2">
+                  <div className="flex-1 overflow-y-auto px-4 sm:px-5 space-y-3 sm:space-y-4 pb-2">
                     {selectedCombo.rules.map((rule, ruleIdx) => {
                       const products = getProductsForRule(rule);
                       const selectedSelections = comboSelections[ruleIdx] || [];
                       const isReplacing = replacingRule === ruleIdx;
+                      const isSlotReplacing = replacingSlot?.ruleIdx === ruleIdx;
 
                       const slots = Array.from({ length: rule.requiredQuantity }, (_, slotIdx) => {
                         const sel = selectedSelections[slotIdx] || null;
@@ -1339,17 +1382,9 @@ export default function IndexPage() {
                                 ({selectedSelections.length}/{rule.requiredQuantity})
                               </span>
                             </p>
-                            {isRuleFilled && !isReplacing && (
+                            {isSlotReplacing && (
                               <button
-                                onClick={() => setReplacingRule(ruleIdx)}
-                                className="text-xs text-orange-600 hover:text-orange-700 font-medium underline cursor-pointer"
-                              >
-                                Thay đổi
-                              </button>
-                            )}
-                            {isReplacing && (
-                              <button
-                                onClick={() => setReplacingRule(null)}
+                                onClick={() => setReplacingSlot(null)}
                                 className="text-xs text-muted-foreground hover:text-foreground font-medium cursor-pointer"
                               >
                                 Đóng
@@ -1357,7 +1392,7 @@ export default function IndexPage() {
                             )}
                           </div>
 
-                          {!isReplacing && selectedSelections.length > 0 && (
+                          {selectedSelections.length > 0 && (
                             <div className="space-y-2">
                               {slots.map((slot, slotIdx) =>
                                 slot.product && slot.variant ? (
@@ -1367,14 +1402,17 @@ export default function IndexPage() {
                                     variant={slot.variant}
                                     selectedCrust={slot.selection?.crust}
                                     ruleIdx={ruleIdx}
+                                    slotIdx={slotIdx}
                                     onChangeVariant={handleChangeComboVariant}
+                                    onReplace={(ri, si) => setReplacingSlot({ ruleIdx: ri, slotIdx: si })}
+                                    showReplace={isRuleFilled && !isReplacing && !isSlotReplacing}
                                   />
                                 ) : null,
                               )}
                             </div>
                           )}
 
-                          {(isReplacing || selectedSelections.length === 0) && products.length > 0 && (
+                          {(isReplacing || !isRuleFilled || isSlotReplacing) && products.length > 0 && (
                             <div className="grid grid-cols-2 gap-2 mt-1">
                               {products.map(product => {
                                 const repVariant = product.variants[0];
@@ -1419,7 +1457,7 @@ export default function IndexPage() {
                     })}
                   </div>
 
-                  <div className="p-5 border-t border-border space-y-2 shrink-0">
+                  <div className="p-4 sm:p-5 border-t border-border space-y-2 shrink-0">
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-muted-foreground line-through">{formatVND(originalPrice)}</span>
                       <span className="text-green-600 text-xs font-medium">Tiết kiệm {formatVND(savings)}</span>

@@ -32,7 +32,7 @@ export default function CustomerLayoutContent({ children }: { children: React.Re
       <Footer />
       {authMode && <AuthModal />}
       {showCart && <CartModal />}
-      {checkout && <CheckoutModal />}
+      {checkout && <CheckoutModal key={Date.now()} />}
     </>
   );
 }

@@ -14,6 +14,9 @@ import {
   Bike,
   CircleCheckBig,
   RefreshCcw,
+  Banknote,
+  Ban,
+  LoaderCircle,
 } from "lucide-react";
 import {
   cancelOrder,
@@ -106,6 +109,7 @@ export default function Orders() {
 
   const [modalConfirm, setModalConfirm] = useState(false);
   const [idConfirm, setIdConfirm] = useState("");
+  const [actioningId, setActioningId] = useState<string | null>(null);
 
   const [modalPayment, setModalPayment] = useState(false);
   const statusWeight = {
@@ -209,6 +213,77 @@ export default function Orders() {
     } catch (error) {
       toast.error(`Cập nhật trạng thái thất bại: ${error}`);
     }
+  };
+
+  const quickUpdateStatus = async (order: OrderHistory) => {
+    if (!order?.order_type) return;
+    setActioningId(order._id);
+    try {
+      const flow = flowConfig[order.order_type];
+      if (!flow || !Array.isArray(flow)) return;
+      const currentIndex = flow.indexOf(order.status);
+      if (currentIndex !== -1 && currentIndex < flow.length - 1) {
+        const nextStatus = flow[currentIndex + 1];
+        await updateStatusOrder(nextStatus, order._id, "");
+        toast.success("Cập nhật trạng thái thành công!");
+        fecthData();
+      }
+    } catch (error) {
+      toast.error(`Cập nhật thất bại: ${error}`);
+    } finally {
+      setActioningId(null);
+    }
+  };
+
+  const quickPayment = async (order: OrderHistory) => {
+    setActioningId(order._id);
+    try {
+      await updatePaymentStatusOrder(order._id, "");
+      toast.success("Thanh toán thành công!");
+      fecthData();
+    } catch (error) {
+      toast.error(`Thanh toán thất bại: ${error}`);
+    } finally {
+      setActioningId(null);
+    }
+  };
+
+  const quickCancel = async (order: OrderHistory) => {
+    setActioningId(order._id);
+    try {
+      await cancelOrder(order._id, "");
+      toast.success("Huỷ đơn hàng thành công!");
+      fecthData();
+    } catch (error) {
+      toast.error(`Huỷ đơn thất bại: ${error}`);
+    } finally {
+      setActioningId(null);
+    }
+  };
+
+  const getNextActionLabel = (order: OrderHistory): string | null => {
+    if (order.order_type === "delivery") {
+      return (actionTextMapDelivery as Record<string, string>)[order.status] || null;
+    }
+    return (actionTextMap as Record<string, string>)[order.status] || null;
+  };
+
+  const getNextActionIcon = (order: OrderHistory): React.ReactNode => {
+    if (order.order_type === "delivery") {
+      const map: Record<string, React.ReactNode> = {
+        pending: <CircleCheckBig size={15} />,
+        confirmed: <ChefHat size={15} />,
+        preparing: <Truck size={15} />,
+        delivering: <CheckCircle2 size={15} />,
+      };
+      return map[order.status] || <CircleCheckBig size={15} />;
+    }
+    const map: Record<string, React.ReactNode> = {
+      pending: <CircleCheckBig size={15} />,
+      confirmed: <ChefHat size={15} />,
+      preparing: <CheckCircle2 size={15} />,
+    };
+    return map[order.status] || <CircleCheckBig size={15} />;
   };
 
   const handleUpdateOrder = async () => {
@@ -378,7 +453,7 @@ export default function Orders() {
                   >
                     Giờ đặt {sortBy === "createdAt" && (sortOrder === "asc" ? "↑" : "↓")}
                   </th>
-                  <th className="px-4 py-3 text-right">Chi tiết</th>
+                  <th className="px-4 py-3 text-center">Chi tiết</th>
                 </tr>
               </thead>
               <tbody>
@@ -390,10 +465,15 @@ export default function Orders() {
                     <tr key={order._id} className="border-t border-border/50 hover:bg-muted/30">
                       <td className="px-4 py-3 text-primary">..{order._id.slice(-8)}</td>
                       <td className="px-4 py-3">
-                        <p className="text-foreground">
-                          {order.contact_info.full_name} - {order.contact_info.phone}
+                        <p className="text-foreground flex items-center gap-1 min-w-0">
+                          <span className="truncate max-w-[150px]" title={order.contact_info.full_name}>
+                            {order.contact_info.full_name}
+                          </span>
+                          <span className="shrink-0">- {order.contact_info.phone}</span>
                         </p>
-                        <p className="text-xs text-muted-foreground">{order.contact_info.address}</p>
+                        <p className="text-xs text-muted-foreground truncate max-w-[240px]" title={order.contact_info.address}>
+                          {order.contact_info.address}
+                        </p>
                       </td>
                       <td className="px-4 py-3">
                         <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs ${tc.color}`}>
@@ -413,12 +493,57 @@ export default function Orders() {
                       </td>
                       <td className="px-4 py-3 text-muted-foreground hidden lg:table-cell">{formatDateTime(order.createdAt)}</td>
                       <td className="px-4 py-3 text-right">
-                        <button
-                          onClick={() => setSelectedOrder(order)}
-                          className="p-2 rounded-lg hover:bg-primary/10 text-primary transition-colors"
-                        >
-                          <Eye size={16} />
-                        </button>
+                        <div className="flex items-center justify-end gap-0.5">
+                          {["pending", "confirmed", "preparing", "delivering"].includes(order.status) && (
+                            <>
+                              <button
+                                onClick={() => quickUpdateStatus(order)}
+                                disabled={actioningId === order._id}
+                                className="p-1.5 rounded-lg hover:bg-primary/10 text-primary transition-colors disabled:opacity-50"
+                                title={getNextActionLabel(order) || "Cập nhật trạng thái"}
+                              >
+                                {actioningId === order._id ? (
+                                  <LoaderCircle size={15} className="animate-spin" />
+                                ) : (
+                                  getNextActionIcon(order)
+                                )}
+                              </button>
+                              {order.paymentStatus !== "success" && (
+                                <button
+                                  onClick={() => quickPayment(order)}
+                                  disabled={actioningId === order._id}
+                                  className="p-1.5 rounded-lg hover:bg-green-50 text-green-600 transition-colors disabled:opacity-50"
+                                  title="Thanh toán"
+                                >
+                                  {actioningId === order._id ? (
+                                    <LoaderCircle size={15} className="animate-spin" />
+                                  ) : (
+                                    <Banknote size={15} />
+                                  )}
+                                </button>
+                              )}
+                              <button
+                                onClick={() => quickCancel(order)}
+                                disabled={actioningId === order._id}
+                                className="p-1.5 rounded-lg hover:bg-red-50 text-red-500 transition-colors disabled:opacity-50"
+                                title="Huỷ đơn"
+                              >
+                                {actioningId === order._id ? (
+                                  <LoaderCircle size={15} className="animate-spin" />
+                                ) : (
+                                  <Ban size={15} />
+                                )}
+                              </button>
+                            </>
+                          )}
+                          <button
+                            onClick={() => setSelectedOrder(order)}
+                            className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                            title="Chi tiết"
+                          >
+                            <Eye size={15} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -602,9 +727,9 @@ export default function Orders() {
                     className="flex-1 py-2.5 rounded-xl bg-primary text-white hover:bg-primary/90 transition-colors"
                   >
                     {selectedOrder.order_type === "carry_out" || selectedOrder.order_type === "dine_in" ? (
-                      <>{actionTextMap[selectedOrder.status] || "Cập nhật"}</>
+                      <>{(actionTextMap as Record<string, string>)[selectedOrder.status] || "Cập nhật"}</>
                     ) : (
-                      <>{actionTextMapDelivery[selectedOrder.status] || "Cập nhật"}</>
+                      <>{(actionTextMapDelivery as Record<string, string>)[selectedOrder.status] || "Cập nhật"}</>
                     )}
                   </button>
                 </div>

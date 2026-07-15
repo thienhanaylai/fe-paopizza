@@ -19,6 +19,9 @@ import {
   TrendingUp,
   Settings,
   LoaderCircle,
+  Square,
+  SquareCheckBig,
+  Trash2,
 } from "lucide-react";
 import { createStore, getAllStore, StoreAddress, StoreData, updateStore } from "@/src/services/store.service";
 import { getEmployeeByRole } from "@/src/services/employee.service";
@@ -66,6 +69,7 @@ export default function Stores() {
   const [listStore, setListStore] = useState<StoreData[]>();
   const [listManager, setListManager] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [nameStore, setNameStore] = useState("");
   const [streetNumber, setStreetNumber] = useState("");
   const [district, setDistrict] = useState("");
@@ -230,6 +234,28 @@ export default function Stores() {
       return matchSearch && matchStatus;
     });
 
+  const isAllSelected = (filtered?.length ?? 0) > 0 && filtered!.every(s => selectedIds.has(s._id));
+  const isIndeterminate = selectedIds.size > 0 && !isAllSelected;
+
+  const toggleSelectAll = () => {
+    if (isAllSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filtered?.map(s => s._id) ?? []));
+    }
+  };
+
+  const toggleSelectOne = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const clearSelection = () => setSelectedIds(new Set());
+
   const totalRevenue = revenue?.metrics.total_revenue || 0;
   const totalOrders = revenue?.metrics.total_orders || 0;
   const totalStaff = listStore?.reduce((a, b) => a + b.employee_count, 0);
@@ -321,98 +347,135 @@ export default function Stores() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {filtered?.map(store => {
-          const st = statusConfig[store.status];
-          return (
-            <div
-              key={store._id}
-              className="bg-card rounded-2xl border border-border hover:shadow-md transition-all overflow-h_idden"
+      {selectedIds.size > 0 && (
+        <div className="flex items-center justify-between gap-3 bg-primary/10 border border-primary/20 rounded-2xl px-5 py-3">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={clearSelection}
+              className="p-1.5 rounded-lg hover:bg-primary/10 text-muted-foreground hover:text-foreground transition-colors"
+              title="Bỏ chọn"
             >
-              <div className="p-5">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                      <Store size={22} className="text-primary" />
-                    </div>
-                    <div>
-                      <h3 className="text-foreground">{store.name}</h3>
-                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs mt-1 ${st.color}`}>
-                        {st.icon} {st.label}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => setSelectedStore(store)}
-                      className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-                      title="Xem chi tiết"
-                    >
-                      <Eye size={16} />
-                    </button>
-                    <button
-                      onClick={() => openEditForm(store)}
-                      className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-                      title="Chỉnh sửa"
-                    >
-                      <Edit2 size={16} />
-                    </button>
-                  </div>
-                </div>
-
-                <div className="space-y-2 text-sm">
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <MapPin size={14} className="shrink-0" />
-                    <span className="truncate">{formatAddress(store.address)}</span>
-                  </div>
-                  <div className="flex items-center gap-4 text-muted-foreground">
-                    <span className="flex items-center gap-1.5">
-                      <Phone size={14} /> {store.phone}
-                    </span>
-                    <span className="flex items-center gap-1.5">
-                      <Clock size={14} /> {store.time_open} - {store.time_close}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Users size={14} className="shrink-0" />
-                    <span>
-                      Quản lý: <span className="text-foreground">{store.manager_by?.name}</span> • {store.employee_count} nhân
-                      viên
-                    </span>
-                  </div>
-                </div>
-
-                {/* {store.status === "active" && (
-                  <div className="grid grid-cols-3 gap-3 mt-4 pt-4 border-t border-border">
-                    <div>
-                      <p className="text-xs text-muted-foreground">Doanh thu tháng</p>
-                      <p className="text-sm text-foreground mt-0.5">{formatVND(0)}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Đơn hàng</p>
-                      <p className="text-sm text-foreground mt-0.5">{0}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Tăng trưởng</p>
-                      <p className={`text-sm mt-0.5 flex items-center gap-1 ${0 >= 0 ? "text-green-600" : "text-red-600"}`}>
-                        <TrendingUp size={12} /> {0 > 0 ? "+" : ""}
-                        {0}%
-                      </p>
-                    </div>
-                  </div>
-                )} */}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {filtered?.length === 0 && (
-        <div className="text-center py-16 text-muted-foreground">
-          <Store size={48} className="mx-auto mb-3 opacity-30" />
-          <p>Không tìm thấy cửa hàng nào</p>
+              <X size={16} />
+            </button>
+            <span className="text-sm font-medium text-foreground">
+              Đã chọn <span className="text-primary font-semibold">{selectedIds.size}</span> cửa hàng
+            </span>
+          </div>
         </div>
       )}
+
+      <div className="bg-card rounded-2xl border border-border overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-border bg-muted/50">
+                <th className="w-12 px-4 py-3.5">
+                  <button
+                    onClick={toggleSelectAll}
+                    className="flex items-center justify-center w-full text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    {isAllSelected ? (
+                      <SquareCheckBig size={18} className="text-primary" />
+                    ) : isIndeterminate ? (
+                      <SquareCheckBig size={18} className="text-primary/60" />
+                    ) : (
+                      <Square size={18} />
+                    )}
+                  </button>
+                </th>
+                <th className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70">Tên cửa hàng</th>
+                <th className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70 hidden md:table-cell">Địa chỉ</th>
+                <th className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70 hidden lg:table-cell">SĐT</th>
+                <th className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70 hidden lg:table-cell">Quản lý</th>
+                <th className="text-center px-5 py-3.5 text-sm font-semibold text-foreground/70">Trạng thái</th>
+                <th className="text-center px-5 py-3.5 text-sm font-semibold text-foreground/70">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody>
+              {!filtered || filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-5 py-16 text-center text-muted-foreground">
+                    <Store size={40} className="mx-auto mb-3 text-muted-foreground/20" />
+                    <p className="text-sm">Không tìm thấy cửa hàng nào</p>
+                  </td>
+                </tr>
+              ) : (
+                filtered.map(store => {
+                  const st = statusConfig[store.status];
+                  const isSelected = selectedIds.has(store._id);
+                  return (
+                    <tr
+                      key={store._id}
+                      className={`border-b border-border last:border-b-0 hover:bg-muted/20 transition-colors ${isSelected ? "bg-primary/5" : ""}`}
+                    >
+                      <td className="px-4 py-3.5">
+                        <button
+                          onClick={() => toggleSelectOne(store._id)}
+                          className="flex items-center justify-center w-full text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          {isSelected ? <SquareCheckBig size={18} className="text-primary" /> : <Square size={18} />}
+                        </button>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                            <Store size={18} className="text-primary" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-foreground truncate">{store.name}</p>
+                            <p className="text-xs text-muted-foreground md:hidden mt-0.5 truncate">
+                              {formatAddress(store.address)}
+                            </p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-5 py-3.5 hidden md:table-cell">
+                        <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                          <MapPin size={13} className="shrink-0" />
+                          <span className="truncate max-w-[200px]">{formatAddress(store.address)}</span>
+                        </div>
+                      </td>
+                      <td className="px-5 py-3.5 hidden lg:table-cell">
+                        <span className="text-sm text-foreground/80">{store.phone || "-"}</span>
+                      </td>
+                      <td className="px-5 py-3.5 hidden lg:table-cell">
+                        <div className="flex items-center gap-1.5 text-sm">
+                          <Users size={13} className="text-muted-foreground shrink-0" />
+                          <span className="text-foreground/80">{store.manager_by?.name || "Chưa có"}</span>
+                        </div>
+                      </td>
+                      <td className="px-5 py-3.5 text-center">
+                        <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${st.color}`}>
+                          {st.icon}
+                          {st.label}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <div className="flex items-center justify-center gap-1">
+                          <button
+                            onClick={() => setSelectedStore(store)}
+                            className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                            title="Xem chi tiết"
+                          >
+                            <Eye size={16} />
+                          </button>
+                          <button
+                            onClick={() => openEditForm(store)}
+                            className="p-2 rounded-lg hover:bg-blue-50 text-muted-foreground hover:text-blue-500 transition-colors"
+                            title="Chỉnh sửa"
+                          >
+                            <Edit2 size={16} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
 
       {selectedStore && (
         <div

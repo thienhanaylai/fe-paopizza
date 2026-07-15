@@ -10,15 +10,20 @@ export interface VariantPayload {
   sku: string;
   size: string;
   price: number;
-  crust: string;
+  disscountType?: "percent" | "amount";
+  discount?: number;
+  crust: string[];
   recipe: RecipeItemPayload[];
-  imageFile: File;
+  imageFile?: File | null;
 }
 
 export interface UpdateVariantPayload {
   sku: string;
   size: string;
   price: number;
+  disscountType?: "percent" | "amount";
+  discount?: number;
+  crust?: string[];
   recipe: RecipeItemPayload[];
   image?: {
     url?: string;
@@ -79,6 +84,9 @@ export const addProduct = async (payload: AddProductPayload) => {
     sku: v.sku,
     size: v.size,
     price: Number(v.price),
+    disscountType: v.disscountType,
+    discount: v.discount,
+    crust: v.crust,
     recipe: v.recipe,
   }));
 
@@ -121,6 +129,9 @@ export const updateProduct = async (payload: UpdateProductPayload) => {
       sku: v.sku,
       size: v.size,
       price: Number(v.price),
+      disscountType: v.disscountType,
+      discount: v.discount,
+      crust: v.crust,
       recipe: v.recipe,
       image: v.image,
     }));
@@ -162,4 +173,28 @@ export const deletedProduct = async (product_id: string) => {
     "",
   );
   return response.data;
+};
+
+export const getProductById = async (product_id: string) => {
+  try {
+    const data = await http(`/api/v1/products/${product_id}`, {
+      next: { revalidate: 3600 },
+    });
+    return data.data;
+  } catch (error) {
+    console.error("Lỗi fetch product by id:", error);
+    throw error;
+  }
+};
+
+export const getProductsByCategory = async (category_id: string) => {
+  try {
+    const data = await http(`/api/v1/products/category/${category_id}`, {
+      next: { revalidate: 3600 },
+    });
+    return data.data;
+  } catch (error) {
+    console.error("Lỗi fetch products by category:", error);
+    throw error;
+  }
 };

@@ -22,6 +22,7 @@ import {
   KeyRound,
   Store,
   Package,
+  MenuIcon,
 } from "lucide-react";
 import { useState } from "react";
 import Link from "next/link";
@@ -38,6 +39,7 @@ const navItems: NavItem[] = [
   { label: "Tổng quan", path: "/is/dashboard", icon: <LayoutDashboard size={20} />, roles: ["admin", "manager", "staff"] },
   { label: "Quản lý cửa hàng", path: "/is/stores", icon: <Store size={20} />, roles: ["admin"] },
   { label: "Quản lý sản phẩm", path: "/is/products", icon: <Pizza size={20} />, roles: ["admin"] },
+  { label: "Quản lý thực đơn", path: "/is/menu", icon: <MenuIcon size={20} />, roles: ["admin"] },
   { label: "Danh mục nguyên liệu", path: "/is/ingredient-catalog", icon: <Warehouse size={20} />, roles: ["admin"] },
   { label: "Nhà cung cấp", path: "/is/suppliers", icon: <Truck size={20} />, roles: ["admin"] },
   { label: "Kho nguyên liệu", path: "/is/inventory", icon: <Package size={20} />, roles: ["manager"] },
