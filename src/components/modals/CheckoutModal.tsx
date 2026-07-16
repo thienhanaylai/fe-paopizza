@@ -211,7 +211,6 @@ export const CheckoutModal = () => {
       discount_amount: appliedPromo?.valid ? discountAmount : 0,
       customer_id: customer?.ref_id?._id || null,
     };
-    console.log(order);
     if (custName === "" || custPhone === "" || !currentStoreId) {
       toast.warning("Vui lòng nhập đầy đủ thông tin!");
       return;
@@ -221,7 +220,7 @@ export const CheckoutModal = () => {
       toast.warning("Vui lòng nhập địa chỉ giao hàng!");
       return;
     }
-    console.log(order);
+
     const result = await createOrder(order, "customer");
     const res = result.data;
     const payment = result.payment;

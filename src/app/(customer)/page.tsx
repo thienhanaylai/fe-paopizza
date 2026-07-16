@@ -4,7 +4,7 @@ import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getAllCategories } from "@/src/services/category.service";
 import { useCustomerAuth } from "@/src/context/authCustomerContext";
-import { useCart } from "@/src/context/cartContext";
+import { useCart, resolveComboId } from "@/src/context/cartContext";
 import type { ToppingRef, ProductPopulated } from "@/src/context/cartContext";
 import type { ComboSelectionPayload } from "@/src/services/cart.service";
 import { removeFromCartApi } from "@/src/services/cart.service";
@@ -440,7 +440,7 @@ export default function IndexPage() {
   useEffect(() => {
     if (!editingComboId || !menu) return;
 
-    const cartItem = cart?.items.find(item => item.combo_id === editingComboId || item.sku === editingComboId);
+    const cartItem = cart?.items.find(item => resolveComboId(item.combo) === editingComboId || item.sku === editingComboId);
     if (!cartItem) {
       setEditingComboId(null);
       return;
@@ -655,9 +655,8 @@ export default function IndexPage() {
             await removeFromCartApi({
               userId: user.id,
               item_type: "combo",
-              combo_id: selectedCombo._id,
+              combo: selectedCombo._id,
               size: oldCartItem.size,
-              sku: oldSku,
             });
           } catch {}
         } else {
@@ -709,12 +708,28 @@ export default function IndexPage() {
         });
       });
     });
-
+    console.log({
+      userId: user?.id,
+      item_type: "combo",
+      combo: selectedCombo._id,
+      comboInfo: {
+        _id: selectedCombo._id,
+        name: selectedCombo.name,
+        image: selectedCombo.image,
+      },
+      combo_selections: (user?.id ? comboSelectionsPayload : populatedSelections) as ComboSelectionPayload[],
+      sku: selectedCombo._id,
+      crust: "",
+      size: "",
+      quantity: 1,
+      note: "",
+      price: selectedCombo.price,
+    });
     await addToCart({
       userId: user?.id,
       item_type: "combo",
-      combo_id: selectedCombo._id,
-      combo: {
+      combo: selectedCombo._id,
+      comboInfo: {
         _id: selectedCombo._id,
         name: selectedCombo.name,
         image: selectedCombo.image,
@@ -975,7 +990,7 @@ export default function IndexPage() {
                     >
                       <div className="relative aspect-[4/3] overflow-hidden">
                         <Image
-                          src={combo.image || "/placeholder-combo.png"}
+                          src={combo.image || ""}
                           alt={combo.name}
                           fill
                           loading="eager"
@@ -1306,7 +1321,7 @@ export default function IndexPage() {
         (() => {
           const savings = computeComboSavings(selectedCombo);
           const originalPrice = computeComboOriginalPrice(selectedCombo);
-          const comboImg = selectedCombo.image || "/placeholder-combo.png";
+          const comboImg = selectedCombo.image || "";
 
           return (
             <div

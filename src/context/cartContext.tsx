@@ -49,8 +49,7 @@ export type CartItemType = "product" | "combo";
 export type CartItem = {
   item_type: CartItemType;
   product_id?: string | ProductPopulated;
-  combo_id?: string;
-  combo?: { _id: string; name: string; image?: string };
+  combo?: string | { _id: string; name: string; price?: number; image?: string };
   combo_selections?: ComboSelection[];
   added_topping: ToppingRef[];
   price: number;
@@ -70,14 +69,17 @@ export type Cart = {
 type AddToCartInput = Omit<AddToCartPayload, "userId"> & {
   userId?: string;
   product?: ProductPopulated;
-  combo?: { _id: string; name: string; image?: string };
+  comboInfo?: { _id: string; name: string; image?: string };
+  price?: number;
+  sku: string;
+  crust?: string;
 };
 
 type UpdateQuantityInput = {
   userId?: string;
   item_type?: CartItemType;
   product_id?: string;
-  combo_id?: string;
+  combo?: string;
   sku: string;
   size: string;
   crust?: string;
@@ -90,7 +92,7 @@ type RemoveItemInput = {
   userId?: string;
   item_type?: CartItemType;
   product_id?: string;
-  combo_id?: string;
+  combo?: string;
   sku: string;
   size: string;
   combo_selections?: ComboSelection[];
@@ -126,6 +128,11 @@ const createEmptyGuestCart = (): Cart => ({
 const resolveProductId = (product: string | ProductPopulated | undefined): string | undefined => {
   if (!product) return undefined;
   return typeof product === "string" ? product : product._id;
+};
+
+export const resolveComboId = (combo: string | { _id: string } | undefined): string | undefined => {
+  if (!combo) return undefined;
+  return typeof combo === "string" ? combo : combo._id;
 };
 
 const normalizeProduct = (product: unknown): string | ProductPopulated | undefined => {
@@ -285,21 +292,28 @@ const normalizeCartItem = (item: unknown): CartItem | null => {
       ? sourcePrice
       : Math.max(sourcePrice, variantBasePrice + toppingTotal);
 
+  const normalizedCombo =
+    source.combo && typeof source.combo === "object" && typeof (source.combo as Record<string, unknown>).name === "string"
+      ? {
+          _id: String((source.combo as Record<string, unknown>)._id || ""),
+          name: String((source.combo as Record<string, unknown>).name),
+          price:
+            typeof (source.combo as Record<string, unknown>).price === "number"
+              ? Number((source.combo as Record<string, unknown>).price)
+              : undefined,
+          image:
+            typeof (source.combo as Record<string, unknown>).image === "string"
+              ? String((source.combo as Record<string, unknown>).image)
+              : undefined,
+        }
+      : typeof source.combo === "string"
+        ? source.combo
+        : undefined;
+
   return {
     item_type: source.item_type === "combo" ? "combo" : "product",
     product_id: normalizedProduct,
-    combo_id: typeof source.combo_id === "string" ? source.combo_id : undefined,
-    combo:
-      source.combo && typeof source.combo === "object" && typeof (source.combo as Record<string, unknown>).name === "string"
-        ? {
-            _id: String((source.combo as Record<string, unknown>)._id || ""),
-            name: String((source.combo as Record<string, unknown>).name),
-            image:
-              typeof (source.combo as Record<string, unknown>).image === "string"
-                ? String((source.combo as Record<string, unknown>).image)
-                : undefined,
-          }
-        : undefined,
+    combo: normalizedCombo,
     combo_selections: comboSelections,
     added_topping: normalizedToppings,
     price: finalPrice,
@@ -385,7 +399,7 @@ const findLocalItemIndex = (
       return false;
     }
 
-    // Combo: so sánh thêm combo_selections để tách biệt các combo cùng loại nhưng chọn sản phẩm khác nhau
+    // so sánh thêm combo_selections để tách biệt các combo cùng loại nhưng chọn sản phẩm khác nhau
     if (params.itemType === "combo" || item.item_type === "combo") {
       if (!areComboSelectionsEqual(item.combo_selections, params.comboSelections)) {
         return false;
@@ -438,7 +452,6 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const syncGuestCartPromiseRef = useRef<Promise<boolean> | null>(null);
   const cartRef = useRef<Cart | null>(null);
 
-  // Keep cartRef in sync
   cartRef.current = cart;
 
   const syncGuestCartToServer = useCallback(async (userId: string) => {
@@ -465,7 +478,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
           continue;
         }
 
-        if (itemType === "combo" && !item.combo_id) {
+        const resolvedCombo = resolveComboId(item.combo);
+        if (itemType === "combo" && !resolvedCombo) {
           hasFailure = true;
           continue;
         }
@@ -475,10 +489,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
             userId,
             item_type: itemType,
             product_id: normalizedProductId,
-            combo_id: item.combo_id,
+            combo: resolvedCombo,
             combo_selections: mapComboSelectionsToPayload(item.combo_selections),
-            sku: item.sku,
-            price: item.price,
             size: item.size,
             quantity: item.quantity,
             note: item.note,
@@ -509,14 +521,15 @@ export function CartProvider({ children }: { children: ReactNode }) {
       if (!userId) {
         const guestCart = readGuestCart();
         setCart(guestCart);
+        console.log(guestCart);
         return guestCart;
       }
 
       try {
-        // Snapshot current cart to preserve combo metadata that API may not return
         const prevCart = cartRef.current;
         await syncGuestCartToServer(userId);
         const data = await getCart(userId);
+        console.log(data);
         const normalized = data
           ? normalizeCart(data)
           : {
@@ -525,13 +538,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
               items: [],
             };
 
-        // Merge back combo_id & combo from previous cart (API may strip them)
         if (prevCart) {
           normalized.items = normalized.items.map(item => {
-            if (item.item_type === "combo" && !item.combo_id) {
+            if (item.item_type === "combo" && !resolveComboId(item.combo)) {
               const prevItem = prevCart.items.find(p => p.sku === item.sku && p.item_type === "combo");
-              if (prevItem?.combo_id) {
-                return { ...item, combo_id: prevItem.combo_id, combo: prevItem.combo ?? item.combo };
+              if (prevItem && resolveComboId(prevItem.combo)) {
+                return { ...item, combo: prevItem.combo };
               }
             }
             return item;
@@ -562,9 +574,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
       price,
       item_type,
       added_topping,
-      combo_id,
+      combo: comboId,
       combo_selections,
-      combo,
+      comboInfo,
     } = payload;
 
     try {
@@ -574,23 +586,20 @@ export function CartProvider({ children }: { children: ReactNode }) {
           userId,
           item_type: itemType,
           product_id,
-          sku,
           size,
-          crust,
           quantity,
           note,
-          price,
           added_topping,
-          combo_id,
+          combo: comboId,
           combo_selections,
         });
 
         if (updatedCart) {
           const normalized = normalizeCart(updatedCart);
-          // Ensure combo_id & combo are preserved if API doesn't return them
-          if (item_type === "combo" && combo_id) {
+          // Ensure combo info is preserved if API doesn't return it fully
+          if (item_type === "combo" && comboId) {
             normalized.items = normalized.items.map(item =>
-              item.sku === sku && item.item_type === "combo" ? { ...item, combo_id, combo: combo ?? item.combo } : item,
+              item.sku === sku && item.item_type === "combo" ? { ...item, combo: comboInfo ?? comboId } : item,
             );
           }
           cartRef.current = normalized;
@@ -624,8 +633,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         nextItems.push({
           item_type: item_type ?? "product",
           product_id: item_type === "combo" ? undefined : (product ?? product_id),
-          combo_id,
-          combo: item_type === "combo" ? combo : undefined,
+          combo: item_type === "combo" ? (comboInfo ?? comboId) : undefined,
           combo_selections: item_type === "combo" ? combo_selections : undefined,
           added_topping: added_topping ?? [],
           price: typeof price === "number" ? price : fallbackPrice,
@@ -652,14 +660,14 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const updateQuantity = useCallback(
-    async ({ userId, item_type, product_id, combo_id, sku, size, currentQty, change, combo_selections }: UpdateQuantityInput) => {
+    async ({ userId, item_type, product_id, combo, sku, size, currentQty, change, combo_selections }: UpdateQuantityInput) => {
       const newQuantity = currentQty + change;
       const itemType: CartItemType = item_type === "combo" ? "combo" : "product";
-      // Resolve combo_id from current cart if not provided (API may strip it)
-      let resolvedComboId = combo_id;
+      // Resolve combo id from current cart if not provided (API may strip it)
+      let resolvedComboId = combo;
       if (itemType === "combo" && !resolvedComboId && userId) {
-        const cartItem = cartRef.current?.items.find(i => i.sku === sku && i.item_type === "combo" && i.combo_id);
-        resolvedComboId = cartItem?.combo_id;
+        const cartItem = cartRef.current?.items.find(i => i.sku === sku && i.item_type === "combo" && resolveComboId(i.combo));
+        resolvedComboId = resolveComboId(cartItem?.combo);
       }
       const canUseServerMutation =
         !!userId && ((itemType === "combo" && !!resolvedComboId) || (itemType === "product" && !!product_id));
@@ -671,9 +679,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
               userId,
               item_type: itemType,
               product_id,
-              combo_id: resolvedComboId,
+              combo: resolvedComboId,
               size,
-              sku,
             });
             setCart(normalizeCart(updatedCart));
           } else {
@@ -681,9 +688,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
               userId,
               item_type: itemType,
               product_id,
-              combo_id: resolvedComboId,
+              combo: resolvedComboId,
               size,
-              sku,
               quantity: newQuantity,
             });
             setCart(normalizeCart(updatedCart));
@@ -732,13 +738,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
   );
 
   const removeItem = useCallback(
-    async ({ userId, item_type, product_id, combo_id, sku, size, combo_selections }: RemoveItemInput) => {
+    async ({ userId, item_type, product_id, combo, sku, size, combo_selections }: RemoveItemInput) => {
       const itemType: CartItemType = item_type === "combo" ? "combo" : "product";
-      // Resolve combo_id from current cart if not provided (API may strip it)
-      let resolvedComboId = combo_id;
+      // Resolve combo id from current cart if not provided (API may strip it)
+      let resolvedComboId = combo;
       if (itemType === "combo" && !resolvedComboId && userId) {
-        const cartItem = cartRef.current?.items.find(i => i.sku === sku && i.item_type === "combo" && i.combo_id);
-        resolvedComboId = cartItem?.combo_id;
+        const cartItem = cartRef.current?.items.find(i => i.sku === sku && i.item_type === "combo" && resolveComboId(i.combo));
+        resolvedComboId = resolveComboId(cartItem?.combo);
       }
       const canUseServerMutation =
         !!userId && ((itemType === "combo" && !!resolvedComboId) || (itemType === "product" && !!product_id));
@@ -749,9 +755,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
             userId,
             item_type: itemType,
             product_id,
-            combo_id: resolvedComboId,
+            combo: resolvedComboId,
             size,
-            sku,
           });
           cartRef.current = normalizeCart(updatedCart);
           setCart(cartRef.current);

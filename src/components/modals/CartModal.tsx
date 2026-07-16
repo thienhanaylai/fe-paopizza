@@ -1,7 +1,7 @@
 "use client";
 
 import { Minus, PenLine, Plus, ShoppingCart, X } from "lucide-react";
-import { useCart } from "@/src/context/cartContext";
+import { useCart, resolveComboId } from "@/src/context/cartContext";
 import { useCustomerAuth } from "@/src/context/authCustomerContext";
 import Image from "next/image";
 import { formatVND } from "@/src/utils/formatVND";
@@ -80,29 +80,24 @@ export const CartModal = () => {
 
   const cartItems = useMemo(() => cart?.items || [], [cart?.items]);
 
-  /** Check if a cart item is available in current store */
   const isItemUnavailable = useCallback(
     (item: (typeof cartItems)[number]): boolean => {
-      if (!storeMenuSkus) return false; // still loading → don't mark unavailable
+      if (!storeMenuSkus) return false;
 
-      // Combo: check each selection's product SKU against menu
       if (item.item_type === "combo") {
-        // Check if combo itself is still in menu
         if (storeMenuData) {
-          const comboExists = storeMenuData.combos?.some(
-            entry => entry.combo._id === item.combo_id || entry._id === item.combo_id,
-          );
+          const comboId = resolveComboId(item.combo);
+          const comboExists = storeMenuData.combos?.some(entry => entry.combo._id === comboId || entry._id === comboId);
           if (!comboExists) return true;
         }
-        // Check each selected product SKU
+
         const availableSet = new Set(storeMenuSkus);
         if (item.combo_selections && item.combo_selections.length > 0) {
           return item.combo_selections.some(sel => !availableSet.has(sel.sku));
         }
-        return false; // combo with no selections → assume available
+        return false;
       }
 
-      // Product: check sku directly
       const availableSet = new Set(storeMenuSkus);
       return !availableSet.has(item.sku);
     },
@@ -153,8 +148,8 @@ export const CartModal = () => {
                 const productId = typeof item.product_id === "string" ? item.product_id : item.product_id?._id;
                 const isCombo = item.item_type === "combo";
                 const itemType = isCombo ? "combo" : "product";
-                const comboId = item.combo_id;
-                const combo = item.combo;
+                const comboId = resolveComboId(item.combo);
+                const combo = typeof item.combo === "object" ? item.combo : undefined;
                 const size = item.size;
                 const itemKey = `${item.sku}-${item.size}-${index}`;
                 const productSize = product?.variants.find(variant => variant.size === size);
@@ -167,7 +162,6 @@ export const CartModal = () => {
                 const extraToppingText = extraToppingPart?.replace(/extra topping:/i, "").trim();
                 const customNote = noteParts.filter(part => !part.toLowerCase().startsWith("extra topping:")).join(" | ");
 
-                // Combo display: get selection names and check individual availability
                 const comboSelectionNames =
                   isCombo && item.combo_selections
                     ? item.combo_selections.map(sel => {
@@ -184,7 +178,7 @@ export const CartModal = () => {
                           return selProduct?.name || sel.sku;
                         })
                     : [];
-                console.log(item);
+
                 return (
                   <div
                     key={itemKey}
@@ -197,7 +191,7 @@ export const CartModal = () => {
                     }`}
                   >
                     <Image
-                      src={isCombo ? combo?.image || "/placeholder-combo.png" : productSize?.image.url || ""}
+                      src={isCombo ? combo?.image || "" : productSize?.image.url || ""}
                       alt={isCombo ? combo?.name || "Combo" : "Pizza"}
                       width={80}
                       height={80}
@@ -235,7 +229,7 @@ export const CartModal = () => {
                                 userId: user?.id,
                                 item_type: itemType,
                                 product_id: productId,
-                                combo_id: comboId,
+                                combo: comboId,
                                 sku: item.sku,
                                 size: item.size,
                                 combo_selections: item.combo_selections,
@@ -273,7 +267,7 @@ export const CartModal = () => {
                         {!isUnavailable && isCombo && (
                           <button
                             onClick={() => {
-                              setEditingComboId(item.combo_id || item.sku);
+                              setEditingComboId(comboId || item.sku);
                               setShowCart(false);
                             }}
                             className="inline-flex items-center gap-1 text-xs text-orange-600 mt-1 hover:underline"
@@ -314,7 +308,7 @@ export const CartModal = () => {
                                 userId: user?.id,
                                 item_type: itemType,
                                 product_id: productId,
-                                combo_id: comboId,
+                                combo: comboId,
                                 sku: item.sku,
                                 size: item.size,
                                 currentQty: item.quantity,
@@ -334,7 +328,7 @@ export const CartModal = () => {
                                 userId: user?.id,
                                 item_type: itemType,
                                 product_id: productId,
-                                combo_id: comboId,
+                                combo: comboId,
                                 sku: item.sku,
                                 size: item.size,
                                 currentQty: item.quantity,
@@ -361,7 +355,7 @@ export const CartModal = () => {
                                 userId: user?.id,
                                 item_type: itemType,
                                 product_id: productId,
-                                combo_id: comboId,
+                                combo: comboId,
                                 sku: item.sku,
                                 size: item.size,
                                 combo_selections: item.combo_selections,

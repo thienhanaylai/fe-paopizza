@@ -74,7 +74,6 @@ export type Combo = {
   isDeleted: boolean;
 };
 
-/** Mỗi phần tử trong mảng combos của menu được bọc trong { combo, _id } */
 export type MenuComboEntry = {
   combo: Combo;
   _id: string;
@@ -99,7 +98,7 @@ export const getMenuByStoreId = async (store_id: string) => {
       },
       "customer",
     );
-    console.log(response.data);
+
     return response.data;
   } catch (error) {
     console.error("Lỗi fetch menu:", error);

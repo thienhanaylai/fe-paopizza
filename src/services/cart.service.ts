@@ -12,12 +12,9 @@ export type AddToCartPayload = {
   userId: string;
   item_type?: "product" | "combo";
   product_id?: string;
-  combo_id?: string;
+  combo?: string;
   combo_selections?: ComboSelectionPayload[];
-  sku: string;
-  price?: number;
   size: string;
-  crust?: string;
   quantity?: number;
   note?: string;
   added_topping?: string[];
@@ -27,20 +24,19 @@ export type RemoveFromCartPayload = {
   userId: string;
   item_type?: "product" | "combo";
   product_id?: string;
-  combo_id?: string;
+  combo?: string;
   size: string;
-  sku?: string;
 };
 
 export type UpdateCartItemPayload = {
   userId: string;
   item_type?: "product" | "combo";
   product_id?: string;
-  combo_id?: string;
+  combo?: string;
   size: string;
-  sku?: string;
-  quantity: number;
+  quantity?: number;
   note?: string;
+  added_topping?: string[];
 };
 
 // Lấy giỏ hàng
