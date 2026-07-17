@@ -25,7 +25,9 @@ export type RemoveFromCartPayload = {
   item_type?: "product" | "combo";
   product_id?: string;
   combo?: string;
+  sku?: string;
   size: string;
+  combo_selections?: ComboSelectionPayload[];
 };
 
 export type UpdateCartItemPayload = {
@@ -33,10 +35,12 @@ export type UpdateCartItemPayload = {
   item_type?: "product" | "combo";
   product_id?: string;
   combo?: string;
+  sku?: string;
   size: string;
   quantity?: number;
   note?: string;
   added_topping?: string[];
+  combo_selections?: ComboSelectionPayload[];
 };
 
 // Lấy giỏ hàng
@@ -85,6 +89,7 @@ export const removeFromCartApi = async (payload: RemoveFromCartPayload) => {
 
 // Cập nhật số lượng / ghi chú
 export const updateCartItemApi = async (payload: UpdateCartItemPayload) => {
+  console.log(payload);
   const response = await http(
     "/api/v1/cart/update",
     {

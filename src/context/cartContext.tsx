@@ -381,7 +381,7 @@ const persistGuestCart = (cart: Cart) => {
 };
 
 /** So sánh 2 danh sách combo_selections dựa trên sku đã chọn */
-const areComboSelectionsEqual = (a?: ComboSelection[], b?: ComboSelection[]): boolean => {
+export const areComboSelectionsEqual = <T extends { sku: string }>(a?: T[], b?: T[]): boolean => {
   if (!a && !b) return true;
   if (!a || !b) return false;
   if (a.length !== b.length) return false;
@@ -674,13 +674,17 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
       try {
         if (canUseServerMutation) {
+          // Luôn gửi combo_selections cho combo để backend phân biệt các instance khác nhau
+          const comboSelectionsPayload = itemType === "combo" ? (mapComboSelectionsToPayload(combo_selections) ?? []) : undefined;
           if (newQuantity < 1) {
             const updatedCart = await removeFromCartApi({
               userId,
               item_type: itemType,
               product_id,
               combo: resolvedComboId,
+              sku,
               size,
+              combo_selections: comboSelectionsPayload,
             });
             setCart(normalizeCart(updatedCart));
           } else {
@@ -689,8 +693,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
               item_type: itemType,
               product_id,
               combo: resolvedComboId,
+              sku,
               size,
               quantity: newQuantity,
+              combo_selections: comboSelectionsPayload,
             });
             setCart(normalizeCart(updatedCart));
           }
@@ -756,7 +762,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
             item_type: itemType,
             product_id,
             combo: resolvedComboId,
+            sku,
             size,
+            combo_selections: itemType === "combo" ? (mapComboSelectionsToPayload(combo_selections) ?? []) : undefined,
           });
           cartRef.current = normalizeCart(updatedCart);
           setCart(cartRef.current);

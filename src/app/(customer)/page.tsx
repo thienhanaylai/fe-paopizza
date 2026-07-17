@@ -4,7 +4,7 @@ import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getAllCategories } from "@/src/services/category.service";
 import { useCustomerAuth } from "@/src/context/authCustomerContext";
-import { useCart, resolveComboId } from "@/src/context/cartContext";
+import { useCart, resolveComboId, areComboSelectionsEqual } from "@/src/context/cartContext";
 import type { ToppingRef, ProductPopulated } from "@/src/context/cartContext";
 import type { ComboSelectionPayload } from "@/src/services/cart.service";
 import { removeFromCartApi } from "@/src/services/cart.service";
@@ -75,7 +75,14 @@ const SlotCard = ({
   selectedCrust?: string;
   ruleIdx: number;
   slotIdx?: number;
-  onChangeVariant: (ruleIdx: number, productId: string, newSku: string, newSize: string, newCrust?: string) => void;
+  onChangeVariant: (
+    ruleIdx: number,
+    slotIdx: number,
+    productId: string,
+    newSku: string,
+    newSize: string,
+    newCrust?: string,
+  ) => void;
   onReplace?: (ruleIdx: number, slotIdx: number) => void;
   showReplace?: boolean;
 }) => {
@@ -106,7 +113,7 @@ const SlotCard = ({
     const matching = findVariantBySizeCrust(size, undefined);
     if (matching && matching.size !== variant.size) {
       const newCrust = parseCrustOptions(matching.crust)[0] || undefined;
-      onChangeVariant(ruleIdx, product._id, matching.sku, matching.size, newCrust);
+      onChangeVariant(ruleIdx, slotIdx ?? 0, product._id, matching.sku, matching.size, newCrust);
     }
   };
 
@@ -118,14 +125,14 @@ const SlotCard = ({
       // Nếu tìm thấy variant KHÁC → đổi hoàn toàn
       if (matching.sku !== variant.sku) {
         const newCrust = parseCrustOptions(matching.crust)[0] || undefined;
-        onChangeVariant(ruleIdx, product._id, matching.sku, matching.size, newCrust);
+        onChangeVariant(ruleIdx, slotIdx ?? 0, product._id, matching.sku, matching.size, newCrust);
       } else {
         // Cùng variant nhưng crust khác → chỉ cập nhật crust
-        onChangeVariant(ruleIdx, product._id, variant.sku, variant.size, crust);
+        onChangeVariant(ruleIdx, slotIdx ?? 0, product._id, variant.sku, variant.size, crust);
       }
     } else {
       // Không tìm thấy variant riêng → cùng 1 variant, chỉ đổi crust
-      onChangeVariant(ruleIdx, product._id, variant.sku, variant.size, crust);
+      onChangeVariant(ruleIdx, slotIdx ?? 0, product._id, variant.sku, variant.size, crust);
     }
   };
 
@@ -221,6 +228,7 @@ export default function IndexPage() {
   const [replacingRule, setReplacingRule] = useState<number | null>(null);
   const [replacingSlot, setReplacingSlot] = useState<{ ruleIdx: number; slotIdx: number } | null>(null);
   const editingComboOldSkuRef = useRef<string | null>(null);
+  const comboCounterRef = useRef(0);
 
   const productListRef = useRef<HTMLDivElement | null>(null);
   const handleCategoryClick = (categorySlug: string) => {
@@ -590,9 +598,6 @@ export default function IndexPage() {
     if (replacingSlot && replacingSlot.ruleIdx === ruleIndex) {
       setComboSelections(prev => {
         const current = [...(prev[ruleIndex] || [])];
-        // Không cho chọn trùng product đã có ở slot khác
-        const isDuplicate = current.some((s, i) => s.productId === selection.productId && i !== replacingSlot.slotIdx);
-        if (isDuplicate) return prev;
         current[replacingSlot.slotIdx] = selection;
         return { ...prev, [ruleIndex]: current };
       });
@@ -603,26 +608,33 @@ export default function IndexPage() {
     setComboSelections(prev => {
       const current = prev[ruleIndex] || [];
       const requiredQty = selectedCombo?.rules[ruleIndex]?.requiredQuantity || 1;
-      // Toggle: nếu đã có selection cùng productId → bỏ chọn
-      const idx = current.findIndex(s => s.productId === selection.productId);
-      if (idx >= 0) {
-        return { ...prev, [ruleIndex]: current.filter((_, i) => i !== idx) };
+      // Còn slot trống → thêm slot mới (cho phép chọn cùng sản phẩm nhiều lần)
+      if (current.length < requiredQty) {
+        return { ...prev, [ruleIndex]: [...current, selection] };
       }
       // Đã đủ số lượng → thay thế phần tử đầu
-      if (current.length >= requiredQty) {
-        const next = [...current];
-        next.shift();
-        return { ...prev, [ruleIndex]: [...next, selection] };
-      }
-      return { ...prev, [ruleIndex]: [...current, selection] };
+      const next = [...current];
+      next.shift();
+      return { ...prev, [ruleIndex]: [...next, selection] };
     });
   };
 
   /** Thay đổi variant (size/crust) của 1 sản phẩm đã chọn trong combo */
-  const handleChangeComboVariant = (ruleIndex: number, productId: string, newSku: string, newSize: string, newCrust?: string) => {
+  const handleChangeComboVariant = (
+    ruleIndex: number,
+    slotIdx: number,
+    productId: string,
+    newSku: string,
+    newSize: string,
+    newCrust?: string,
+  ) => {
     setComboSelections(prev => {
       const current = [...(prev[ruleIndex] || [])];
-      const idx = current.findIndex(s => s.productId === productId);
+      // Ưu tiên tìm theo slotIdx, fallback tìm theo productId
+      let idx = slotIdx;
+      if (idx >= current.length || current[idx]?.productId !== productId) {
+        idx = current.findIndex(s => s.productId === productId);
+      }
       if (idx >= 0) {
         current[idx] = {
           productId,
@@ -656,19 +668,33 @@ export default function IndexPage() {
               userId: user.id,
               item_type: "combo",
               combo: selectedCombo._id,
+              sku: oldSku,
               size: oldCartItem.size,
+              combo_selections: oldCartItem.combo_selections?.map(sel => ({
+                product_id: typeof sel.product_id === "string" ? sel.product_id : sel.product_id?._id || "",
+                sku: sel.sku,
+                size: sel.size,
+                crust: sel.crust,
+              })),
             });
           } catch {}
         } else {
           const guestCart = JSON.parse(localStorage.getItem("guest_cart") || "{}");
           if (guestCart.items) {
-            guestCart.items = guestCart.items.filter((item: { sku: string }) => item.sku !== oldSku);
+            guestCart.items = guestCart.items.filter(
+              (item: { sku: string; combo_selections?: Array<{ sku: string }> }) =>
+                !(item.sku === oldSku && areComboSelectionsEqual(item.combo_selections, oldCartItem.combo_selections)),
+            );
             localStorage.setItem("guest_cart", JSON.stringify(guestCart));
           }
         }
       }
       editingComboOldSkuRef.current = null;
     }
+
+    // Generate unique SKU for each combo instance
+    comboCounterRef.current += 1;
+    const newSku = `combo-${selectedCombo._id}-${comboCounterRef.current}`;
 
     const comboSelectionsPayload: ComboSelectionPayload[] = [];
     const populatedSelections: Array<{
@@ -708,23 +734,7 @@ export default function IndexPage() {
         });
       });
     });
-    console.log({
-      userId: user?.id,
-      item_type: "combo",
-      combo: selectedCombo._id,
-      comboInfo: {
-        _id: selectedCombo._id,
-        name: selectedCombo.name,
-        image: selectedCombo.image,
-      },
-      combo_selections: (user?.id ? comboSelectionsPayload : populatedSelections) as ComboSelectionPayload[],
-      sku: selectedCombo._id,
-      crust: "",
-      size: "",
-      quantity: 1,
-      note: "",
-      price: selectedCombo.price,
-    });
+
     await addToCart({
       userId: user?.id,
       item_type: "combo",
@@ -735,7 +745,7 @@ export default function IndexPage() {
         image: selectedCombo.image,
       },
       combo_selections: (user?.id ? comboSelectionsPayload : populatedSelections) as ComboSelectionPayload[],
-      sku: selectedCombo._id,
+      sku: newSku,
       crust: "",
       size: "",
       quantity: 1,
@@ -1434,7 +1444,6 @@ export default function IndexPage() {
                               )}
                             </div>
                           )}
-
                           {(isReplacing || !isRuleFilled || isSlotReplacing) && products.length > 0 && (
                             <div className="grid grid-cols-2 gap-2 mt-1">
                               {products.map(product => {
@@ -1463,7 +1472,6 @@ export default function IndexPage() {
                                       </div>
                                       <div className="min-w-0">
                                         <p className="text-sm font-medium text-foreground truncate">{product.name}</p>
-                                        <p className="text-xs text-muted-foreground">{repVariant.size}</p>
                                       </div>
                                     </div>
                                   </button>

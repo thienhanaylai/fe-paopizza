@@ -32,6 +32,7 @@ import { cancelOrder, createPosOrder, PosOrder, PaymentMethod, type OrderItem } 
 import { checkPaymentStatus } from "@/src/services/payment.service";
 import { formatVND } from "@/src/utils/formatVND";
 import { http } from "@/src/utils/config.api";
+import type { ComboRule } from "@/src/services/menu.service";
 
 type OrderType = "dine_in" | "carry_out" | "delivery";
 
@@ -69,6 +70,7 @@ export type ProductVariant = {
   sku: string;
   price: number;
   size: string;
+  crust: string[];
   image: ProductImage;
   recipe: RecipeIngredient[];
 };
@@ -94,7 +96,15 @@ interface CartItem {
   quantity: number;
   note: string;
   image: string;
+  combo_selections?: ComboSlotSelection[];
 }
+
+type ComboSlotSelection = {
+  productId: string;
+  sku: string;
+  size: string;
+  crust?: string;
+};
 
 /** Combo from store menu */
 interface ComboDisplay {
@@ -103,7 +113,21 @@ interface ComboDisplay {
   description?: string;
   image?: string;
   price: number;
+  rules: ComboRule[];
 }
+
+const parseCrustOptions = (value: string | string[] | undefined): string[] => {
+  if (!value) return [];
+  if (Array.isArray(value)) return Array.from(new Set(value.flatMap(item => parseCrustOptions(item))));
+  const raw = value.trim();
+  if (!raw) return [];
+  const splitByDelimiter = raw
+    .split(/[\s,|/;]+/)
+    .map(item => item.trim().toLowerCase())
+    .filter(Boolean);
+  if (splitByDelimiter.length > 1) return Array.from(new Set(splitByDelimiter));
+  return [raw];
+};
 
 const tables = ["T01", "T02", "T03", "T04", "T05", "T06", "T07", "T08", "T09", "T10", "T11", "T12"];
 
@@ -165,6 +189,11 @@ export default function POS() {
   const [editNoteIndex, setEditNoteIndex] = useState<number | null>(null);
   const [posCollapsed, setPosCollapsed] = useState(true);
 
+  // Combo selection modal state
+  const [selectedCombo, setSelectedCombo] = useState<ComboDisplay | null>(null);
+  const [comboSelections, setComboSelections] = useState<Record<number, ComboSlotSelection[]>>({});
+  const [menuProducts, setMenuProducts] = useState<Product[]>([]);
+
   const [activeCategory, setActiveCategory] = useState<string>("all");
   const [activeTab, setActiveTab] = useState<MenuTab>("all");
   const [products, setProducts] = useState<Product[]>([]);
@@ -181,6 +210,7 @@ export default function POS() {
   const [testtime, setTestime] = useState<Date>();
 
   const pollingRef = useRef(null);
+  const comboCounterRef = useRef(0);
   const stopPolling = () => {
     if (pollingRef.current) {
       clearInterval(pollingRef.current);
@@ -237,6 +267,8 @@ export default function POS() {
             const menuData = await http(`/api/v1/menus/store/${storeId}`, { next: { revalidate: 3600 } });
             const menu = menuData?.data ?? menuData;
             if (menu?.products) setProducts(menu.products);
+            // Store products separately for combo selection
+            if (menu?.products) setMenuProducts(menu.products);
             if (menu?.combos) {
               const mapped: ComboDisplay[] = menu.combos.map((entry: any) => {
                 const c = entry.combo ?? entry;
@@ -246,6 +278,7 @@ export default function POS() {
                   description: c.description,
                   image: c.image,
                   price: c.price ?? 0,
+                  rules: Array.isArray(c.rules) ? c.rules : [],
                 };
               });
               setCombos(mapped);
@@ -277,6 +310,21 @@ export default function POS() {
 
   const addToCart = (item: CartItem) => {
     setCart(prev => {
+      // For combos, match by combo_id AND combo_selections
+      if (item.item_type === "combo" && item.combo_selections) {
+        const idx = prev.findIndex(
+          c =>
+            c.item_type === "combo" &&
+            c.combo_id === item.combo_id &&
+            areComboSelectionsEqualPos(c.combo_selections, item.combo_selections),
+        );
+        if (idx >= 0) {
+          const next = [...prev];
+          next[idx] = { ...next[idx], quantity: next[idx].quantity + 1 };
+          return next;
+        }
+        return [...prev, { ...item, quantity: 1, note: "" }];
+      }
       const idx = prev.findIndex(c => c.sku === item.sku);
       if (idx >= 0) {
         const next = [...prev];
@@ -287,17 +335,121 @@ export default function POS() {
     });
   };
 
-  const addComboToCart = (combo: ComboDisplay) => {
+  // ─── Combo selection helpers ───
+  const areComboSelectionsEqualPos = (a?: ComboSlotSelection[], b?: ComboSlotSelection[]): boolean => {
+    if (!a && !b) return true;
+    if (!a || !b) return false;
+    if (a.length !== b.length) return false;
+    const aSkus = [...a.map(s => s.sku)].sort();
+    const bSkus = [...b.map(s => s.sku)].sort();
+    return aSkus.every((sku, i) => sku === bSkus[i]);
+  };
+
+  const getProductsForRule = (rule: ComboRule): Product[] => {
+    if (!menuProducts.length) return [];
+    let filtered: Product[];
+    if (rule.applicableProducts && rule.applicableProducts.length > 0) {
+      filtered = menuProducts.filter(p => rule.applicableProducts.includes(p._id));
+    } else {
+      const categoryIds = rule.applicableCategories.map(cat => (typeof cat === "string" ? cat : cat._id || cat.slug));
+      filtered = menuProducts.filter(p => categoryIds.includes(p.category?._id) || categoryIds.includes(p.category?.slug));
+    }
+    // Filter to only products that have at least one variant matching applicableSizes
+    if (rule.applicableSizes && rule.applicableSizes.length > 0) {
+      filtered = filtered.filter(p => p.variants.some(v => rule.applicableSizes.includes(v.size)));
+    }
+    return filtered;
+  };
+
+  const handleOpenCombo = (combo: ComboDisplay) => {
+    setSelectedCombo(combo);
+    setComboSelections({});
+  };
+
+  const handleSelectComboProduct = (ruleIndex: number, sku: string) => {
+    const product = menuProducts.find(p => p.variants.some(v => v.sku === sku));
+    const rule = selectedCombo?.rules[ruleIndex];
+    const variant = product?.variants.find(v => v.sku === sku) || product?.variants[0];
+    if (!variant || !product) return;
+
+    const selection: ComboSlotSelection = {
+      productId: product._id,
+      sku: variant.sku,
+      size: variant.size,
+      crust: parseCrustOptions(variant.crust)[0] || undefined,
+    };
+
+    setComboSelections(prev => {
+      const current = prev[ruleIndex] || [];
+      const requiredQty = rule?.requiredQuantity || 1;
+      // Còn slot trống → thêm slot mới (cho phép chọn cùng sản phẩm nhiều lần)
+      if (current.length < requiredQty) {
+        return { ...prev, [ruleIndex]: [...current, selection] };
+      }
+      // Đã đủ số lượng → thay thế phần tử đầu tiên
+      const next = [...current];
+      next.shift();
+      return { ...prev, [ruleIndex]: [...next, selection] };
+    });
+  };
+
+  const handleChangeComboVariant = (
+    ruleIndex: number,
+    slotIdx: number,
+    productId: string,
+    newSku: string,
+    newSize: string,
+    newCrust?: string,
+  ) => {
+    setComboSelections(prev => {
+      const current = [...(prev[ruleIndex] || [])];
+      if (slotIdx >= 0 && slotIdx < current.length && current[slotIdx]?.productId === productId) {
+        current[slotIdx] = { productId, sku: newSku, size: newSize, crust: newCrust };
+      } else {
+        // Fallback: tìm theo productId
+        const idx = current.findIndex(s => s.productId === productId);
+        if (idx >= 0) {
+          current[idx] = { productId, sku: newSku, size: newSize, crust: newCrust };
+        }
+      }
+      return { ...prev, [ruleIndex]: current };
+    });
+  };
+
+  /** Get variants for a product that match the rule's applicableSizes */
+  const getVariantsForRule = (product: Product, rule: ComboRule): ProductVariant[] => {
+    if (!rule.applicableSizes || rule.applicableSizes.length === 0) return product.variants;
+    return product.variants.filter(v => rule.applicableSizes.includes(v.size));
+  };
+
+  const allComboSelectionsFilled = useMemo(() => {
+    if (!selectedCombo) return false;
+    return selectedCombo.rules.every((rule, idx) => {
+      const selected = comboSelections[idx] || [];
+      return selected.length >= rule.requiredQuantity;
+    });
+  }, [selectedCombo, comboSelections]);
+
+  const handleAddComboToCart = () => {
+    if (!selectedCombo || !allComboSelectionsFilled) return;
+    comboCounterRef.current += 1;
+    const allSelections: ComboSlotSelection[] = [];
+    selectedCombo.rules.forEach((_rule, idx) => {
+      (comboSelections[idx] || []).forEach(sel => allSelections.push(sel));
+    });
     addToCart({
       item_type: "combo",
-      combo_id: combo._id,
-      name: combo.name,
-      price: combo.price,
-      sku: `combo-${combo._id}`,
+      combo_id: selectedCombo._id,
+      name: selectedCombo.name,
+      price: selectedCombo.price,
+      sku: `combo-${selectedCombo._id}-${comboCounterRef.current}`,
       quantity: 1,
       note: "",
-      image: combo.image ?? "",
+      image: selectedCombo.image ?? "",
+      combo_selections: allSelections,
     });
+    setSelectedCombo(null);
+    setComboSelections({});
   };
 
   const updateQty = (index: number, delta: number) => {
@@ -351,6 +503,12 @@ export default function POS() {
             size: "",
             quantity: item.quantity,
             note: item.note,
+            combo_selections: item.combo_selections?.map(sel => ({
+              product_id: sel.productId,
+              sku: sel.sku,
+              size: sel.size,
+              crust: sel.crust,
+            })),
           };
         }
         return {
@@ -496,7 +654,30 @@ export default function POS() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-1">
-                        <p className="text-xs text-foreground truncate">{item.name}</p>
+                        <div className="min-w-0">
+                          <p className="text-xs text-foreground truncate flex items-center gap-1">
+                            {item.name} {item.item_type === "product" ? ` - ${item.size}` : ``}
+                            {item.item_type === "combo" && (
+                              <span className="px-1 py-0.5 bg-orange-500 text-white text-[9px] font-semibold rounded-full shrink-0">
+                                COMBO
+                              </span>
+                            )}
+                          </p>
+                          {item.item_type === "combo" && item.combo_selections && item.combo_selections.length > 0 && (
+                            <div className="mt-0.5 space-y-0.5">
+                              {item.combo_selections.map((sel, si) => {
+                                const selProduct = menuProducts.find(p => p._id === sel.productId);
+                                return (
+                                  <p key={si} className="text-[10px] text-muted-foreground flex items-center gap-1">
+                                    <span className="w-1 h-1 rounded-full bg-orange-400 shrink-0" />
+                                    {selProduct?.name || sel.productId} - {sel.size}
+                                    {sel.crust ? ` - ${sel.crust}` : ""}
+                                  </p>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
                         <button
                           onClick={() => removeItem(i)}
                           className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-500 transition-all p-0.5"
@@ -880,7 +1061,7 @@ export default function POS() {
               {filteredCombos.map(combo => (
                 <button
                   key={combo._id}
-                  onClick={() => addComboToCart(combo)}
+                  onClick={() => handleOpenCombo(combo)}
                   className="bg-card rounded-xl border overflow-hidden hover:shadow-lg transition-all text-left group relative"
                 >
                   <div className="aspect-[4/3] bg-muted relative overflow-hidden">
@@ -1033,6 +1214,246 @@ export default function POS() {
             </div>
           </div>
         </>
+      )}
+      {/* ─── Combo Selection Modal ─── */}
+      {selectedCombo && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => {
+            setSelectedCombo(null);
+            setComboSelections({});
+          }}
+        >
+          <div
+            className="bg-card rounded-2xl p-5 w-full max-w-lg max-h-[85vh] overflow-y-auto shadow-2xl"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-foreground text-lg font-bold flex items-center gap-2">
+                {selectedCombo.image && (
+                  <Image
+                    src={selectedCombo.image}
+                    alt={selectedCombo.name}
+                    width={32}
+                    height={32}
+                    className="rounded-lg object-cover"
+                  />
+                )}
+                {selectedCombo.name}
+              </h3>
+              <button
+                onClick={() => {
+                  setSelectedCombo(null);
+                  setComboSelections({});
+                }}
+                className="p-2 rounded-lg hover:bg-muted text-muted-foreground transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {selectedCombo.description && <p className="text-xs text-muted-foreground mb-4">{selectedCombo.description}</p>}
+
+            {/* Rules */}
+            <div className="space-y-4 mb-4">
+              {selectedCombo.rules.map((rule, ruleIdx) => {
+                const products = getProductsForRule(rule);
+                const selectedSlots = comboSelections[ruleIdx] || [];
+
+                return (
+                  <div key={ruleIdx} className="border border-border rounded-xl p-3 bg-muted/20">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-sm font-semibold text-foreground">
+                        {rule.groupName}
+                        <span className="text-xs text-muted-foreground ml-1 font-normal">
+                          ({selectedSlots.length}/{rule.requiredQuantity})
+                        </span>
+                      </p>
+                    </div>
+
+                    {/* Selected slots with size/crust selectors */}
+                    {selectedSlots.length > 0 && (
+                      <div className="space-y-2 mb-3">
+                        {Array.from({ length: rule.requiredQuantity }, (_, slotIdx) => {
+                          const sel = selectedSlots[slotIdx];
+                          if (!sel) return null;
+                          const selProduct = menuProducts.find(p => p._id === sel.productId);
+                          if (!selProduct) return null;
+                          const ruleVariants = getVariantsForRule(selProduct, rule);
+                          const currentVariant = ruleVariants.find(v => v.sku === sel.sku) || ruleVariants[0];
+                          const sizes = Array.from(new Set(ruleVariants.map(v => v.size)));
+                          const crustsForSize = currentVariant
+                            ? Array.from(
+                                new Set(
+                                  ruleVariants
+                                    .filter(v => v.size === currentVariant.size)
+                                    .flatMap(v => parseCrustOptions(v.crust))
+                                    .filter(Boolean),
+                                ),
+                              )
+                            : [];
+
+                          return (
+                            <div key={slotIdx} className="bg-orange-50/60 border border-orange-200 rounded-lg px-3 py-2">
+                              <div className="flex items-center justify-between mb-1.5">
+                                <span className="text-xs font-medium text-foreground truncate flex-1">{selProduct.name}</span>
+                                <button
+                                  onClick={() => {
+                                    setComboSelections(prev => {
+                                      const cur = [...(prev[ruleIdx] || [])];
+                                      cur.splice(slotIdx, 1);
+                                      return { ...prev, [ruleIdx]: cur };
+                                    });
+                                  }}
+                                  className="text-muted-foreground hover:text-red-500 p-0.5 shrink-0 ml-1"
+                                >
+                                  <X size={12} />
+                                </button>
+                              </div>
+                              {/* Size & Crust selectors */}
+                              <div>
+                                {/* Size buttons */}
+                                {sizes.length > 1 && (
+                                  <div className="flex items-center gap-1.5">
+                                    {sizes.map(size => {
+                                      const isActive = size === (currentVariant?.size || "");
+                                      return (
+                                        <button
+                                          key={size}
+                                          onClick={() => {
+                                            const matching = ruleVariants.find(v => v.size === size);
+                                            if (matching) {
+                                              handleChangeComboVariant(
+                                                ruleIdx,
+                                                slotIdx,
+                                                sel.productId,
+                                                matching.sku,
+                                                matching.size,
+                                                parseCrustOptions(matching.crust)[0] || undefined,
+                                              );
+                                            }
+                                          }}
+                                          className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
+                                            isActive
+                                              ? "bg-orange-500 text-white shadow-sm"
+                                              : "bg-white border border-border text-muted-foreground hover:border-orange-300"
+                                          }`}
+                                        >
+                                          {size}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+                                {sizes.length === 1 && (
+                                  <span className="text-xs text-muted-foreground">{currentVariant?.size}</span>
+                                )}
+                                {/* Crust buttons */}
+                                {crustsForSize.length > 1 && (
+                                  <div className="flex items-center gap-1.5 mt-1.5">
+                                    {crustsForSize.map(crust => {
+                                      const activeCrust = sel.crust || parseCrustOptions(currentVariant?.crust || [])[0];
+                                      const isActive = crust === activeCrust;
+                                      return (
+                                        <button
+                                          key={crust}
+                                          onClick={() => {
+                                            const matchingVariant = ruleVariants.find(
+                                              v => v.size === currentVariant?.size && parseCrustOptions(v.crust).includes(crust),
+                                            );
+                                            if (matchingVariant) {
+                                              handleChangeComboVariant(
+                                                ruleIdx,
+                                                slotIdx,
+                                                sel.productId,
+                                                matchingVariant.sku,
+                                                matchingVariant.size,
+                                                crust,
+                                              );
+                                            }
+                                          }}
+                                          className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
+                                            isActive
+                                              ? "bg-gray-800 text-white shadow-sm"
+                                              : "bg-white border border-border text-muted-foreground hover:border-gray-300"
+                                          }`}
+                                        >
+                                          {crust.charAt(0).toUpperCase() + crust.slice(1)}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {/* Product grid - luôn hiển thị để có thể chọn lại/thay thế */}
+                    {products.length > 0 && (
+                      <div className="grid grid-cols-2 gap-2">
+                        {products.map(product => {
+                          const ruleVariants = getVariantsForRule(product, rule);
+                          const variant = ruleVariants[0];
+                          if (!variant) return null;
+                          const isSelected = selectedSlots.some(s => s.productId === product._id && s.sku === variant.sku);
+                          return (
+                            <button
+                              key={product._id}
+                              onClick={() => handleSelectComboProduct(ruleIdx, variant.sku)}
+                              className={`p-2.5 rounded-xl border text-left transition-all ${
+                                isSelected
+                                  ? "border-orange-500 bg-orange-50 ring-1 ring-orange-200"
+                                  : "border-border bg-background hover:border-orange-300 hover:bg-orange-50/30"
+                              }`}
+                            >
+                              <div className="flex items-center gap-2">
+                                <div className="relative w-10 h-10 rounded-lg overflow-hidden shrink-0 bg-muted">
+                                  {variant.image?.url ? (
+                                    <Image src={variant.image.url} alt={product.name} fill className="object-cover" />
+                                  ) : (
+                                    <div className="w-full h-full flex items-center justify-center">
+                                      <Pizza size={14} className="text-muted-foreground/30" />
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="text-xs font-medium text-foreground truncate">{product.name}</p>
+                                  <p className="text-[10px] text-muted-foreground">{variant.size}</p>
+                                </div>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {products.length === 0 && <p className="text-xs text-muted-foreground italic">Không có sản phẩm khả dụng</p>}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Bottom bar */}
+            <div className="border-t border-border pt-3 flex items-center justify-between">
+              <span className="text-primary font-bold text-lg">{formatVND(selectedCombo.price)}</span>
+              <button
+                onClick={handleAddComboToCart}
+                disabled={!allComboSelectionsFilled}
+                className={`px-6 py-2.5 rounded-xl flex items-center gap-2 text-sm font-medium transition-all ${
+                  allComboSelectionsFilled
+                    ? "bg-orange-500 text-white hover:bg-orange-600 shadow-lg shadow-orange-500/25"
+                    : "bg-muted text-muted-foreground cursor-not-allowed"
+                }`}
+              >
+                <Plus size={16} /> Thêm vào giỏ ({formatVND(selectedCombo.price)})
+              </button>
+            </div>
+          </div>
+        </div>
       )}
       <Toaster
         toastOptions={{
