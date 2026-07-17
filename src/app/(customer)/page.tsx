@@ -1141,11 +1141,19 @@ export default function IndexPage() {
             <h2 className="text-3xl text-foreground mb-3">Liên hệ với chúng tôi</h2>
             <p className="text-muted-foreground">Đặt hàng hoặc cần hỗ trợ? Liên hệ ngay!</p>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-3xl mx-auto">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-4xl mx-auto">
             {[
-              { icon: <Phone size={22} />, label: "Hotline", value: "0917580860" },
-              { icon: <MapPin size={22} />, label: "Địa chỉ", value: "180 Cao lỗ, Q.8, TP.HCM" },
-              { icon: <Clock size={22} />, label: "Giờ mở cửa", value: "10:00 - 23:00 hàng ngày" },
+              { icon: <Phone size={22} />, label: "Hotline", value: "19000860" },
+              {
+                icon: <MapPin size={22} />,
+                label: "Địa chỉ",
+                value: `${menu?.store.address.streetNumber || ""}, ${menu?.store.address.district || ""}, ${menu?.store.address.city || ""}`,
+              },
+              {
+                icon: <Clock size={22} />,
+                label: "Giờ mở cửa",
+                value: `${menu?.store.time_open || ""} - ${menu?.store.time_close || ""}`,
+              },
             ].map(c => (
               <div key={c.label} className="bg-card rounded-2xl border border-border p-6 text-center">
                 <div className="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center mx-auto mb-3">

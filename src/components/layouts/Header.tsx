@@ -288,7 +288,9 @@ export default function Header() {
                     Đăng ký
                   </button>
                 </div>
-              ) : null}
+              ) : (
+                <></>
+              )}
             </div>
           </div>
         </div>

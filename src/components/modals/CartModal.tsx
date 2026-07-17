@@ -162,13 +162,13 @@ export const CartModal = () => {
                 const extraToppingText = extraToppingPart?.replace(/extra topping:/i, "").trim();
                 const customNote = noteParts.filter(part => !part.toLowerCase().startsWith("extra topping:")).join(" | ");
 
-                const comboSelectionNames =
+                const comboSelection =
                   isCombo && item.combo_selections
                     ? item.combo_selections.map(sel => {
-                        const selProduct = typeof sel.product_id === "string" ? null : sel.product_id;
-                        return selProduct?.name || sel.sku;
+                        return sel;
                       })
                     : [];
+
                 const comboUnavailableSkus: string[] =
                   isCombo && isUnavailable && storeMenuSkus && item.combo_selections
                     ? item.combo_selections
@@ -212,12 +212,13 @@ export const CartModal = () => {
                               )}
                             </div>
                             {/* Combo selections detail */}
-                            {isCombo && comboSelectionNames.length > 0 && (
+                            {isCombo && comboSelection.length > 0 && (
                               <div className="mt-1.5 space-y-0.5">
-                                {comboSelectionNames.map((name, i) => (
+                                {comboSelection.map((itemCombo, i) => (
                                   <p key={i} className="text-xs text-muted-foreground flex items-center gap-1">
                                     <span className="w-1 h-1 rounded-full bg-orange-400 shrink-0" />
-                                    {name}
+                                    {itemCombo.product_id?.name} - {itemCombo.size}{" "}
+                                    {itemCombo.crust ? `- ${itemCombo.crust}` : ``}
                                   </p>
                                 ))}
                               </div>

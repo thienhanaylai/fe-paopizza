@@ -28,9 +28,10 @@ import Image from "next/image";
 import { getAllCategories } from "@/src/services/category.service";
 import { getAllProducts } from "@/src/services/product.service";
 import { toast, Toaster } from "sonner";
-import { cancelOrder, createPosOrder, PosOrder, PaymentMethod } from "@/src/services/order.service";
+import { cancelOrder, createPosOrder, PosOrder, PaymentMethod, type OrderItem } from "@/src/services/order.service";
 import { checkPaymentStatus } from "@/src/services/payment.service";
 import { formatVND } from "@/src/utils/formatVND";
+import { http } from "@/src/utils/config.api";
 
 type OrderType = "dine_in" | "carry_out" | "delivery";
 
@@ -39,6 +40,8 @@ type MenuCategoryUI = {
   name: string;
   icon: string;
 };
+
+type MenuTab = "all" | "products" | "combos";
 export type ProductCategory = {
   _id: string;
   name: string;
@@ -81,15 +84,25 @@ interface Product {
 }
 
 interface CartItem {
-  item_type: "product";
-  product_id: string;
+  item_type: "product" | "combo";
+  product_id?: string;
+  combo_id?: string;
   name: string;
   price: number;
-  size: string;
+  size?: string;
   sku: string;
   quantity: number;
   note: string;
   image: string;
+}
+
+/** Combo from store menu */
+interface ComboDisplay {
+  _id: string;
+  name: string;
+  description?: string;
+  image?: string;
+  price: number;
 }
 
 const tables = ["T01", "T02", "T03", "T04", "T05", "T06", "T07", "T08", "T09", "T10", "T11", "T12"];
@@ -153,7 +166,9 @@ export default function POS() {
   const [posCollapsed, setPosCollapsed] = useState(true);
 
   const [activeCategory, setActiveCategory] = useState<string>("all");
+  const [activeTab, setActiveTab] = useState<MenuTab>("all");
   const [products, setProducts] = useState<Product[]>([]);
+  const [combos, setCombos] = useState<ComboDisplay[]>([]);
   const [contactModal, setContactModal] = useState(false);
   const [categories, setCategories] = useState<MenuCategoryUI[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -214,29 +229,74 @@ export default function POS() {
         ];
         setCategories(finalCategories);
         setProducts(products);
+
+        // Also fetch store-specific menu for combos & store-filtered products
+        const storeId = user?.store_id;
+        if (storeId) {
+          try {
+            const menuData = await http(`/api/v1/menus/store/${storeId}`, { next: { revalidate: 3600 } });
+            const menu = menuData?.data ?? menuData;
+            if (menu?.products) setProducts(menu.products);
+            if (menu?.combos) {
+              const mapped: ComboDisplay[] = menu.combos.map((entry: any) => {
+                const c = entry.combo ?? entry;
+                return {
+                  _id: c._id ?? entry._id,
+                  name: c.name ?? "",
+                  description: c.description,
+                  image: c.image,
+                  price: c.price ?? 0,
+                };
+              });
+              setCombos(mapped);
+            }
+          } catch {
+            /* keep fallback products if menu fails */
+          }
+        }
       } catch (error) {
         return;
       }
     };
     fectData();
-  }, []);
+  }, [user?.store_id]);
 
   const filteredMenu = useMemo(() => {
+    if (activeTab === "combos") return [];
     let items = activeCategory === "all" ? products : products.filter(m => m?.category.slug === activeCategory);
     if (search) items = items.filter(m => m.name.toLowerCase().includes(search.toLowerCase()));
     return items;
-  }, [products, activeCategory, search]);
+  }, [products, activeCategory, search, activeTab]);
+
+  const filteredCombos = useMemo(() => {
+    if (activeTab === "products") return [];
+    let items = combos;
+    if (search) items = items.filter(c => c.name.toLowerCase().includes(search.toLowerCase()));
+    return items;
+  }, [combos, search, activeTab]);
 
   const addToCart = (item: CartItem) => {
     setCart(prev => {
       const idx = prev.findIndex(c => c.sku === item.sku);
-
       if (idx >= 0) {
         const next = [...prev];
         next[idx] = { ...next[idx], quantity: next[idx].quantity + 1 };
         return next;
       }
       return [...prev, { ...item, quantity: 1, note: "" }];
+    });
+  };
+
+  const addComboToCart = (combo: ComboDisplay) => {
+    addToCart({
+      item_type: "combo",
+      combo_id: combo._id,
+      name: combo.name,
+      price: combo.price,
+      sku: `combo-${combo._id}`,
+      quantity: 1,
+      note: "",
+      image: combo.image ?? "",
     });
   };
 
@@ -281,7 +341,28 @@ export default function POS() {
         toast.error("Không thể xác thực nhân viên, vui lòng đăng nhập lại");
         return;
       }
-      const listItem: CartItem[] = cart;
+      const listItem: OrderItem[] = cart.map(item => {
+        if (item.item_type === "combo") {
+          return {
+            item_type: "combo",
+            combo_id: item.combo_id,
+            sku: item.sku,
+            price: item.price,
+            size: "",
+            quantity: item.quantity,
+            note: item.note,
+          };
+        }
+        return {
+          item_type: "product",
+          product_id: item.product_id,
+          sku: item.sku,
+          price: item.price,
+          size: item.size ?? "",
+          quantity: item.quantity,
+          note: item.note,
+        };
+      });
 
       const order: PosOrder = {
         order_type: orderType,
@@ -706,6 +787,26 @@ export default function POS() {
             </span>
           </div>
 
+          {/* Tab: All | Món ăn | Combo */}
+          <div className="flex gap-1 bg-muted rounded-xl p-1">
+            {[
+              { key: "all" as MenuTab, label: "Tất cả" },
+              { key: "products" as MenuTab, label: "Món ăn" },
+              { key: "combos" as MenuTab, label: "Combo" },
+            ].map(t => (
+              <button
+                key={t.key}
+                onClick={() => {
+                  setActiveTab(t.key);
+                  setActiveCategory("all");
+                }}
+                className={`px-3 py-1.5 rounded-lg text-xs transition-all ${activeTab === t.key ? "bg-primary text-white shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+
           <div className="relative flex-1 max-w-xs">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input
@@ -718,64 +819,97 @@ export default function POS() {
         </div>
 
         <div className="flex-1 overflow-y-auto p-4">
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
-            {filteredMenu.map(item => {
-              return item.variants.map(prd => {
-                return (
-                  <button
-                    key={prd.sku}
-                    onClick={() => {
-                      const itemCart: CartItem = {
-                        item_type: "product",
-                        product_id: item._id,
-                        name: item.name,
-                        note: "",
-                        price: prd.price,
-                        quantity: 1,
-                        size: prd.size,
-                        sku: prd.sku,
-                        image: prd.image.url,
-                      };
-                      addToCart(itemCart);
-                    }}
-                    className={`bg-card rounded-xl border overflow-hidden hover:shadow-lg transition-all text-left group relative `}
-                  >
-                    <div className="aspect-[4/3] bg-muted relative overflow-hidden">
-                      {prd.image.url ? (
-                        <Image
-                          fill
-                          loading="eager"
-                          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                          src={prd?.image.url}
-                          alt={item.name}
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <Pizza size={28} className="text-muted-foreground/20" />
-                        </div>
-                      )}
-
-                      {/* {inCart && (
-                        <div className="absolute bottom-1.5 right-1.5 w-6 h-6 bg-primary text-white text-xs rounded-full flex items-center justify-center shadow-lg">
-                          {inCart.qty}
-                        </div>
-                      )} */}
-                    </div>
-                    <div className="p-2.5">
-                      <p className="text-xs text-foreground truncate">
-                        {item.name} - {prd.size}
-                      </p>
-                      <div className="flex items-center gap-1.5 mt-1">
-                        <span className="text-xs text-primary">{formatVND(prd?.price)}</span>
+          {/* ─── Products ─── */}
+          {activeTab !== "combos" && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 mb-4">
+              {filteredMenu.map(item => {
+                return item.variants.map(prd => {
+                  return (
+                    <button
+                      key={prd.sku}
+                      onClick={() => {
+                        const itemCart: CartItem = {
+                          item_type: "product",
+                          product_id: item._id,
+                          name: item.name,
+                          note: "",
+                          price: prd.price,
+                          quantity: 1,
+                          size: prd.size,
+                          sku: prd.sku,
+                          image: prd.image.url,
+                        };
+                        addToCart(itemCart);
+                      }}
+                      className={`bg-card rounded-xl border overflow-hidden hover:shadow-lg transition-all text-left group relative `}
+                    >
+                      <div className="aspect-[4/3] bg-white relative overflow-hidden">
+                        {prd.image.url ? (
+                          <Image
+                            fill
+                            loading="eager"
+                            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                            src={prd?.image.url}
+                            alt={item.name}
+                            className="object-contain"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <Pizza size={28} className="text-muted-foreground/20" />
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  </button>
-                );
-              });
-            })}
-          </div>
+                      <div className="p-2.5">
+                        <p className="text-xs text-foreground truncate">
+                          {item.name} - {prd.size}
+                        </p>
+                        <div className="flex items-center gap-1.5 mt-1">
+                          <span className="text-xs text-primary">{formatVND(prd?.price)}</span>
+                        </div>
+                      </div>
+                    </button>
+                  );
+                });
+              })}
+            </div>
+          )}
 
-          {filteredMenu.length === 0 && (
+          {/* ─── Combos ─── */}
+          {activeTab !== "products" && filteredCombos.length > 0 && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 mb-4">
+              {filteredCombos.map(combo => (
+                <button
+                  key={combo._id}
+                  onClick={() => addComboToCart(combo)}
+                  className="bg-card rounded-xl border overflow-hidden hover:shadow-lg transition-all text-left group relative"
+                >
+                  <div className="aspect-[4/3] bg-muted relative overflow-hidden">
+                    {combo.image ? (
+                      <Image
+                        fill
+                        loading="eager"
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                        src={combo.image}
+                        alt={combo.name}
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <Pizza size={28} className="text-muted-foreground/20" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="p-2.5">
+                    <p className="text-xs text-foreground truncate">{combo.name}</p>
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <span className="text-xs text-primary">{formatVND(combo.price)}</span>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {filteredMenu.length === 0 && filteredCombos.length === 0 && (
             <div className="flex flex-col items-center justify-center py-16 text-muted-foreground/40">
               <Search size={40} className="mb-2" />
               <p className="text-sm">Không tìm thấy sản phẩm</p>

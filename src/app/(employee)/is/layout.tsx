@@ -1,6 +1,7 @@
 "use client";
 
 import { EmployeeAuthProvider } from "@/src/context/authEmployeeContext";
+import { CartProvider } from "@/src/context/cartContext";
 import { Providers } from "./providers";
 
 export default function CustomerLayout({
@@ -11,7 +12,9 @@ export default function CustomerLayout({
   return (
     <>
       <Providers>
-        <EmployeeAuthProvider>{children}</EmployeeAuthProvider>
+        <CartProvider>
+          <EmployeeAuthProvider>{children}</EmployeeAuthProvider>
+        </CartProvider>
       </Providers>
     </>
   );
