@@ -102,7 +102,7 @@ export const addProduct = async (payload: AddProductPayload) => {
     method: "POST",
     body: formData,
   });
-
+  console.log(response.data);
   return response.data;
 };
 

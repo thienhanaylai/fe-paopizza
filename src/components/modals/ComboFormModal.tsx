@@ -109,17 +109,20 @@ export default function ComboFormModal({
     discountType: "percent" | "amount";
     discount: number;
     price: number;
-  }>({ discountType: "percent", discount: 0, price: 0 });
+  }>({ discountType: "percent", discount: 0, price: 123 });
   const [formImage, setFormImage] = useState<{ file: File | null; preview: string | null }>({
     file: null,
     preview: null,
   });
   const [comboFormRules, setComboFormRules] = useState<ComboRule[]>([createEmptyRule()]);
   const [priceInputKey, setPriceInputKey] = useState(0);
-
+  const [isMount, setIsMount] = useState(false);
   // Initialize form when modal opens or editItem changes
   useLayoutEffect(() => {
-    if (!open) return;
+    if (!open) {
+      setIsMount(false);
+      return;
+    }
     if (editItem) {
       setFormData({
         name: editItem.name || "",
@@ -142,6 +145,7 @@ export default function ComboFormModal({
       setComboFormRules([createEmptyRule()]);
       setPriceInputKey(prev => prev + 1);
     }
+    setIsMount(true);
   }, [open, editItem]);
 
   // Cleanup preview URL on unmount
@@ -153,6 +157,7 @@ export default function ComboFormModal({
     };
   }, [formImage.preview]);
 
+  console.log(formPricing);
   // ─── Rule handlers ───
   const comboAddRule = useCallback(() => {
     setComboFormRules(prev => [...prev, createEmptyRule()]);
@@ -186,7 +191,7 @@ export default function ComboFormModal({
   );
 
   if (!open) return null;
-
+  if (!isMount) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 m-0!" onClick={onClose}>
       <div

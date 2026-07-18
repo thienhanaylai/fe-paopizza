@@ -1,6 +1,19 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
-import { Search, Plus, Edit2, Trash2, Phone, Mail, UserCircle, Briefcase, Clock, Filter, MapPinned } from "lucide-react";
+import {
+  Search,
+  Plus,
+  Edit2,
+  Trash2,
+  Phone,
+  Mail,
+  UserCircle,
+  Briefcase,
+  Clock,
+  Filter,
+  MapPinned,
+  AlertCircle,
+} from "lucide-react";
 import {
   EmployeeRole,
   EmployeeStation,
@@ -601,56 +614,55 @@ export default function Employees() {
         </div>
       )}
       {modalConfirm && (
-        <>
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 m-0"
-            onClick={() => setModalConfirm(false)}
-          >
-            <div
-              className="bg-card rounded-2xl p-6 w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto"
-              onClick={e => e.stopPropagation()}
-            >
-              <h3>Xoá {editItem?.name}</h3>
-              <div className="flex gap-1 m-2">
-                Nhập <p className="font-mono">`{editItem?._id.slice(-8)}`</p> để xác nhận xoá nhân viên?
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-card rounded-2xl p-6 max-w-sm w-full mx-4 shadow-xl border border-border">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center">
+                <AlertCircle size={20} className="text-red-500" />
               </div>
-              <input
-                className="w-full pl-4 pr-1 py-2.5 rounded-xl border border-border bg-card focus:border-primary focus:ring-1 focus:ring-primary/20 outline-none"
-                type="text"
-                onChange={e => setIdConfirm(e.target.value)}
-                placeholder={`Nhập '${editItem?._id.slice(-8)}' để xác nhận`}
-              />
-              <div className="flex gap-3 pt-3">
-                <button
-                  onClick={() => setModalConfirm(false)}
-                  className="flex-1 py-2.5 rounded-xl border border-red-200 text-black hover:bg-red-50 transition-colors"
-                >
-                  Thoát
-                </button>
-                <button
-                  onClick={() => {
-                    if (idConfirm === editItem?._id.slice(-8)) handleDeleteEmployee();
-                  }}
-                  disabled={idConfirm !== editItem?._id.slice(-8)}
-                  className="flex-1 py-2.5 disabled:bg-gray-400 disabled:cursor-not-allowed disabled:opacity-70 rounded-xl bg-red-600 text-white hover:bg-red-700/90 transition-colors"
-                >
-                  Xoá nhân viên
-                </button>
+              <div>
+                <h3 className="text-lg font-semibold text-foreground">Xác nhận xoá</h3>
+                <p className="text-sm text-muted-foreground">
+                  Bạn có chắc muốn xoá nhân viên <span className="font-semibold text-foreground">{editItem?.name}</span>?
+                </p>
               </div>
             </div>
+            <p className="text-sm text-muted-foreground mb-3">
+              Hành động này không thể hoàn tác. Vui lòng nhập mã xác nhận bên dưới.
+            </p>
+            <div className="mb-1">
+              <label className="text-xs text-muted-foreground">
+                Nhập <span className="font-mono text-foreground font-semibold">{editItem?._id.slice(-8)}</span> để xác nhận
+              </label>
+            </div>
+            <input
+              className="w-full px-4 py-2.5 rounded-xl border border-border bg-background focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none font-mono text-sm"
+              type="text"
+              onChange={e => setIdConfirm(e.target.value)}
+              placeholder={`Nhập '${editItem?._id.slice(-8)}' để xác nhận`}
+            />
+            <div className="flex gap-3 justify-end mt-4">
+              <button
+                onClick={() => setModalConfirm(false)}
+                className="px-4 py-2 rounded-xl border border-border hover:bg-muted/50 transition-colors text-sm"
+              >
+                Huỷ
+              </button>
+              <button
+                onClick={() => {
+                  if (idConfirm === editItem?._id.slice(-8)) handleDeleteEmployee();
+                }}
+                disabled={idConfirm !== editItem?._id.slice(-8)}
+                className="flex items-center gap-2 bg-red-500 text-white px-4 py-2 rounded-xl hover:bg-red-600 transition-colors text-sm disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                <Trash2 size={16} />
+                Xoá nhân viên
+              </button>
+            </div>
           </div>
-        </>
+        </div>
       )}
-      <Toaster
-        toastOptions={{
-          classNames: {
-            success: "bg-green-500! text-white! border-green-600!",
-            error: "bg-red-500! text-white! border-red-600!",
-            warning: "bg-yellow-500! text-white! border-yellow-600!",
-            toast: "bg-gray-800! text-white!",
-          },
-        }}
-      />
+      <Toaster position="top-right" richColors />
     </div>
   );
 }

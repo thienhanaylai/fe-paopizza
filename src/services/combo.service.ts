@@ -4,7 +4,7 @@ import { http } from "@/src/utils/config.api";
 export interface ComboRulePayload {
   groupName: string;
   applicableCategories: string[];
-  applicableProducts: string[];
+  applicableProducts?: string[];
   applicableSizes: string[];
   requiredQuantity: number;
 }
@@ -75,11 +75,11 @@ export const getComboById = async (combo_id: string) => {
 
 export const addCombo = async (payload: ComboPayload, imageFile?: File | null) => {
   try {
-    const { body, headers } = buildComboBody(payload as unknown as Record<string, unknown>, imageFile);
+    const sanitized = sanitizeComboPayload(payload);
+    const body = await buildComboJson(sanitized as unknown as Record<string, unknown>, imageFile);
     const response = await http("/api/v1/combos/create", {
       method: "POST",
       body,
-      headers,
     });
     return response.data;
   } catch (error) {
@@ -90,11 +90,11 @@ export const addCombo = async (payload: ComboPayload, imageFile?: File | null) =
 
 export const updateCombo = async (payload: UpdateComboPayload, imageFile?: File | null) => {
   try {
-    const { body, headers } = buildComboBody(payload as unknown as Record<string, unknown>, imageFile);
+    const sanitized = sanitizeComboPayload(payload);
+    const body = await buildComboJson(sanitized as unknown as Record<string, unknown>, imageFile);
     const response = await http("/api/v1/combos/update", {
       method: "POST",
       body,
-      headers,
     });
     return response.data;
   } catch (error) {
@@ -103,25 +103,36 @@ export const updateCombo = async (payload: UpdateComboPayload, imageFile?: File 
   }
 };
 
-/** Build request body: FormData if there's an image, otherwise JSON */
-const buildComboBody = (
-  data: Record<string, unknown>,
-  imageFile?: File | null,
-): { body: FormData | string; headers?: Record<string, string> } => {
-  if (!imageFile) {
-    return { body: JSON.stringify(data) };
-  }
-  const formData = new FormData();
-  Object.entries(data).forEach(([key, value]) => {
-    if (value === undefined || value === null) return;
-    if (typeof value === "object") {
-      formData.append(key, JSON.stringify(value));
-    } else {
-      formData.append(key, String(value));
-    }
+/** Sanitize payload: strip empty applicableProducts from rules to match API contract */
+const sanitizeComboPayload = <T extends { rules?: ComboRulePayload[] }>(payload: T): T => {
+  if (!payload.rules) return payload;
+  return {
+    ...payload,
+    rules: payload.rules.map(rule => {
+      const { applicableProducts, ...rest } = rule;
+      // Only include applicableProducts if it has values
+      return applicableProducts && applicableProducts.length > 0 ? { ...rest, applicableProducts } : rest;
+    }),
+  };
+};
+
+/** Convert a File to base64 data URL */
+const fileToBase64 = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
   });
-  formData.append("file", imageFile);
-  return { body: formData };
+};
+
+/** Build JSON body: if imageFile is provided, convert to base64 and include as "image" field */
+const buildComboJson = async (data: Record<string, unknown>, imageFile?: File | null): Promise<string> => {
+  if (!imageFile) {
+    return JSON.stringify(data);
+  }
+  const base64 = await fileToBase64(imageFile);
+  return JSON.stringify({ ...data, image: base64 });
 };
 
 export const updateComboStatus = async (combo_id: string) => {

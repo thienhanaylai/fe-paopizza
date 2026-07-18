@@ -1,7 +1,21 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Search, Plus, Edit2, Trash2, Phone, Mail, Package, Truck, Square, SquareCheckBig, X } from "lucide-react";
+import {
+  Search,
+  Plus,
+  Edit2,
+  Trash2,
+  Phone,
+  Mail,
+  Package,
+  Truck,
+  Square,
+  SquareCheckBig,
+  X,
+  AlertCircle,
+  LoaderCircle,
+} from "lucide-react";
 import { toast, Toaster } from "sonner";
 import {
   createSupplier,
@@ -443,53 +457,46 @@ export default function Suppliers() {
         </div>
       )}
       {confirmModal && (
-        <>
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 m-0"
-            onClick={() => {
-              setConfirmModal(false);
-              setDeleteTarget(null);
-            }}
-          >
-            <div
-              className="bg-card rounded-2xl p-6 w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto"
-              onClick={e => e.stopPropagation()}
-            >
-              <div className="flex gap-1 m-1">
-                Xác nhận xoá nhà cung cấp <span className="font-mono">{deleteTarget?.name}</span> ?
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-card rounded-2xl p-6 max-w-sm w-full mx-4 shadow-xl border border-border">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center">
+                <AlertCircle size={20} className="text-red-500" />
               </div>
-              <div className="flex gap-3 pt-3">
-                <button
-                  onClick={() => {
-                    setConfirmModal(false);
-                    setDeleteTarget(null);
-                  }}
-                  className="flex-1 py-2.5 rounded-xl border border-red-200 text-black hover:bg-red-50 transition-colors"
-                >
-                  Thoát
-                </button>
-                <button
-                  onClick={confirmDelete}
-                  className="flex-1 py-2.5  rounded-xl bg-red-600 text-white hover:bg-red-700/90 transition-colors disabled:opacity-60"
-                  disabled={isDeleting}
-                >
-                  {isDeleting ? "Đang xoá..." : "Xác nhận"}
-                </button>
+              <div>
+                <h3 className="text-lg font-semibold text-foreground">Xác nhận xoá</h3>
+                <p className="text-sm text-muted-foreground">
+                  Bạn có chắc muốn xoá nhà cung cấp{" "}
+                  <span className="font-mono font-semibold text-foreground">{deleteTarget?.name}</span>?
+                </p>
               </div>
             </div>
+            <p className="text-sm text-muted-foreground mb-4">
+              Hành động này không thể hoàn tác. Nhà cung cấp sẽ bị đánh dấu đã xoá.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => {
+                  setConfirmModal(false);
+                  setDeleteTarget(null);
+                }}
+                className="px-4 py-2 rounded-xl border border-border hover:bg-muted/50 transition-colors text-sm"
+              >
+                Huỷ
+              </button>
+              <button
+                onClick={confirmDelete}
+                disabled={isDeleting}
+                className="flex items-center gap-2 bg-red-500 text-white px-4 py-2 rounded-xl hover:bg-red-600 transition-colors text-sm disabled:opacity-60"
+              >
+                {isDeleting ? <LoaderCircle size={16} className="animate-spin" /> : <Trash2 size={16} />}
+                Xoá
+              </button>
+            </div>
           </div>
-        </>
+        </div>
       )}
-      <Toaster
-        toastOptions={{
-          classNames: {
-            success: "bg-green-500! text-white! border-green-600!",
-            error: "bg-red-500! text-white! border-red-600!",
-            warning: "bg-yellow-500! text-white! border-yellow-600!",
-            toast: "bg-gray-800! text-white!",
-          },
-        }}
-      />
+      <Toaster position="top-right" richColors />
     </div>
   );
 }

@@ -1,5 +1,44 @@
 import { http } from "@/src/utils/config.api";
 
+// ─── Types ─────────────────────────────────────────────
+export type PromotionType = "percentage" | "fixed_amount";
+export type PromotionStatus = "draft" | "active" | "inactive" | "expired";
+
+export interface Promotion {
+  _id: string;
+  code: string;
+  type: PromotionType;
+  value: number;
+  start_date: string;
+  end_date: string;
+  status: PromotionStatus;
+  applicable_store: string[] | { _id: string; name: string }[];
+  isDeleted: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreatePromotionPayload {
+  code: string;
+  type: PromotionType;
+  value: number;
+  start_date: string;
+  end_date: string;
+  status?: PromotionStatus;
+  applicable_store?: string[];
+}
+
+export interface UpdatePromotionPayload {
+  promotion_id: string;
+  code?: string;
+  type?: PromotionType;
+  value?: number;
+  start_date?: string;
+  end_date?: string;
+  status?: PromotionStatus;
+  applicable_store?: string[];
+}
+
 export interface PromoCodeResult {
   valid: boolean;
   code: string;
@@ -9,12 +48,84 @@ export interface PromoCodeResult {
   message?: string;
 }
 
-/**
- * Kiểm tra và áp dụng mã khuyến mãi
- * @param code - Mã khuyến mãi
- * @param orderTotal - Tổng giá trị đơn hàng
- * @param storeId - ID cửa hàng
- */
+// ─── CRUD API calls ────────────────────────────────────
+export const getAllPromotions = async (): Promise<Promotion[]> => {
+  try {
+    const response = await http("/api/v1/promotions", {
+      method: "GET",
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Lỗi fetch promotions:", error);
+    throw error;
+  }
+};
+
+export const getPromotionById = async (promotion_id: string): Promise<Promotion> => {
+  try {
+    const response = await http(`/api/v1/promotions/${promotion_id}`, {
+      method: "GET",
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Lỗi fetch promotion by id:", error);
+    throw error;
+  }
+};
+
+export const createPromotion = async (payload: CreatePromotionPayload): Promise<Promotion> => {
+  try {
+    const response = await http("/api/v1/promotions", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Lỗi tạo promotion:", error);
+    throw error;
+  }
+};
+
+export const updatePromotion = async (payload: UpdatePromotionPayload): Promise<Promotion> => {
+  try {
+    const { promotion_id, ...rest } = payload;
+    const response = await http(`/api/v1/promotions/${promotion_id}`, {
+      method: "PUT",
+      body: JSON.stringify(rest),
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Lỗi cập nhật promotion:", error);
+    throw error;
+  }
+};
+
+export const updatePromotionStatus = async (promotion_id: string, status: PromotionStatus): Promise<Promotion> => {
+  try {
+    const response = await http(`/api/v1/promotions/${promotion_id}/status`, {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Lỗi cập nhật trạng thái promotion:", error);
+    throw error;
+  }
+};
+
+export const deletePromotion = async (promotion_id: string): Promise<Promotion> => {
+  try {
+    const response = await http(`/api/v1/promotions/deleted/${promotion_id}`, {
+      method: "PATCH",
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Lỗi xoá promotion:", error);
+    throw error;
+  }
+};
+
+// ─── Apply promo code (customer-facing) ────────────────
 export const applyPromoCode = async (code: string, orderTotal: number, storeId: string): Promise<PromoCodeResult> => {
   try {
     const response = await http(

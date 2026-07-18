@@ -348,6 +348,7 @@ export default function POS() {
   const getProductsForRule = (rule: ComboRule): Product[] => {
     if (!menuProducts.length) return [];
     let filtered: Product[];
+
     if (rule.applicableProducts && rule.applicableProducts.length > 0) {
       filtered = menuProducts.filter(p => rule.applicableProducts.includes(p._id));
     } else {
@@ -358,6 +359,7 @@ export default function POS() {
     if (rule.applicableSizes && rule.applicableSizes.length > 0) {
       filtered = filtered.filter(p => p.variants.some(v => rule.applicableSizes.includes(v.size)));
     }
+
     return filtered;
   };
 
@@ -1422,7 +1424,6 @@ export default function POS() {
                                 </div>
                                 <div className="min-w-0">
                                   <p className="text-xs font-medium text-foreground truncate">{product.name}</p>
-                                  <p className="text-[10px] text-muted-foreground">{variant.size}</p>
                                 </div>
                               </div>
                             </button>
@@ -1455,16 +1456,7 @@ export default function POS() {
           </div>
         </div>
       )}
-      <Toaster
-        toastOptions={{
-          classNames: {
-            success: "bg-green-500! text-white! border-green-600!",
-            error: "bg-red-500! text-white! border-red-600!",
-            warning: "bg-yellow-500! text-white! border-yellow-600!",
-            toast: "bg-gray-800! text-white!",
-          },
-        }}
-      />
+      <Toaster position="top-right" richColors />
     </div>
   );
 }

@@ -1,6 +1,21 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Search, Plus, Edit2, Filter, Pizza, Eye, EyeOff, X, Trash2, Square, SquareCheckBig, Gift } from "lucide-react";
+import {
+  Search,
+  Plus,
+  Edit2,
+  Filter,
+  Pizza,
+  Eye,
+  EyeOff,
+  X,
+  Trash2,
+  Square,
+  SquareCheckBig,
+  Gift,
+  AlertCircle,
+  LoaderCircle,
+} from "lucide-react";
 import { useEmployeeAuth } from "@/src/context/authEmployeeContext";
 import Image from "next/image";
 import { addProduct, deletedProduct, getAllProducts, updateProduct, updateStatusProduct } from "@/src/services/product.service";
@@ -380,7 +395,13 @@ export default function Products() {
     if (comboIsAllSelected) {
       setComboSelectedIds(new Set());
     } else {
-      setComboSelectedIds(new Set(comboFiltered.map((c: any) => c._id)));
+      setComboSelectedIds(
+        new Set(
+          comboFiltered.map((c: any) => {
+            if (c.is_active) return c._id;
+          }),
+        ),
+      );
     }
   };
 
@@ -787,67 +808,81 @@ export default function Products() {
 
           {/* Product Confirm Delete Modal */}
           {confirmModal && (
-            <>
-              <div
-                className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 m-0"
-                onClick={() => setCongirmModal(false)}
-              >
-                <div
-                  className="bg-card rounded-2xl p-6 w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto"
-                  onClick={e => e.stopPropagation()}
-                >
-                  {selectedIds.size > 1 ? (
-                    <>
-                      <div className="flex flex-col gap-1">
-                        <p className="text-foreground font-semibold">Xác nhận xoá nhiều sản phẩm</p>
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+              <div className="bg-card rounded-2xl p-6 max-w-sm w-full mx-4 shadow-xl border border-border">
+                {selectedIds.size > 1 ? (
+                  <>
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center">
+                        <AlertCircle size={20} className="text-red-500" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-semibold text-foreground">Xác nhận xoá hàng loạt</h3>
                         <p className="text-sm text-muted-foreground">
-                          Bạn có chắc chắn muốn xoá <span className="font-semibold text-red-500">{selectedIds.size}</span> sản
-                          phẩm đã chọn? Hành động này không thể hoàn tác.
+                          Bạn có chắc muốn xoá <span className="font-semibold text-foreground">{selectedIds.size}</span> sản phẩm
+                          đã chọn?
                         </p>
                       </div>
-                      <div className="flex gap-3 pt-4">
-                        <button
-                          onClick={() => setCongirmModal(false)}
-                          className="flex-1 py-2.5 rounded-xl border border-border text-foreground hover:bg-muted transition-colors"
-                        >
-                          Thoát
-                        </button>
-                        <button
-                          onClick={handleBatchDelete}
-                          disabled={isLoading}
-                          className="flex-1 py-2.5 rounded-xl bg-red-600 text-white hover:bg-red-700/90 transition-colors disabled:opacity-50"
-                        >
-                          {isLoading ? "Đang xoá..." : `Xoá ${selectedIds.size} sản phẩm`}
-                        </button>
+                    </div>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Hành động này không thể hoàn tác. Các sản phẩm sẽ bị đánh dấu đã xoá.
+                    </p>
+                    <div className="flex gap-3 justify-end">
+                      <button
+                        onClick={() => setCongirmModal(false)}
+                        className="px-4 py-2 rounded-xl border border-border hover:bg-muted/50 transition-colors text-sm"
+                      >
+                        Huỷ
+                      </button>
+                      <button
+                        onClick={handleBatchDelete}
+                        disabled={isLoading}
+                        className="flex items-center gap-2 bg-red-500 text-white px-4 py-2 rounded-xl hover:bg-red-600 transition-colors text-sm disabled:opacity-60"
+                      >
+                        {isLoading ? <LoaderCircle size={16} className="animate-spin" /> : <Trash2 size={16} />}
+                        Xoá {selectedIds.size} sản phẩm
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center">
+                        <AlertCircle size={20} className="text-red-500" />
                       </div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="flex gap-1 m-1">
-                        Xác nhận xoá sản phẩm <p className="font-mono">`{editItem?.name}`</p> ?
+                      <div>
+                        <h3 className="text-lg font-semibold text-foreground">Xác nhận xoá</h3>
+                        <p className="text-sm text-muted-foreground">
+                          Bạn có chắc muốn xoá sản phẩm{" "}
+                          <span className="font-mono font-semibold text-foreground">{editItem?.name}</span>?
+                        </p>
                       </div>
-                      <div className="flex gap-3 pt-3">
-                        <button
-                          onClick={() => setCongirmModal(false)}
-                          className="flex-1 py-2.5 rounded-xl border border-red-200 text-black hover:bg-red-50 transition-colors"
-                        >
-                          Thoát
-                        </button>
-                        <button
-                          onClick={() => {
-                            handleDeleteProduct(editItem?._id!);
-                          }}
-                          disabled={isLoading}
-                          className="flex-1 py-2.5 rounded-xl bg-red-600 text-white hover:bg-red-700/90 transition-colors disabled:opacity-50"
-                        >
-                          {isLoading ? "Đang xoá..." : "Xác nhận"}
-                        </button>
-                      </div>
-                    </>
-                  )}
-                </div>
+                    </div>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Hành động này không thể hoàn tác. Sản phẩm sẽ bị đánh dấu đã xoá.
+                    </p>
+                    <div className="flex gap-3 justify-end">
+                      <button
+                        onClick={() => setCongirmModal(false)}
+                        className="px-4 py-2 rounded-xl border border-border hover:bg-muted/50 transition-colors text-sm"
+                      >
+                        Huỷ
+                      </button>
+                      <button
+                        onClick={() => {
+                          handleDeleteProduct(editItem?._id!);
+                        }}
+                        disabled={isLoading}
+                        className="flex items-center gap-2 bg-red-500 text-white px-4 py-2 rounded-xl hover:bg-red-600 transition-colors text-sm disabled:opacity-60"
+                      >
+                        {isLoading ? <LoaderCircle size={16} className="animate-spin" /> : <Trash2 size={16} />}
+                        Xoá
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
-            </>
+            </div>
           )}
         </>
       )}
@@ -957,6 +992,7 @@ export default function Products() {
                           <td className="px-4 py-3.5">
                             <button
                               onClick={() => comboToggleSelectOne(combo._id)}
+                              disabled={!combo.is_active}
                               className="flex items-center justify-center w-full text-muted-foreground hover:text-foreground transition-colors"
                             >
                               {isSelected ? <SquareCheckBig size={18} className="text-primary" /> : <Square size={18} />}
@@ -1062,52 +1098,73 @@ export default function Products() {
 
           {/* Combo Confirm Delete Modal */}
           {comboConfirmModal && (
-            <div
-              className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-              onClick={() => setComboConfirmModal(false)}
-            >
-              <div className="bg-card rounded-2xl p-6 w-full max-w-lg shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+              <div className="bg-card rounded-2xl p-6 max-w-sm w-full mx-4 shadow-xl border border-border">
                 {comboSelectedIds.size > 1 ? (
                   <>
-                    <p className="text-foreground font-semibold">Xác nhận xoá nhiều combo</p>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Bạn có chắc chắn muốn xoá <span className="font-semibold text-red-500">{comboSelectedIds.size}</span> combo
-                      đã chọn? Hành động này không thể hoàn tác.
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center">
+                        <AlertCircle size={20} className="text-red-500" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-semibold text-foreground">Xác nhận xoá hàng loạt</h3>
+                        <p className="text-sm text-muted-foreground">
+                          Bạn có chắc muốn xoá <span className="font-semibold text-foreground">{comboSelectedIds.size}</span>{" "}
+                          combo đã chọn?
+                        </p>
+                      </div>
+                    </div>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Hành động này không thể hoàn tác. Các combo sẽ bị đánh dấu đã xoá.
                     </p>
-                    <div className="flex gap-3 pt-4">
+                    <div className="flex gap-3 justify-end">
                       <button
                         onClick={() => setComboConfirmModal(false)}
-                        className="flex-1 py-2.5 rounded-xl border border-border text-foreground hover:bg-muted transition-colors"
+                        className="px-4 py-2 rounded-xl border border-border hover:bg-muted/50 transition-colors text-sm"
                       >
-                        Thoát
+                        Huỷ
                       </button>
                       <button
                         onClick={comboHandleBatchDelete}
                         disabled={comboIsLoading}
-                        className="flex-1 py-2.5 rounded-xl bg-red-600 text-white hover:bg-red-700/90 transition-colors disabled:opacity-50"
+                        className="flex items-center gap-2 bg-red-500 text-white px-4 py-2 rounded-xl hover:bg-red-600 transition-colors text-sm disabled:opacity-60"
                       >
-                        {comboIsLoading ? "Đang xoá..." : `Xoá ${comboSelectedIds.size} combo`}
+                        {comboIsLoading ? <LoaderCircle size={16} className="animate-spin" /> : <Trash2 size={16} />}
+                        Xoá {comboSelectedIds.size} combo
                       </button>
                     </div>
                   </>
                 ) : (
                   <>
-                    <p className="text-foreground font-semibold">
-                      Xác nhận xoá combo <span className="font-mono">&quot;{comboEditItem?.name}&quot;</span>?
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center">
+                        <AlertCircle size={20} className="text-red-500" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-semibold text-foreground">Xác nhận xoá</h3>
+                        <p className="text-sm text-muted-foreground">
+                          Bạn có chắc muốn xoá combo{" "}
+                          <span className="font-mono font-semibold text-foreground">&quot;{comboEditItem?.name}&quot;</span>?
+                        </p>
+                      </div>
+                    </div>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Hành động này không thể hoàn tác. Combo sẽ bị đánh dấu đã xoá.
                     </p>
-                    <div className="flex gap-3 pt-4">
+                    <div className="flex gap-3 justify-end">
                       <button
                         onClick={() => setComboConfirmModal(false)}
-                        className="flex-1 py-2.5 rounded-xl border border-border text-foreground hover:bg-muted transition-colors"
+                        className="px-4 py-2 rounded-xl border border-border hover:bg-muted/50 transition-colors text-sm"
                       >
-                        Thoát
+                        Huỷ
                       </button>
                       <button
                         onClick={() => comboEditItem && comboHandleDelete(comboEditItem._id)}
                         disabled={comboIsLoading}
-                        className="flex-1 py-2.5 rounded-xl bg-red-600 text-white hover:bg-red-700/90 transition-colors disabled:opacity-50"
+                        className="flex items-center gap-2 bg-red-500 text-white px-4 py-2 rounded-xl hover:bg-red-600 transition-colors text-sm disabled:opacity-60"
                       >
-                        {comboIsLoading ? "Đang xoá..." : "Xác nhận"}
+                        {comboIsLoading ? <LoaderCircle size={16} className="animate-spin" /> : <Trash2 size={16} />}
+                        Xoá
                       </button>
                     </div>
                   </>
@@ -1118,16 +1175,7 @@ export default function Products() {
         </>
       )}
 
-      <Toaster
-        toastOptions={{
-          classNames: {
-            success: "bg-green-500! text-white! border-green-600!",
-            error: "bg-red-500! text-white! border-red-600!",
-            warning: "bg-yellow-500! text-white! border-yellow-600!",
-            toast: "bg-gray-800! text-white!",
-          },
-        }}
-      />
+      <Toaster position="top-right" richColors />
     </div>
   );
 }

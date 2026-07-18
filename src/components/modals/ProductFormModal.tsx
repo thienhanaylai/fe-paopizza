@@ -151,10 +151,13 @@ export default function ProductFormModal({
 }: ProductFormModalProps) {
   const [basicInfo, setBasicInfo] = useState({ name: "", category: "", description: "" });
   const [variantsFrom, setVariantsFrom] = useState<VariantPayload[]>([createEmptyVariant()]);
-
+  const [isMount, setIsMount] = useState(false);
   // Initialize form when modal opens or editItem changes
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      setIsMount(false);
+      return;
+    }
     if (editItem) {
       setBasicInfo({
         name: editItem.name || "",
@@ -167,6 +170,7 @@ export default function ProductFormModal({
       setBasicInfo({ name: "", category: firstCategoryId, description: "" });
       setVariantsFrom([createEmptyVariant()]);
     }
+    setIsMount(true);
   }, [open, editItem, categories]);
 
   // ─── Variant handlers ───
@@ -230,7 +234,14 @@ export default function ProductFormModal({
   const handleInternalSubmit = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault();
-      const formatForSku = (str: string) => str.toUpperCase().trim().replace(/\s+/g, "-");
+      const formatForSku = (str: string) =>
+        str
+          .toUpperCase()
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .replace(/Đ/g, "D")
+          .trim()
+          .replace(/\s+/g, "-");
       const categoryPrefix = formatForSku(categories.find(item => item._id === basicInfo.category)?.name.charAt(0) || "");
 
       const normalizedVariants: VariantSubmitPayload[] = variantsFrom.map((variant, index) => ({
@@ -256,7 +267,7 @@ export default function ProductFormModal({
   );
 
   if (!open) return null;
-
+  if (!isMount) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 m-0!" onClick={onClose}>
       <div

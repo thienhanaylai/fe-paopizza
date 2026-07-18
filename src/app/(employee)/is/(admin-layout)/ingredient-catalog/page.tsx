@@ -8,7 +8,21 @@ import {
   updateIngredient,
 } from "@/src/services/ingredient.service";
 import { useEffect, useState } from "react";
-import { Search, Plus, Edit2, Trash2, Warehouse, Filter, X, CheckCircle2, Package, Square, SquareCheckBig } from "lucide-react";
+import {
+  Search,
+  Plus,
+  Edit2,
+  Trash2,
+  Warehouse,
+  Filter,
+  X,
+  CheckCircle2,
+  Package,
+  Square,
+  SquareCheckBig,
+  AlertCircle,
+  LoaderCircle,
+} from "lucide-react";
 import { toast, Toaster } from "sonner";
 import { formatVND } from "@/src/utils/formatVND";
 
@@ -486,50 +500,46 @@ export default function IngredientCatalog() {
         </div>
       )}
       {confirmModal && (
-        <>
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 m-0"
-            onClick={() => setCongirmModal(false)}
-          >
-            <div
-              className="bg-card rounded-2xl p-6 w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto"
-              onClick={e => e.stopPropagation()}
-            >
-              <div className="flex gap-1 m-1">
-                Xác nhận xoá nguyên liệu <p className="font-mono">`{editItem?.name}`</p> ?
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-card rounded-2xl p-6 max-w-sm w-full mx-4 shadow-xl border border-border">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center">
+                <AlertCircle size={20} className="text-red-500" />
               </div>
-              <div className="flex gap-3 pt-3">
-                <button
-                  onClick={() => setCongirmModal(false)}
-                  className="flex-1 py-2.5 rounded-xl border border-red-200 text-black hover:bg-red-50 transition-colors"
-                >
-                  Thoát
-                </button>
-                <button
-                  onClick={() => {
-                    handleDelete(editItem?._id || "");
-                    setEditItem(null);
-                    setCongirmModal(false);
-                  }}
-                  className="flex-1 py-2.5  rounded-xl bg-red-600 text-white hover:bg-red-700/90 transition-colors"
-                >
-                  Xác nhận
-                </button>
+              <div>
+                <h3 className="text-lg font-semibold text-foreground">Xác nhận xoá</h3>
+                <p className="text-sm text-muted-foreground">
+                  Bạn có chắc muốn xoá nguyên liệu{" "}
+                  <span className="font-mono font-semibold text-foreground">{editItem?.name}</span>?
+                </p>
               </div>
             </div>
+            <p className="text-sm text-muted-foreground mb-4">
+              Hành động này không thể hoàn tác. Nguyên liệu sẽ bị đánh dấu đã xoá.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setCongirmModal(false)}
+                className="px-4 py-2 rounded-xl border border-border hover:bg-muted/50 transition-colors text-sm"
+              >
+                Huỷ
+              </button>
+              <button
+                onClick={() => {
+                  handleDelete(editItem?._id || "");
+                  setEditItem(null);
+                  setCongirmModal(false);
+                }}
+                className="flex items-center gap-2 bg-red-500 text-white px-4 py-2 rounded-xl hover:bg-red-600 transition-colors text-sm"
+              >
+                <Trash2 size={16} />
+                Xoá
+              </button>
+            </div>
           </div>
-        </>
+        </div>
       )}
-      <Toaster
-        toastOptions={{
-          classNames: {
-            success: "bg-green-500! text-white! border-green-600!",
-            error: "bg-red-500! text-white! border-red-600!",
-            warning: "bg-yellow-500! text-white! border-yellow-600!",
-            toast: "bg-gray-800! text-white!",
-          },
-        }}
-      />
+      <Toaster position="top-right" richColors />
     </div>
   );
 }
