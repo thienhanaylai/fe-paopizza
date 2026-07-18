@@ -229,6 +229,28 @@ export default function IndexPage() {
   const [replacingSlot, setReplacingSlot] = useState<{ ruleIdx: number; slotIdx: number } | null>(null);
   const editingComboOldSkuRef = useRef<string | null>(null);
   const comboCounterRef = useRef(0);
+  const ruleRefs = useRef<(HTMLDivElement | null)[]>([]);
+
+  // Auto-scroll đến rule chưa hoàn thành tiếp theo khi rule hiện tại vừa được fill đầy
+  useEffect(() => {
+    if (!selectedCombo) return;
+
+    // Tìm rule đầu tiên chưa được fill đầy
+    const firstUnfilledIdx = selectedCombo.rules.findIndex((rule, idx) => {
+      const selections = comboSelections[idx] || [];
+      return selections.length < rule.requiredQuantity;
+    });
+
+    if (firstUnfilledIdx >= 0) {
+      const timer = setTimeout(() => {
+        ruleRefs.current[firstUnfilledIdx]?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      }, 200);
+      return () => clearTimeout(timer);
+    }
+  }, [comboSelections, selectedCombo]);
 
   const productListRef = useRef<HTMLDivElement | null>(null);
   const handleCategoryClick = (categorySlug: string) => {
@@ -303,7 +325,7 @@ export default function IndexPage() {
   }, [selectedVariant]);
 
   const extraToppingOptions = useMemo(() => {
-    return extraToppings.filter(item => item.is_active && !item.isDeleted && !baseIngredientIdSet.has(item._id));
+    return extraToppings.filter(item => item.isActive && !item.isDeleted && !baseIngredientIdSet.has(item._id));
   }, [baseIngredientIdSet, extraToppings]);
 
   const selectedExtraToppings = useMemo(() => {
@@ -360,7 +382,7 @@ export default function IndexPage() {
         const menu = selectedStoreId ? await getMenuByStoreId(selectedStoreId) : null;
 
         const mappedCategories: MenuCategoryUI[] = categories
-          .filter((cat: { is_active: boolean; isDeleted: boolean }) => cat.is_active && !cat.isDeleted)
+          .filter((cat: { isActive: boolean; isDeleted: boolean }) => cat.isActive && !cat.isDeleted)
           .map((cat: MenuCategoryUI) => ({
             slug: cat.slug,
             name: cat.name,
@@ -552,6 +574,8 @@ export default function IndexPage() {
   };
 
   const computeComboOriginalPrice = (combo: Combo): number => {
+    // Dynamic pricing: không có giá gốc cố định để so sánh
+    if (combo.pricingType === "dynamic") return 0;
     if (combo.discountType === "percent") {
       return Math.round(combo.price / (1 - combo.discount / 100));
     }
@@ -559,7 +583,43 @@ export default function IndexPage() {
   };
 
   const computeComboSavings = (combo: Combo): number => {
+    // Dynamic pricing: không hiển thị tiết kiệm vì giá tự động tính
+    if (combo.pricingType === "dynamic") return 0;
     return computeComboOriginalPrice(combo) - combo.price;
+  };
+
+  /** Tính giá động cho combo dựa trên các sản phẩm đã chọn */
+  const computeDynamicComboPrice = (): number => {
+    if (!selectedCombo || selectedCombo.pricingType !== "dynamic") return selectedCombo?.price ?? 0;
+
+    let total = 0;
+    selectedCombo.rules.forEach((rule, idx) => {
+      const selections = comboSelections[idx] || [];
+      selections.forEach(sel => {
+        const product = menu?.products.find(p => p._id === sel.productId);
+        const variant = product?.variants.find(v => v.sku === sel.sku);
+        if (variant) {
+          total += variant.price;
+        }
+      });
+    });
+
+    // Áp dụng discount nếu có
+    if (selectedCombo.discountType === "percent" && selectedCombo.discount > 0) {
+      total = Math.round(total * (1 - selectedCombo.discount / 100));
+    } else if (selectedCombo.discountType === "amount" && selectedCombo.discount > 0) {
+      total = Math.max(0, total - selectedCombo.discount);
+    }
+
+    return total;
+  };
+
+  /** Giá hiển thị của combo: static thì dùng giá fix, dynamic thì tính từ selections */
+  const getDisplayComboPrice = (combo: Combo): number => {
+    if (combo.pricingType === "dynamic") {
+      return computeDynamicComboPrice();
+    }
+    return combo.price;
   };
 
   const getComboRuleItems = (combo: Combo): string[] => {
@@ -750,7 +810,7 @@ export default function IndexPage() {
       size: "",
       quantity: 1,
       note: "",
-      price: selectedCombo.price,
+      price: getDisplayComboPrice(selectedCombo),
     });
 
     await fetchCart(user?.id);
@@ -1013,6 +1073,11 @@ export default function IndexPage() {
                             Tiết kiệm {formatVND(savings)}
                           </span>
                         )}
+                        {combo.pricingType === "dynamic" && (
+                          <span className="absolute top-3 left-3 px-2.5 py-1 bg-blue-500 text-white text-[11px] font-semibold rounded-full">
+                            Tự động tính giá
+                          </span>
+                        )}
                       </div>
                       <div className="p-4">
                         <h4 className="text-foreground font-semibold mb-1.5">{combo.name}</h4>
@@ -1025,8 +1090,14 @@ export default function IndexPage() {
                         </div>
                         <div className="flex items-center justify-between mt-3">
                           <div className="flex items-baseline gap-2">
-                            <span className="text-sm text-muted-foreground line-through">{formatVND(originalPrice)}</span>
-                            <span className="text-lg font-bold text-primary">{formatVND(combo.price)}</span>
+                            {combo.pricingType === "dynamic" ? (
+                              <span className="text-sm font-semibold text-blue-600">Tự động tính giá</span>
+                            ) : (
+                              <>
+                                <span className="text-sm text-muted-foreground line-through">{formatVND(originalPrice)}</span>
+                                <span className="text-lg font-bold text-primary">{formatVND(combo.price)}</span>
+                              </>
+                            )}
                           </div>
                           <button
                             onClick={e => {
@@ -1062,7 +1133,7 @@ export default function IndexPage() {
                   <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
                     {" "}
                     {categoryItems?.map(item => {
-                      if (item.is_active)
+                      if (item.isActive)
                         return (
                           <div
                             onClick={() => {
@@ -1340,6 +1411,8 @@ export default function IndexPage() {
           const savings = computeComboSavings(selectedCombo);
           const originalPrice = computeComboOriginalPrice(selectedCombo);
           const comboImg = selectedCombo.image || "";
+          const isDynamic = selectedCombo.pricingType === "dynamic";
+          const displayPrice = getDisplayComboPrice(selectedCombo);
 
           return (
             <div
@@ -1407,7 +1480,13 @@ export default function IndexPage() {
                       const isRuleFilled = selectedSelections.length >= rule.requiredQuantity;
 
                       return (
-                        <div key={ruleIdx} className="border border-border rounded-2xl p-4 bg-muted/10">
+                        <div
+                          key={ruleIdx}
+                          ref={el => {
+                            ruleRefs.current[ruleIdx] = el;
+                          }}
+                          className="border border-border rounded-2xl p-4 bg-muted/10"
+                        >
                           <div className="flex items-center justify-between mb-3">
                             <p className="text-sm font-semibold text-foreground">
                               {rule.groupName}
@@ -1489,10 +1568,19 @@ export default function IndexPage() {
                   </div>
 
                   <div className="p-4 sm:p-5 border-t border-border space-y-2 shrink-0">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground line-through">{formatVND(originalPrice)}</span>
-                      <span className="text-green-600 text-xs font-medium">Tiết kiệm {formatVND(savings)}</span>
-                    </div>
+                    {isDynamic ? (
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Giá tự động tính theo sản phẩm đã chọn</span>
+                        {allComboSelectionsFilled && (
+                          <span className="text-lg font-bold text-primary">{formatVND(displayPrice)}</span>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground line-through">{formatVND(originalPrice)}</span>
+                        <span className="text-green-600 text-xs font-medium">Tiết kiệm {formatVND(savings)}</span>
+                      </div>
+                    )}
                     <button
                       onClick={handleAddComboToCart}
                       disabled={!allComboSelectionsFilled}
@@ -1502,7 +1590,7 @@ export default function IndexPage() {
                           : "bg-muted text-muted-foreground cursor-not-allowed"
                       }`}
                     >
-                      <Plus size={18} /> Thêm combo vào giỏ - {formatVND(selectedCombo.price)}
+                      <Plus size={18} /> Thêm combo vào giỏ - {formatVND(displayPrice)}
                     </button>
                   </div>
                 </div>

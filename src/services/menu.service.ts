@@ -37,7 +37,7 @@ export type Product = {
   category: ProductCategory;
   name: string;
   description: string;
-  is_active: boolean;
+  isActive: boolean;
   variants: ProductVariant[];
   isDeleted: boolean;
 };
@@ -46,7 +46,7 @@ export type ComboCategory = {
   _id: string;
   name: string;
   slug: string;
-  is_active: boolean;
+  isActive: boolean;
   isDeleted: boolean;
   icon: string;
 };
@@ -69,8 +69,9 @@ export type Combo = {
   rules: ComboRule[];
   discountType: "percent" | "amount" | "fixed";
   discount: number;
+  pricingType?: "static" | "dynamic";
   price: number;
-  is_active: boolean;
+  isActive: boolean;
   isDeleted: boolean;
 };
 

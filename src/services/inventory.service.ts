@@ -5,7 +5,7 @@ export interface InventoryIngredientRef {
   name: string;
   unit: string;
   category: string;
-  cost_per_unit: number;
+  costPerUnit: number;
 }
 
 export interface InventoryIngredientItem {

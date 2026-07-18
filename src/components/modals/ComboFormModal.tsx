@@ -21,6 +21,7 @@ export interface ComboFormSubmitPayload {
   dateEnd: string;
   discountType: "percent" | "amount";
   discount: number;
+  pricingType: "static" | "dynamic";
   price: number;
   rules: ComboRule[];
   imageFile?: File | null;
@@ -44,16 +45,22 @@ interface Combo {
   dateEnd?: string;
   discountType?: "percent" | "amount" | "fixed";
   discount?: number;
+  pricingType?: "static" | "dynamic";
   price?: number;
   image?: string;
   rules?: ComboRule[];
-  is_active?: boolean;
+  isActive?: boolean;
 }
 
 // ─────────── Constants ───────────
 const DISCOUNT_TYPE_OPTIONS = [
   { value: "percent", label: "Phần trăm (%)" },
   { value: "amount", label: "Tiền mặt (VNĐ)" },
+];
+
+const PRICING_TYPE_OPTIONS = [
+  { value: "static", label: "Giá cố định" },
+  { value: "dynamic", label: "Tự động tính" },
 ];
 
 // ─────────── Helpers ───────────
@@ -108,8 +115,9 @@ export default function ComboFormModal({
   const [formPricing, setFormPricing] = useState<{
     discountType: "percent" | "amount";
     discount: number;
+    pricingType: "static" | "dynamic";
     price: number;
-  }>({ discountType: "percent", discount: 0, price: 123 });
+  }>({ discountType: "percent", discount: 0, pricingType: "static", price: 0 });
   const [formImage, setFormImage] = useState<{ file: File | null; preview: string | null }>({
     file: null,
     preview: null,
@@ -133,6 +141,7 @@ export default function ComboFormModal({
       setFormPricing({
         discountType: editItem.discountType === "fixed" ? "amount" : (editItem.discountType as "percent" | "amount") || "percent",
         discount: editItem.discount || 0,
+        pricingType: editItem.pricingType === "dynamic" ? "dynamic" : "static",
         price: editItem.price ?? 0,
       });
       setFormImage({ file: null, preview: null });
@@ -140,7 +149,7 @@ export default function ComboFormModal({
       setPriceInputKey(prev => prev + 1);
     } else {
       setFormData({ name: "", description: "", dateStart: "", dateEnd: "" });
-      setFormPricing({ discountType: "percent", discount: 0, price: 0 });
+      setFormPricing({ discountType: "percent", discount: 0, pricingType: "static", price: 0 });
       setFormImage({ file: null, preview: null });
       setComboFormRules([createEmptyRule()]);
       setPriceInputKey(prev => prev + 1);
@@ -182,6 +191,7 @@ export default function ComboFormModal({
         dateEnd: formData.dateEnd ? new Date(formData.dateEnd).toISOString() : "",
         discountType: formPricing.discountType,
         discount: formPricing.discount,
+        pricingType: formPricing.pricingType,
         price: formPricing.price,
         rules: comboFormRules,
         imageFile: formImage.file,
@@ -212,6 +222,23 @@ export default function ComboFormModal({
               />
             </div>
             <div>
+              <label className="block text-sm mb-1">Loại định giá *</label>
+              <select
+                value={formPricing.pricingType}
+                onChange={e => setFormPricing(prev => ({ ...prev, pricingType: e.target.value as "static" | "dynamic" }))}
+                className="w-full px-4 py-2.5 rounded-xl border border-border bg-background outline-none"
+              >
+                {PRICING_TYPE_OPTIONS.map(opt => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {formPricing.pricingType === "static" && (
+            <div>
               <label className="block text-sm mb-1">Giá bán (đ) *</label>
               <CurrencyInput
                 key={`price-${priceInputKey}`}
@@ -221,7 +248,7 @@ export default function ComboFormModal({
                 className="w-full px-4 py-2.5 rounded-xl border border-border bg-background focus:border-primary outline-none"
               />
             </div>
-          </div>
+          )}
 
           <div>
             <label className="block text-sm mb-1">Mô tả</label>

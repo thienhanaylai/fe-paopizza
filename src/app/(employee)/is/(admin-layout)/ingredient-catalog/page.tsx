@@ -41,8 +41,8 @@ interface Ingredient {
   name: string;
   unit: string;
   category: string;
-  cost_per_unit: number;
-  is_active: boolean;
+  costPerUnit: number;
+  isActive: boolean;
   isDeleted: boolean;
 }
 
@@ -122,8 +122,8 @@ export default function IngredientCatalog() {
           name: fromName,
           unit: fromUnit,
           category: fromCategory,
-          cost_per_unit: fromCostPerUnit,
-          is_active: fromIsActive === "true",
+          costPerUnit: fromCostPerUnit,
+          isActive: fromIsActive === "true",
         });
         toast.success("Cập nhật thành công !");
       } else {
@@ -134,7 +134,7 @@ export default function IngredientCatalog() {
 
         await addIngredient({
           name: fromName,
-          cost_per_unit: fromCostPerUnit,
+          costPerUnit: fromCostPerUnit,
           unit: fromUnit,
           category: fromCategory,
         });
@@ -164,9 +164,7 @@ export default function IngredientCatalog() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-foreground flex items-center gap-2">
-            <Warehouse size={24} className="text-primary" /> Danh mục nguyên liệu
-          </h1>
+          <h1 className="text-foreground flex items-center gap-2">Danh mục nguyên liệu</h1>
           <p className="text-muted-foreground mt-1">Quản lý danh sách nguyên liệu nhập từ nhà cung cấp toàn hệ thống</p>
         </div>
         <button
@@ -298,7 +296,7 @@ export default function IngredientCatalog() {
                   return (
                     <tr
                       key={item._id}
-                      className={`border-b border-border last:border-b-0 hover:bg-muted/20 transition-colors ${isSelected ? "bg-primary/5" : ""} ${!item.is_active ? "opacity-50" : ""}`}
+                      className={`border-b border-border last:border-b-0 hover:bg-muted/20 transition-colors ${isSelected ? "bg-primary/5" : ""} ${!item.isActive ? "opacity-50" : ""}`}
                     >
                       <td className="px-4 py-3.5">
                         <button
@@ -337,7 +335,7 @@ export default function IngredientCatalog() {
                       </td>
                       <td className="px-5 py-3.5">
                         <span className="text-sm font-semibold text-foreground">
-                          {formatVND(item.cost_per_unit)}
+                          {formatVND(item.costPerUnit)}
                           <span className="text-xs text-muted-foreground font-normal">
                             /{units?.find(i => i.slug === item.unit)?.name || item.unit}
                           </span>
@@ -345,9 +343,9 @@ export default function IngredientCatalog() {
                       </td>
                       <td className="px-5 py-3.5 text-center">
                         <span
-                          className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${item.is_active ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-500"}`}
+                          className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${item.isActive ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-500"}`}
                         >
-                          {item.is_active ? (
+                          {item.isActive ? (
                             <>
                               <CheckCircle2 size={12} /> Hoạt động
                             </>
@@ -365,8 +363,8 @@ export default function IngredientCatalog() {
                               setFromName(item.name);
                               setFromCategory(item.category);
                               setFromUnit(item.unit);
-                              setCostPerUnit(item.cost_per_unit);
-                              setFromIsActive(item.is_active.toString());
+                              setCostPerUnit(item.costPerUnit);
+                              setFromIsActive(item.isActive.toString());
                             }}
                             className="p-2 rounded-lg hover:bg-blue-50 text-muted-foreground hover:text-blue-500 transition-colors"
                             title="Chỉnh sửa"
@@ -460,7 +458,7 @@ export default function IngredientCatalog() {
               <div>
                 <label className="block text-sm text-foreground mb-1.5">Giá nhập</label>
                 <input
-                  defaultValue={editItem?.cost_per_unit}
+                  defaultValue={editItem?.costPerUnit}
                   type="number"
                   onChange={e => {
                     const value = e.target.valueAsNumber;
@@ -473,7 +471,7 @@ export default function IngredientCatalog() {
               <div>
                 <label className="block text-sm text-foreground mb-1.5">Trạng thái</label>
                 <select
-                  defaultValue={editItem?.is_active.toString() || "true"}
+                  defaultValue={editItem?.isActive.toString() || "true"}
                   onChange={e => setFromIsActive(e.target.value)}
                   className="w-full px-4 py-2.5 rounded-xl border border-border bg-background outline-none text-sm"
                 >

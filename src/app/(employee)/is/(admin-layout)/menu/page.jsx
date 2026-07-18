@@ -743,10 +743,10 @@ export default function MenuManagement() {
                             <td className="px-4 py-3 text-center">
                               <span
                                 className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium ${
-                                  combo.is_active ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-500"
+                                  combo.isActive ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-500"
                                 }`}
                               >
-                                {combo.is_active ? "Hoạt động" : "Đã ẩn"}
+                                {combo.isActive ? "Hoạt động" : "Đã ẩn"}
                               </span>
                             </td>
                           </tr>

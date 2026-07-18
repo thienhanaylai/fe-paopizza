@@ -265,9 +265,7 @@ export default function Stores() {
     <div className="p-6 space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-foreground flex items-center gap-2">
-            <Store size={24} className="text-primary" /> Quản lý cửa hàng
-          </h1>
+          <h1 className="text-foreground flex items-center gap-2">Quản lý cửa hàng</h1>
           <p className="text-muted-foreground text-sm mt-1">Quản lý toàn bộ hệ thống chi nhánh PaoPizza</p>
         </div>
         <button

@@ -18,6 +18,7 @@ export type AddToCartPayload = {
   quantity?: number;
   note?: string;
   added_topping?: string[];
+  price?: number;
 };
 
 export type RemoveFromCartPayload = {

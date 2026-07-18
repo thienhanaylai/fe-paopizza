@@ -31,7 +31,7 @@ interface IngredientList {
   name: string;
   unit: string;
   category: string;
-  is_active: boolean;
+  isActive: boolean;
   isDeleted: boolean;
 }
 export interface RecipeItemPayload {
@@ -104,7 +104,7 @@ type Product = {
   category: ProductCategory;
   name: string;
   description: string;
-  is_active: boolean;
+  isActive: boolean;
   variants: ProductVariant[];
   isDeleted: boolean;
 };
@@ -214,7 +214,7 @@ export default function Products() {
       const ListProduct = await getAllProducts();
       const ListCategory = await getAllCategories();
       const ListIngredients = await getAllIngredients();
-      const mappedCategories: MenuCategoryUI[] = ListCategory.filter((cat: any) => cat.is_active && !cat.isDeleted).map(
+      const mappedCategories: MenuCategoryUI[] = ListCategory.filter((cat: any) => cat.isActive && !cat.isDeleted).map(
         (cat: any) => ({
           _id: cat._id,
           slug: cat.slug,
@@ -365,7 +365,7 @@ export default function Products() {
     try {
       const [comboData, catData, prodData] = await Promise.all([getAllCombos(), getAllCategories(), getAllProducts()]);
       setCombos(comboData || []);
-      setComboCategories((catData || []).filter((c: any) => c.is_active && !c.isDeleted));
+      setComboCategories((catData || []).filter((c: any) => c.isActive && !c.isDeleted));
       setComboProducts(prodData || []);
     } catch {
       toast.error("Không thể tải dữ liệu combo");
@@ -398,7 +398,7 @@ export default function Products() {
       setComboSelectedIds(
         new Set(
           comboFiltered.map((c: any) => {
-            if (c.is_active) return c._id;
+            if (c.isActive) return c._id;
           }),
         ),
       );
@@ -433,6 +433,10 @@ export default function Products() {
     }
     if (payload.rules.length === 0) {
       toast.warning("Combo phải có ít nhất 1 rule!");
+      return;
+    }
+    if (payload.pricingType === "static" && (!payload.price || payload.price <= 0)) {
+      toast.warning("Vui lòng nhập giá bán cho combo!");
       return;
     }
     for (let i = 0; i < payload.rules.length; i++) {
@@ -556,6 +560,22 @@ export default function Products() {
             {isAdmin ? "Tạo và quản lý danh sách sản phẩm & combo" : "Ẩn/hiện sản phẩm trên menu cửa hàng"}
           </p>
         </div>
+        {isAdmin && activeTab === "products" && (
+          <button
+            onClick={openCreate}
+            className="flex items-center gap-2 bg-primary text-white px-4 py-2.5 rounded-xl hover:bg-primary/90 transition-colors text-sm shadow-lg shadow-primary/25 shrink-0"
+          >
+            <Plus size={16} /> Thêm sản phẩm
+          </button>
+        )}
+        {isAdmin && activeTab === "combo" && (
+          <button
+            onClick={comboOpenCreate}
+            className="flex items-center gap-2 bg-primary text-white px-4 py-2.5 rounded-xl hover:bg-primary/90 transition-colors text-sm shadow-lg shadow-primary/25 shrink-0"
+          >
+            <Plus size={16} /> Thêm combo
+          </button>
+        )}
       </div>
 
       {/* Tabs */}
@@ -625,14 +645,6 @@ export default function Products() {
                 </>
               )}
             </div>
-            {isAdmin && (
-              <button
-                onClick={openCreate}
-                className="flex items-center gap-2 bg-primary text-white px-4 py-3.5 rounded-xl hover:bg-primary/90 transition-colors shadow-lg shadow-primary/25 shrink-0"
-              >
-                <Plus size={18} /> Thêm sản phẩm
-              </button>
-            )}
           </div>
 
           <div className="flex flex-col sm:flex-row gap-3">
@@ -702,7 +714,7 @@ export default function Products() {
                       return (
                         <tr
                           key={product._id}
-                          className={`border-b border-border last:border-b-0 hover:bg-muted/20 transition-colors ${!product.is_active ? "opacity-50" : ""} ${isSelected ? "bg-primary/5" : ""}`}
+                          className={`border-b border-border last:border-b-0 hover:bg-muted/20 transition-colors ${!product.isActive ? "opacity-50" : ""} ${isSelected ? "bg-primary/5" : ""}`}
                         >
                           <td className="px-4 py-3.5">
                             <button
@@ -749,19 +761,19 @@ export default function Products() {
                           </td>
                           <td className="px-5 py-3.5 text-center">
                             <span
-                              className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${product.is_active ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-500"}`}
+                              className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${product.isActive ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-500"}`}
                             >
-                              {product.is_active ? "Đang bán" : "Đã ẩn"}
+                              {product.isActive ? "Đang bán" : "Đã ẩn"}
                             </span>
                           </td>
                           <td className="px-5 py-3.5">
                             <div className="flex items-center justify-center gap-1">
                               <button
                                 onClick={() => toggleStatus(product._id)}
-                                className={`p-2 rounded-lg transition-colors ${product.is_active ? "hover:bg-red-50 text-muted-foreground hover:text-red-500" : "hover:bg-emerald-50 text-muted-foreground hover:text-emerald-500"}`}
-                                title={product.is_active ? "Ẩn sản phẩm" : "Hiện sản phẩm"}
+                                className={`p-2 rounded-lg transition-colors ${product.isActive ? "hover:bg-red-50 text-muted-foreground hover:text-red-500" : "hover:bg-emerald-50 text-muted-foreground hover:text-emerald-500"}`}
+                                title={product.isActive ? "Ẩn sản phẩm" : "Hiện sản phẩm"}
                               >
-                                {product.is_active ? <EyeOff size={16} /> : <Eye size={16} />}
+                                {product.isActive ? <EyeOff size={16} /> : <Eye size={16} />}
                               </button>
                               {isAdmin && (
                                 <button
@@ -930,14 +942,6 @@ export default function Products() {
                 </>
               )}
             </div>
-            {isAdmin && (
-              <button
-                onClick={comboOpenCreate}
-                className="flex items-center gap-2 bg-primary text-white px-4 py-3.5 rounded-xl hover:bg-primary/90 transition-colors shadow-lg shadow-primary/25 shrink-0"
-              >
-                <Plus size={18} /> Thêm combo
-              </button>
-            )}
           </div>
 
           {/* Search */}
@@ -987,12 +991,12 @@ export default function Products() {
                       return (
                         <tr
                           key={combo._id}
-                          className={`border-b border-border last:border-b-0 hover:bg-muted/20 transition-colors ${!combo.is_active ? "opacity-50" : ""} ${isSelected ? "bg-primary/5" : ""}`}
+                          className={`border-b border-border last:border-b-0 hover:bg-muted/20 transition-colors ${!combo.isActive ? "opacity-50" : ""} ${isSelected ? "bg-primary/5" : ""}`}
                         >
                           <td className="px-4 py-3.5">
                             <button
                               onClick={() => comboToggleSelectOne(combo._id)}
-                              disabled={!combo.is_active}
+                              disabled={!combo.isActive}
                               className="flex items-center justify-center w-full text-muted-foreground hover:text-foreground transition-colors"
                             >
                               {isSelected ? <SquareCheckBig size={18} className="text-primary" /> : <Square size={18} />}
@@ -1019,7 +1023,9 @@ export default function Products() {
                           </td>
                           <td className="px-5 py-3.5">
                             <span className="text-sm font-semibold text-foreground">
-                              {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(combo.price ?? 0)}
+                              {combo.pricingType === "dynamic"
+                                ? "Tự động"
+                                : new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(combo.price ?? 0)}
                             </span>
                           </td>
                           <td className="px-5 py-3.5">
@@ -1039,19 +1045,19 @@ export default function Products() {
                           </td>
                           <td className="px-5 py-3.5 text-center">
                             <span
-                              className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${combo.is_active ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-500"}`}
+                              className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${combo.isActive ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-500"}`}
                             >
-                              {combo.is_active ? "Đang bán" : "Đã ẩn"}
+                              {combo.isActive ? "Đang bán" : "Đã ẩn"}
                             </span>
                           </td>
                           <td className="px-5 py-3.5">
                             <div className="flex items-center justify-center gap-1">
                               <button
                                 onClick={() => comboToggleStatus(combo._id)}
-                                className={`p-2 rounded-lg transition-colors ${combo.is_active ? "hover:bg-red-50 text-muted-foreground hover:text-red-500" : "hover:bg-emerald-50 text-muted-foreground hover:text-emerald-500"}`}
-                                title={combo.is_active ? "Ẩn combo" : "Hiện combo"}
+                                className={`p-2 rounded-lg transition-colors ${combo.isActive ? "hover:bg-red-50 text-muted-foreground hover:text-red-500" : "hover:bg-emerald-50 text-muted-foreground hover:text-emerald-500"}`}
+                                title={combo.isActive ? "Ẩn combo" : "Hiện combo"}
                               >
-                                {combo.is_active ? <EyeOff size={16} /> : <Eye size={16} />}
+                                {combo.isActive ? <EyeOff size={16} /> : <Eye size={16} />}
                               </button>
                               {isAdmin && (
                                 <button

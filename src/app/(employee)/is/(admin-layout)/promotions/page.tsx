@@ -250,8 +250,6 @@ export default function PromotionsPage() {
   // ─── Render ──────────────────────────────────────────
   return (
     <div className="space-y-6">
-      <Toaster position="top-right" richColors />
-
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -584,6 +582,7 @@ export default function PromotionsPage() {
           </div>
         </div>
       )}
+      <Toaster position="top-right" richColors />
     </div>
   );
 }

@@ -344,7 +344,7 @@ export default function IndexPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-foreground hidden lg:table-cell">
-                      {formatVND(item.ingredient_id.cost_per_unit)}/{item.ingredient_id.unit}
+                      {formatVND(item.ingredient_id.costPerUnit)}/{item.ingredient_id.unit}
                     </td>
 
                     <td className="px-4 py-3">
@@ -667,7 +667,7 @@ export default function IndexPage() {
                   const totalLoss = checked?.reduce((sum, i) => {
                     const used = i.current_stock - (remaining[i._id] ?? i.current_stock);
                     const exp = 0;
-                    return sum + Math.max(0, used - exp) * i.ingredient_id.cost_per_unit;
+                    return sum + Math.max(0, used - exp) * i.ingredient_id.costPerUnit;
                   }, 0);
                   return (
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-5">

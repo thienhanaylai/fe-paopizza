@@ -5,10 +5,10 @@ export type IngredientData = {
   name: string;
   unit: string;
   category: string;
-  cost_per_unit: number;
+  costPerUnit: number;
   price: number;
   image?: string;
-  is_active: boolean;
+  isActive: boolean;
   isDeleted: boolean;
   createdAt?: string;
   updatedAt?: string;
@@ -50,7 +50,7 @@ export const getUnitIngredient = async () => {
   }
 };
 
-export const addIngredient = async (payload: { name: string; cost_per_unit: number; unit: string; category: string }) => {
+export const addIngredient = async (payload: { name: string; costPerUnit: number; unit: string; category: string }) => {
   const response = await http("/api/v1/ingredient/create", {
     method: "POST",
     body: JSON.stringify(payload),
@@ -72,8 +72,8 @@ export const updateIngredient = async (payload: {
   name: string;
   unit: string;
   category: string;
-  cost_per_unit: number;
-  is_active: boolean;
+  costPerUnit: number;
+  isActive: boolean;
 }) => {
   const response = await http("/api/v1/ingredient/update", {
     method: "POST",

@@ -25,10 +25,10 @@ export type IngredientTopping = {
   name: string;
   unit: string;
   category: string;
-  cost_per_unit: number;
+  costPerUnit: number;
   price: number;
   image?: string;
-  is_active: boolean;
+  isActive: boolean;
   isDeleted: boolean;
   createdAt?: string;
   updatedAt?: string;
@@ -199,10 +199,10 @@ const normalizeTopping = (topping: unknown): ToppingRef | null => {
     name: typeof source.name === "string" ? source.name : "",
     unit: typeof source.unit === "string" ? source.unit : "",
     category: typeof source.category === "string" ? source.category : "",
-    cost_per_unit: typeof source.cost_per_unit === "number" ? source.cost_per_unit : 0,
+    costPerUnit: typeof source.costPerUnit === "number" ? source.costPerUnit : 0,
     price: typeof source.price === "number" ? source.price : 0,
     image: typeof source.image === "string" ? source.image : undefined,
-    is_active: typeof source.is_active === "boolean" ? source.is_active : true,
+    isActive: typeof source.isActive === "boolean" ? source.isActive : true,
     isDeleted: typeof source.isDeleted === "boolean" ? source.isDeleted : false,
     createdAt: typeof source.createdAt === "string" ? source.createdAt : undefined,
     updatedAt: typeof source.updatedAt === "string" ? source.updatedAt : undefined,
@@ -495,6 +495,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
             quantity: item.quantity,
             note: item.note,
             added_topping: extractToppingIds(item.added_topping),
+            price: itemType === "combo" ? item.price : undefined,
           });
         } catch {
           hasFailure = true;
@@ -592,6 +593,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
           added_topping,
           combo: comboId,
           combo_selections,
+          price: itemType === "combo" ? price : undefined,
         });
 
         if (updatedCart) {

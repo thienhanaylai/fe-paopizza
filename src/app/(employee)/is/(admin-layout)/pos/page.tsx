@@ -80,7 +80,7 @@ interface Product {
   category: ProductCategory;
   name: string;
   description: string;
-  is_active: boolean;
+  isActive: boolean;
   variants: ProductVariant[];
   isDeleted: boolean;
 }
@@ -242,7 +242,7 @@ export default function POS() {
         const products = await getAllProducts();
 
         const mappedCategories: MenuCategoryUI[] = categories
-          .filter(cat => cat.is_active && !cat.isDeleted)
+          .filter(cat => cat.isActive && !cat.isDeleted)
           .map(cat => ({
             slug: cat.slug,
             name: cat.name,

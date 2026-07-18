@@ -18,8 +18,9 @@ export interface ComboPayload {
   rules: ComboRulePayload[];
   discountType: "percent" | "amount";
   discount: number;
+  pricingType: "static" | "dynamic";
   price: number;
-  is_active?: boolean;
+  isActive?: boolean;
 }
 
 export interface UpdateComboPayload {
@@ -32,8 +33,9 @@ export interface UpdateComboPayload {
   rules?: ComboRulePayload[];
   discountType?: "percent" | "amount";
   discount?: number;
+  pricingType?: "static" | "dynamic";
   price?: number;
-  is_active?: boolean;
+  isActive?: boolean;
 }
 
 // ─── API calls ─────────────────────────────────────────
