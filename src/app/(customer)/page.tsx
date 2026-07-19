@@ -1055,7 +1055,7 @@ export default function IndexPage() {
                   return (
                     <div
                       key={combo._id}
-                      className="bg-card rounded-2xl border border-border overflow-hidden hover:shadow-xl transition-all duration-300 group cursor-pointer"
+                      className="bg-card rounded-2xl border border-border overflow-hidden hover:shadow-xl transition-all duration-300 group cursor-pointer flex flex-col"
                       onClick={() => handleOpenCombo(combo)}
                     >
                       <div className="relative aspect-[4/3] overflow-hidden">
@@ -1079,7 +1079,7 @@ export default function IndexPage() {
                           </span>
                         )}
                       </div>
-                      <div className="p-4">
+                      <div className="p-4 flex-1 flex flex-col">
                         <h4 className="text-foreground font-semibold mb-1.5">{combo.name}</h4>
                         <div className="text-xs text-muted-foreground mb-2 space-y-0.5">
                           {ruleItems.map((item, idx) => (
@@ -1088,10 +1088,22 @@ export default function IndexPage() {
                             </span>
                           ))}
                         </div>
-                        <div className="flex items-center justify-between mt-3">
+                        <div className="flex items-center justify-between mt-auto pt-3">
                           <div className="flex items-baseline gap-2">
                             {combo.pricingType === "dynamic" ? (
-                              <span className="text-sm font-semibold text-blue-600">Tự động tính giá</span>
+                              <>
+                                {combo.discountType === "percent" ? (
+                                  <>
+                                    <span className="text-sm text-muted-foreground ">Giảm </span>
+                                    <span className="text-lg font-bold text-primary">{combo.discount} %</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <span className="text-sm text-muted-foreground ">Giảm </span>
+                                    <span className="text-lg font-bold text-primary">{formatVND(combo.discount)}</span>
+                                  </>
+                                )}
+                              </>
                             ) : (
                               <>
                                 <span className="text-sm text-muted-foreground line-through">{formatVND(originalPrice)}</span>
