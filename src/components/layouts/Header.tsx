@@ -5,16 +5,15 @@ import {
   Check,
   ChevronDown,
   Clock,
-  Eye,
-  EyeOff,
   Gift,
   History,
+  Home,
+  Info,
   LogOut,
   MapPin,
-  Minus,
-  Navigation,
+  Menu,
+  Phone,
   Pizza,
-  Plus,
   ShoppingCart,
   StoreIcon,
   UserIcon,
@@ -75,6 +74,7 @@ export default function Header() {
   const [selectedStore, setSelectedStore] = useState<StoreData | null>(null);
   const [showStorePicker, setShowStorePicker] = useState(false);
   const [showNavMenu, setShowNavMenu] = useState(false);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
 
   const fectData = async () => {
     const liststr = await getAllStore();
@@ -200,8 +200,107 @@ export default function Header() {
                   </span>
                 )}
               </button>
+
+              {/* Mobile: hamburger menu chứa NavMenu + auth */}
+              <div className="flex md:hidden relative">
+                <button
+                  onClick={() => setShowMobileMenu(!showMobileMenu)}
+                  className="p-2 rounded-lg hover:bg-muted transition-colors cursor-pointer"
+                  aria-label="Menu"
+                >
+                  <Menu size={20} className="text-foreground" />
+                </button>
+                {showMobileMenu && (
+                  <>
+                    <div className="fixed inset-0 z-35" onClick={() => setShowMobileMenu(false)} />
+                    <div className="absolute z-40 top-full right-0 mt-2 w-56 bg-card rounded-xl border border-border shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
+                      {/* NavMenu */}
+                      {NavMenu.map(item => (
+                        <Link
+                          key={item.link}
+                          href={item.link}
+                          onClick={() => {
+                            setShowMobileMenu(false);
+                            window.location.hash = item.link;
+                          }}
+                          className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-foreground hover:bg-muted text-left"
+                        >
+                          {item.link === "/" ? (
+                            <Home size={16} className="text-muted-foreground" />
+                          ) : item.link.includes("#menu") ? (
+                            <Pizza size={16} className="text-muted-foreground" />
+                          ) : item.link.includes("#about") ? (
+                            <Info size={16} className="text-muted-foreground" />
+                          ) : item.link.includes("#contact") ? (
+                            <Phone size={16} className="text-muted-foreground" />
+                          ) : (
+                            <ChevronDown size={16} className="text-muted-foreground" />
+                          )}
+                          {item.name}
+                        </Link>
+                      ))}
+
+                      <div className="border-t border-border" />
+
+                      {/* Auth actions */}
+                      {isMounted && isAuthenticated ? (
+                        <>
+                          <Link
+                            href={"/profile"}
+                            onClick={() => setShowMobileMenu(false)}
+                            className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-foreground hover:bg-muted text-left"
+                          >
+                            <UserIcon size={16} className="text-muted-foreground" /> Hồ sơ của tôi
+                          </Link>
+                          <Link
+                            href={"/orders"}
+                            onClick={() => setShowMobileMenu(false)}
+                            className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-foreground hover:bg-muted text-left"
+                          >
+                            <History size={16} className="text-muted-foreground" /> Lịch sử đơn hàng
+                          </Link>
+                          <button
+                            onClick={() => {
+                              setShowMobileMenu(false);
+                              handleLogout();
+                            }}
+                            className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 text-left cursor-pointer"
+                          >
+                            <LogOut size={16} /> Đăng xuất
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            onClick={() => {
+                              setShowMobileMenu(false);
+                              setAuthMode("login");
+                            }}
+                            className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-foreground hover:bg-muted text-left cursor-pointer"
+                          >
+                            <UserIcon size={16} className="text-muted-foreground" />
+                            Đăng nhập
+                          </button>
+                          <button
+                            onClick={() => {
+                              setShowMobileMenu(false);
+                              setAuthMode("register");
+                            }}
+                            className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-foreground hover:bg-muted text-left cursor-pointer"
+                          >
+                            <UserIcon size={16} className="text-muted-foreground" />
+                            Đăng ký
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Desktop: auth buttons */}
               {isMounted && isAuthenticated ? (
-                <div className="relative shrink-0">
+                <div className="hidden md:block relative shrink-0">
                   <button
                     onClick={() => setShowNavMenu(!showNavMenu)}
                     className="flex items-center gap-2 px-2 sm:px-3 py-1.5 rounded-lg transition-colors bg-primary/5 hover:bg-primary/10"
@@ -270,7 +369,7 @@ export default function Header() {
                   )}
                 </div>
               ) : !isAuthenticated ? (
-                <div className="flex items-center gap-2">
+                <div className="hidden md:flex items-center gap-2">
                   <button
                     onClick={() => {
                       setAuthMode("login");
@@ -288,9 +387,7 @@ export default function Header() {
                     Đăng ký
                   </button>
                 </div>
-              ) : (
-                <></>
-              )}
+              ) : null}
             </div>
           </div>
         </div>

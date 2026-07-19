@@ -1570,7 +1570,7 @@ export default function IndexPage() {
                             </div>
                           )}
                           {(isReplacing || !isRuleFilled || isSlotReplacing) && products.length > 0 && (
-                            <div className="grid grid-cols-2 gap-2 mt-1">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1">
                               {products.map(product => {
                                 const repVariant = product.variants[0];
                                 if (!repVariant) return null;
@@ -1596,7 +1596,7 @@ export default function IndexPage() {
                                         />
                                       </div>
                                       <div className="min-w-0">
-                                        <p className="text-sm font-medium text-foreground truncate">{product.name}</p>
+                                        <p className="text-sm font-medium text-foreground">{product.name}</p>
                                       </div>
                                     </div>
                                   </button>

@@ -356,7 +356,7 @@ export const CheckoutModal = () => {
                 <>
                   <div>
                     <label className="block text-sm mb-2">Hình thức nhận hàng</label>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <button
                         onClick={() => setOrderMethod("carry_out")}
                         className={`flex items-center gap-3 p-4 rounded-xl border-2 transition-all ${orderMethod === "carry_out" ? "border-primary bg-primary/5" : "border-border hover:border-primary/30"}`}
@@ -388,7 +388,7 @@ export const CheckoutModal = () => {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm mb-1">Họ tên *</label>
                       <input
@@ -404,6 +404,9 @@ export const CheckoutModal = () => {
                         value={custPhone}
                         onChange={e => setCustPhone(e.target.value)}
                         placeholder="0901234567"
+                        pattern="[0-9]*"
+                        inputMode="numeric"
+                        type="text"
                         className="w-full px-4 py-2.5 rounded-xl border border-border bg-background focus:border-primary outline-none"
                       />
                     </div>
@@ -434,7 +437,7 @@ export const CheckoutModal = () => {
                   {/* Promotion Code */}
                   <div>
                     <label className="block text-sm mb-1">Mã khuyến mãi</label>
-                    <div className="flex gap-2">
+                    <div className="flex flex-col sm:flex-row gap-2">
                       <input
                         value={promoCode}
                         onChange={e => {
@@ -443,7 +446,7 @@ export const CheckoutModal = () => {
                         }}
                         placeholder="Nhập mã khuyến mãi"
                         disabled={!!appliedPromo?.valid}
-                        className="flex-1 px-4 py-2.5 rounded-xl border border-border bg-background focus:border-primary outline-none disabled:bg-muted disabled:text-muted-foreground uppercase"
+                        className="w-full sm:flex-1 px-4 py-2.5 rounded-xl border border-border bg-background focus:border-primary outline-none disabled:bg-muted disabled:text-muted-foreground uppercase"
                       />
                       {appliedPromo?.valid ? (
                         <button
@@ -452,7 +455,7 @@ export const CheckoutModal = () => {
                             setPromoCode("");
                             setPromoError("");
                           }}
-                          className="px-4 py-2.5 rounded-xl bg-red-50 text-red-600 border border-red-200 text-sm hover:bg-red-100 transition-colors shrink-0"
+                          className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-red-50 text-red-600 border border-red-200 text-sm hover:bg-red-100 transition-colors shrink-0"
                         >
                           Hủy
                         </button>
@@ -460,7 +463,7 @@ export const CheckoutModal = () => {
                         <button
                           onClick={handleApplyPromo}
                           disabled={!promoCode.trim() || isApplyingPromo}
-                          className="px-4 py-2.5 rounded-xl bg-primary text-white text-sm hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shrink-0 flex items-center gap-1.5"
+                          className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-primary text-white text-sm hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shrink-0 flex items-center justify-center gap-1.5"
                         >
                           {isApplyingPromo ? <LoaderCircle size={16} className="animate-spin" /> : <TicketPercent size={16} />}
                           Áp dụng
