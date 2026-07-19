@@ -41,7 +41,7 @@ export interface Employee {
   email: string;
   phone: string;
   station?: EmployeeStation;
-  salary_type?: "hourly" | "monthly";
+  salaryType?: "hourly" | "monthly";
   salary?: number;
   status?: boolean;
   createdAt?: string;
@@ -58,12 +58,12 @@ export interface Employee {
 
 function getEstimatedSalary(employee: Employee, totalHoursMonth: number): number {
   const salary = employee.salary || 0;
-  if ((employee.salary_type || "monthly") === "monthly") return salary;
+  if ((employee.salaryType || "monthly") === "monthly") return salary;
   return salary * totalHoursMonth;
 }
 
 function getEmployeeType(employee: Employee): EmployeeType {
-  return (employee.salary_type || "monthly") === "monthly" ? "fulltime" : "parttime";
+  return (employee.salaryType || "monthly") === "monthly" ? "fulltime" : "parttime";
 }
 
 function getEmployeeStation(employee: Employee): EmployeeStation {
@@ -186,7 +186,7 @@ export default function Employees() {
 
   const openEditModal = (employee: Employee) => {
     const station = employee.station || "cashier";
-    const salaryType = employee.salary_type || "monthly";
+    const salaryType = employee.salaryType || "monthly";
     setEditItem(employee);
     setFormName(employee.name || "");
     setFormUsername("");
@@ -225,7 +225,7 @@ export default function Employees() {
           email: formEmail,
           phone: formPhone,
           station: formStation,
-          salary_type: formSalaryType,
+          salaryType: formSalaryType,
           role: formRole || undefined,
           address: formAddress || undefined,
           salary: formSalary || 0,
@@ -240,7 +240,7 @@ export default function Employees() {
           email: formEmail,
           phone: formPhone,
           station: formStation,
-          salary_type: formSalaryType,
+          salaryType: formSalaryType,
           role: formRole || "staff",
           address: formAddress || undefined,
           salary: formSalary || 0,
@@ -370,124 +370,125 @@ export default function Employees() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        {isPageLoading ? (
-          Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="bg-card rounded-2xl border border-border p-5">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-12 h-12 rounded-full bg-muted animate-pulse" />
-                <div className="space-y-2 flex-1">
-                  <div className="h-4 w-32 bg-muted animate-pulse rounded" />
-                  <div className="h-3 w-24 bg-muted animate-pulse rounded" />
+        {isPageLoading
+          ? Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="bg-card rounded-2xl border border-border p-5">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-12 h-12 rounded-full bg-muted animate-pulse" />
+                  <div className="space-y-2 flex-1">
+                    <div className="h-4 w-32 bg-muted animate-pulse rounded" />
+                    <div className="h-3 w-24 bg-muted animate-pulse rounded" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="h-10 bg-muted animate-pulse rounded-lg" />
+                  <div className="h-10 bg-muted animate-pulse rounded-lg" />
+                  <div className="h-10 bg-muted animate-pulse rounded-lg" />
+                  <div className="h-10 bg-muted animate-pulse rounded-lg" />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="h-10 bg-muted animate-pulse rounded-lg" />
-                <div className="h-10 bg-muted animate-pulse rounded-lg" />
-                <div className="h-10 bg-muted animate-pulse rounded-lg" />
-                <div className="h-10 bg-muted animate-pulse rounded-lg" />
-              </div>
-            </div>
-          ))
-        ) : (
-          filtered.map((employee, i) => {
-          const station = getEmployeeStation(employee);
-          const type = getEmployeeType(employee);
-          const status = getEmployeeStatus(employee);
-          // const level: EmployeeLevel = station === "store_manager" ? "store_manager" : "junior";
-          const totalHoursMonth = 0;
-          const salary = employee.salary || 0;
-          const estimated = getEstimatedSalary(employee, totalHoursMonth);
-          const joinDate = employee.createdAt ? new Date(employee.createdAt).toLocaleDateString("vi-VN") : "-";
-          return (
-            <div key={employee._id} className="bg-card rounded-2xl border border-border p-5 hover:shadow-lg transition-shadow">
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex items-center gap-3">
-                  <div
-                    className={`w-12 h-12 rounded-full ${avatarColors[i % avatarColors.length]} flex items-center justify-center text-white`}
-                  >
-                    {employee.name
-                      .split(" ")
-                      .map(w => w[0])
-                      .slice(-2)
-                      .join("")}
-                  </div>
-                  <div>
-                    <h4 className="text-foreground">{employee.name}</h4>
-                    <div className="flex flex-wrap items-center gap-1 mt-0.5">
-                      {/* <span className={`inline-block px-2 py-0.5 rounded text-[10px] ${getLevelColor(level)}`}>
+            ))
+          : filtered.map((employee, i) => {
+              const station = getEmployeeStation(employee);
+              const type = getEmployeeType(employee);
+              const status = getEmployeeStatus(employee);
+              // const level: EmployeeLevel = station === "store_manager" ? "store_manager" : "junior";
+              const totalHoursMonth = 0;
+              const salary = employee.salary || 0;
+              const estimated = getEstimatedSalary(employee, totalHoursMonth);
+              const joinDate = employee.createdAt ? new Date(employee.createdAt).toLocaleDateString("vi-VN") : "-";
+              return (
+                <div
+                  key={employee._id}
+                  className="bg-card rounded-2xl border border-border p-5 hover:shadow-lg transition-shadow"
+                >
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={`w-12 h-12 rounded-full ${avatarColors[i % avatarColors.length]} flex items-center justify-center text-white`}
+                      >
+                        {employee.name
+                          .split(" ")
+                          .map(w => w[0])
+                          .slice(-2)
+                          .join("")}
+                      </div>
+                      <div>
+                        <h4 className="text-foreground">{employee.name}</h4>
+                        <div className="flex flex-wrap items-center gap-1 mt-0.5">
+                          {/* <span className={`inline-block px-2 py-0.5 rounded text-[10px] ${getLevelColor(level)}`}>
                         {getLevelLabel(level)}
                       </span> */}
-                      <span className={`inline-block px-2 py-0.5 rounded text-[10px] ${getStationColor(station)}`}>
-                        {getStationLabel(station)}
+                          <span className={`inline-block px-2 py-0.5 rounded text-[10px] ${getStationColor(station)}`}>
+                            {getStationLabel(station)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-end gap-1">
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-[10px] ${status === "active" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"}`}
+                      >
+                        {status === "active" ? "Đang làm" : "Nghỉ việc"}
+                      </span>
+                      <span
+                        className={`px-2 py-0.5 rounded text-[10px] ${type === "fulltime" ? "bg-blue-100 text-blue-700" : "bg-purple-100 text-purple-700"}`}
+                      >
+                        {type === "fulltime" ? "Full-time" : "Part-time"}
                       </span>
                     </div>
                   </div>
-                </div>
-                <div className="flex flex-col items-end gap-1">
-                  <span
-                    className={`px-2 py-0.5 rounded-full text-[10px] ${status === "active" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"}`}
-                  >
-                    {status === "active" ? "Đang làm" : "Nghỉ việc"}
-                  </span>
-                  <span
-                    className={`px-2 py-0.5 rounded text-[10px] ${type === "fulltime" ? "bg-blue-100 text-blue-700" : "bg-purple-100 text-purple-700"}`}
-                  >
-                    {type === "fulltime" ? "Full-time" : "Part-time"}
-                  </span>
-                </div>
-              </div>
 
-              <div className="space-y-1.5 text-sm">
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Phone size={13} /> {employee.phone}
-                </div>
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Mail size={13} /> {employee.email}
-                </div>
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <UserCircle size={13} /> Ngày vào: {joinDate}
-                </div>
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Clock size={13} /> Giờ tháng này: <span className="text-foreground">{totalHoursMonth}h</span>
-                </div>
-              </div>
+                  <div className="space-y-1.5 text-sm">
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Phone size={13} /> {employee.phone}
+                    </div>
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Mail size={13} /> {employee.email}
+                    </div>
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <UserCircle size={13} /> Ngày vào: {joinDate}
+                    </div>
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Clock size={13} /> Giờ tháng này: <span className="text-foreground">{totalHoursMonth}h</span>
+                    </div>
+                  </div>
 
-              <div className="mt-4 pt-3 border-t border-border flex items-center justify-between">
-                {type === "fulltime" ? (
-                  <div>
-                    <p className="text-xs text-muted-foreground">Lương cố định</p>
-                    <p className="text-primary">{formatVND(salary)}/tháng</p>
+                  <div className="mt-4 pt-3 border-t border-border flex items-center justify-between">
+                    {type === "fulltime" ? (
+                      <div>
+                        <p className="text-xs text-muted-foreground">Lương cố định</p>
+                        <p className="text-primary">{formatVND(salary)}/tháng</p>
+                      </div>
+                    ) : (
+                      <div>
+                        <p className="text-xs text-muted-foreground">{formatVND(salary)}/h</p>
+                        <p className="text-primary">
+                          {formatVND(estimated)} <span className="text-xs text-muted-foreground">(dự kiến)</span>
+                        </p>
+                      </div>
+                    )}
+                    <div className="flex gap-1">
+                      <button
+                        onClick={() => openEditModal(employee)}
+                        className="p-2 rounded-lg hover:bg-primary/10 text-primary transition-colors"
+                      >
+                        <Edit2 size={15} />
+                      </button>
+                      <button
+                        onClick={() => {
+                          setModalConfirm(true);
+                          setEditItem(employee);
+                        }}
+                        className="p-2 rounded-lg hover:bg-red-50 text-red-500 transition-colors"
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
                   </div>
-                ) : (
-                  <div>
-                    <p className="text-xs text-muted-foreground">{formatVND(salary)}/h</p>
-                    <p className="text-primary">
-                      {formatVND(estimated)} <span className="text-xs text-muted-foreground">(dự kiến)</span>
-                    </p>
-                  </div>
-                )}
-                <div className="flex gap-1">
-                  <button
-                    onClick={() => openEditModal(employee)}
-                    className="p-2 rounded-lg hover:bg-primary/10 text-primary transition-colors"
-                  >
-                    <Edit2 size={15} />
-                  </button>
-                  <button
-                    onClick={() => {
-                      setModalConfirm(true);
-                      setEditItem(employee);
-                    }}
-                    className="p-2 rounded-lg hover:bg-red-50 text-red-500 transition-colors"
-                  >
-                    <Trash2 size={15} />
-                  </button>
                 </div>
-              </div>
-            </div>
-          );
-        })}
-        )}
+              );
+            })}
       </div>
 
       {showModal && (

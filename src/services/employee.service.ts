@@ -13,7 +13,7 @@ export interface CreateEmployeePayload {
   email: string;
   phone: string;
   station: EmployeeStation;
-  salary_type: SalaryType;
+  salaryType: SalaryType;
   role: EmployeeRole;
   address?: string;
   salary?: number;
@@ -27,7 +27,7 @@ export interface UpdateEmployeePayload {
   email?: string;
   phone?: string;
   station?: EmployeeStation;
-  salary_type?: SalaryType;
+  salaryType?: SalaryType;
   role?: EmployeeRole;
   address?: string;
   salary?: number;

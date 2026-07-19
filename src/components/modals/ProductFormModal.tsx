@@ -402,35 +402,40 @@ export default function ProductFormModal({
                       </div>
                     </div>
 
-                    {/* Crust selection */}
-                    <div className="flex items-center gap-3 flex-wrap">
-                      <span className="text-xs text-muted-foreground">Đế bánh:</span>
-                      {CRUST_OPTIONS.map(opt => {
-                        const checked = variant.crust?.includes(opt.value) ?? false;
-                        const toggleCrust = () => {
-                          const next = checked
-                            ? variant.crust.filter(c => c !== opt.value)
-                            : [...(variant.crust || []), opt.value];
-                          handleVariantChange(i, "crust", next);
-                        };
-                        return (
-                          <label
-                            key={opt.value}
-                            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs cursor-pointer transition-colors ${
-                              checked ? "text-primary font-medium" : "text-muted-foreground hover:text-foreground"
-                            }`}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={checked}
-                              onChange={toggleCrust}
-                              className="accent-primary w-3.5 h-3.5"
-                            />
-                            {opt.label}
-                          </label>
-                        );
-                      })}
-                    </div>
+                    {/* Crust selection - only for Pizza category */}
+                    {categories
+                      .find(c => c._id === basicInfo.category)
+                      ?.slug?.toLowerCase()
+                      .includes("pizza") && (
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <span className="text-xs text-muted-foreground">Đế bánh:</span>
+                        {CRUST_OPTIONS.map(opt => {
+                          const checked = variant.crust?.includes(opt.value) ?? false;
+                          const toggleCrust = () => {
+                            const next = checked
+                              ? variant.crust.filter(c => c !== opt.value)
+                              : [...(variant.crust || []), opt.value];
+                            handleVariantChange(i, "crust", next);
+                          };
+                          return (
+                            <label
+                              key={opt.value}
+                              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs cursor-pointer transition-colors ${
+                                checked ? "text-primary font-medium" : "text-muted-foreground hover:text-foreground"
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={toggleCrust}
+                                className="accent-primary w-3.5 h-3.5"
+                              />
+                              {opt.label}
+                            </label>
+                          );
+                        })}
+                      </div>
+                    )}
 
                     {/* Recipe */}
                     <div className="flex flex-col">

@@ -1108,8 +1108,8 @@ export default function IndexPage() {
                           </span>
                         )}
                         {combo.pricingType === "dynamic" && (
-                          <span className="absolute top-3 left-3 px-2.5 py-1 bg-blue-500 text-white text-[11px] font-semibold rounded-full">
-                            Tự động tính giá
+                          <span className="absolute top-3 left-3 px-2.5 py-1 bg-orange-500 text-white text-[11px] font-semibold rounded-full">
+                            Giảm {combo.discountType === "percent" ? `${combo.discount} %` : `${formatVND(combo.discount)}`}
                           </span>
                         )}
                       </div>

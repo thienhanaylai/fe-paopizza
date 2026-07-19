@@ -54,7 +54,7 @@ const createEmptyForm = () => ({
   birthday: "",
   station: "kitchen",
   salary: 0,
-  salary_type: "monthly",
+  salaryType: "monthly",
   store_id: "",
   username: "",
   password: "",
@@ -157,7 +157,7 @@ export default function Accounts() {
             address: formData.address,
             birthday: formData.birthday || undefined,
             station: formData.station,
-            salary_type: formData.salary_type,
+            salaryType: formData.salaryType,
             salary: Number(formData.salary) || 0,
             store_id: formData.store_id || null,
           });
@@ -426,7 +426,7 @@ export default function Accounts() {
                                     birthday: !isCustomer ? toDateInputValue((account.ref_id as any)?.birthday) : "",
                                     station: !isCustomer ? (account.ref_id as any)?.station || "kitchen" : "kitchen",
                                     salary: !isCustomer ? (account.ref_id as any)?.salary || 0 : 0,
-                                    salary_type: !isCustomer ? (account.ref_id as any)?.salary_type || "monthly" : "monthly",
+                                    salaryType: !isCustomer ? (account.ref_id as any)?.salaryType || "monthly" : "monthly",
                                     store_id: !isCustomer ? (account.ref_id as any)?.store_id || "" : "",
                                     username: account.username || "",
                                     password: "",
@@ -560,8 +560,8 @@ export default function Accounts() {
                     <div>
                       <label className="block text-sm mb-1">Loại nhân viên</label>
                       <select
-                        name="salary_type"
-                        value={formData.salary_type}
+                        name="salaryType"
+                        value={formData.salaryType}
                         onChange={handleChange}
                         className="w-full px-4 py-2.5 rounded-xl border border-border bg-background outline-none"
                       >

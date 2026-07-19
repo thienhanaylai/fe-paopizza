@@ -97,6 +97,7 @@ interface ComboFormModalProps {
   editItem: Combo | null;
   categories: ComboCategory[];
   products: ComboProduct[];
+  categoriesWithProducts?: Set<string>;
   isLoading: boolean;
   onSubmit: (payload: ComboFormSubmitPayload) => Promise<void>;
 }
@@ -108,6 +109,7 @@ export default function ComboFormModal({
   editItem,
   categories,
   products,
+  categoriesWithProducts,
   isLoading,
   onSubmit,
 }: ComboFormModalProps) {
@@ -413,19 +415,24 @@ export default function ComboFormModal({
                   <div className="flex flex-wrap gap-1.5">
                     {categories.map(cat => {
                       const checked = rule.applicableCategories.includes(cat._id);
+                      const hasProducts = !categoriesWithProducts || categoriesWithProducts.has(cat._id);
                       return (
                         <label
                           key={cat._id}
-                          className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs cursor-pointer border transition-colors ${
-                            checked
-                              ? "bg-primary/10 border-primary text-primary font-medium"
-                              : "bg-background border-border text-muted-foreground hover:border-primary/40"
+                          className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs border transition-colors ${
+                            !hasProducts
+                              ? "bg-muted/50 border-border text-muted-foreground/40 cursor-not-allowed"
+                              : checked
+                                ? "bg-primary/10 border-primary text-primary font-medium cursor-pointer"
+                                : "bg-background border-border text-muted-foreground hover:border-primary/40 cursor-pointer"
                           }`}
                         >
                           <input
                             type="checkbox"
                             checked={checked}
+                            disabled={!hasProducts}
                             onChange={() => {
+                              if (!hasProducts) return;
                               setComboFormRules(prev =>
                                 prev.map((r, i) => {
                                   if (i !== ri) return r;
@@ -439,6 +446,7 @@ export default function ComboFormModal({
                             className="sr-only"
                           />
                           {cat.name}
+                          {!hasProducts && <span className="text-[10px] ml-0.5">(trống)</span>}
                         </label>
                       );
                     })}

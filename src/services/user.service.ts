@@ -14,7 +14,7 @@ export type Employee = {
   createdAt: string;
   address: string;
   station: string;
-  salary_type: string;
+  salaryType: string;
   store_id: string;
 };
 
@@ -59,7 +59,7 @@ export const createUser = async (payload: {
   birthday: string;
   station: string;
   salary: number;
-  salary_type: string;
+  salaryType: string;
   store_id: string;
   username: string;
   password: string;
@@ -92,7 +92,7 @@ export const createUser = async (payload: {
         email: payload.email,
         phone: payload.phone,
         station: payload.station,
-        salary_type: payload.salary_type,
+        salaryType: payload.salaryType,
         role: payload.role,
         address: payload.address,
         salary: payload.salary,
@@ -173,7 +173,7 @@ export const updateEmployee = async (payload: {
   birthday?: string;
   station?: string;
   salary?: number;
-  salary_type?: string;
+  salaryType?: string;
   store_id?: string | null;
 }) => {
   try {
