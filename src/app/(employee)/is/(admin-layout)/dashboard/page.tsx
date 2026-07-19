@@ -231,7 +231,11 @@ function StoreDashboard({
               <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${stat.color}`}>{stat.icon}</div>
             </div>
             <p className="text-muted-foreground text-sm">{stat.label}</p>
-            <p className="text-foreground text-xl mt-1">{loading ? "..." : stat.value}</p>
+            {loading ? (
+              <div className="h-7 w-20 bg-muted animate-pulse rounded mt-1" />
+            ) : (
+              <p className="text-foreground text-xl mt-1">{stat.value}</p>
+            )}
           </div>
         ))}
       </div>
@@ -396,7 +400,11 @@ function AdminDashboard({ userName, data, loading }: { userName: string; data: A
               <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${stat.color}`}>{stat.icon}</div>
             </div>
             <p className="text-muted-foreground text-sm">{stat.label}</p>
-            <p className="text-foreground text-xl mt-1">{loading ? "..." : stat.value}</p>
+            {loading ? (
+              <div className="h-7 w-20 bg-muted animate-pulse rounded mt-1" />
+            ) : (
+              <p className="text-foreground text-xl mt-1">{stat.value}</p>
+            )}
           </div>
         ))}
       </div>
@@ -598,7 +606,7 @@ export default function DashboardPage() {
             weekDates.map(async d => {
               const date = dateToYmd(d);
               const overview = (await getRevenue(date, date, StoreId, "", "", "")) as RevenueOverview;
-          
+
               return {
                 name: `${d.getDate()}/${d.getMonth() + 1}`,
                 value: getRevenueMetricsValue(overview, "total_revenue"),

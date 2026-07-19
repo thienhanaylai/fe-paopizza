@@ -38,6 +38,7 @@ export default function Suppliers() {
   const [showModal, setShowModal] = useState(false);
   const [editItem, setEditItem] = useState<SupplierApi | null>(null);
   const [listSuppliers, setListSuppliers] = useState<SupplierApi[]>([]);
+  const [isPageLoading, setIsPageLoading] = useState(true);
   const [formName, setFormName] = useState("");
   const [formEmail, setFormEmail] = useState("");
   const [formPhone, setFormPhone] = useState("");
@@ -52,6 +53,7 @@ export default function Suppliers() {
   const fetchSuppliers = async () => {
     const res = await getAllSupplier();
     setListSuppliers(res || []);
+    setIsPageLoading(false);
   };
 
   useEffect(() => {
@@ -259,119 +261,148 @@ export default function Suppliers() {
       )}
 
       <div className="bg-card rounded-2xl border border-border overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-border bg-muted/50">
-                <th className="w-12 px-4 py-3.5">
-                  <button
-                    onClick={toggleSelectAll}
-                    className="flex items-center justify-center w-full text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    {isAllSelected ? (
-                      <SquareCheckBig size={18} className="text-primary" />
-                    ) : isIndeterminate ? (
-                      <SquareCheckBig size={18} className="text-primary/60" />
-                    ) : (
-                      <Square size={18} />
-                    )}
-                  </button>
-                </th>
-                <th className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70">Nhà cung cấp</th>
-                <th className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70 hidden md:table-cell">Danh mục</th>
-                <th className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70 hidden lg:table-cell">SĐT</th>
-                <th className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70 hidden lg:table-cell">Email</th>
-                <th className="text-center px-5 py-3.5 text-sm font-semibold text-foreground/70">Trạng thái</th>
-                <th className="text-center px-5 py-3.5 text-sm font-semibold text-foreground/70">Thao tác</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="px-5 py-16 text-center text-muted-foreground">
-                    <Truck size={40} className="mx-auto mb-3 text-muted-foreground/20" />
-                    <p className="text-sm">Không tìm thấy nhà cung cấp nào</p>
-                  </td>
+        {isPageLoading ? (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-border bg-muted/50">
+                  {Array.from({ length: 7 }).map((_, i) => (
+                    <th key={i} className="px-5 py-3.5">
+                      <div className="h-4 w-16 bg-muted animate-pulse rounded" />
+                    </th>
+                  ))}
                 </tr>
-              ) : (
-                filtered.map(sup => {
-                  const supplierId = sup._id || sup.id || "";
-                  const isSelected = selectedIds.has(supplierId);
-                  return (
-                    <tr
-                      key={supplierId}
-                      className={`border-b border-border last:border-b-0 hover:bg-muted/20 transition-colors ${isSelected ? "bg-primary/5" : ""} ${!sup.isActive ? "opacity-50" : ""}`}
+              </thead>
+              <tbody>
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <tr key={i} className="border-b border-border last:border-b-0">
+                    {Array.from({ length: 7 }).map((_, j) => (
+                      <td key={j} className="px-5 py-3.5">
+                        <div className="h-4 bg-muted animate-pulse rounded" style={{ width: `${50 + j * 10}%` }} />
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-border bg-muted/50">
+                  <th className="w-12 px-4 py-3.5">
+                    <button
+                      onClick={toggleSelectAll}
+                      className="flex items-center justify-center w-full text-muted-foreground hover:text-foreground transition-colors"
                     >
-                      <td className="px-4 py-3.5">
-                        <button
-                          onClick={() => toggleSelectOne(supplierId)}
-                          className="flex items-center justify-center w-full text-muted-foreground hover:text-foreground transition-colors"
-                        >
-                          {isSelected ? <SquareCheckBig size={18} className="text-primary" /> : <Square size={18} />}
-                        </button>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                            <Truck size={18} className="text-primary" />
-                          </div>
-                          <div className="min-w-0">
-                            <p className="text-sm font-semibold text-foreground truncate">{sup.name}</p>
-                            <p className="text-xs text-muted-foreground md:hidden mt-0.5">
-                              {supplierCategoryLabels[sup.supplier_category] || sup.supplier_category}
-                            </p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-5 py-3.5 hidden md:table-cell">
-                        <span className="text-sm text-foreground/80">
-                          {supplierCategoryLabels[sup.supplier_category] || sup.supplier_category}
-                        </span>
-                      </td>
-                      <td className="px-5 py-3.5 hidden lg:table-cell">
-                        <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                          <Phone size={13} />
-                          <span>{sup.phone || "-"}</span>
-                        </div>
-                      </td>
-                      <td className="px-5 py-3.5 hidden lg:table-cell">
-                        <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                          <Mail size={13} />
-                          <span className="truncate max-w-[180px]">{sup.email || "-"}</span>
-                        </div>
-                      </td>
-                      <td className="px-5 py-3.5 text-center">
-                        <span
-                          className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${sup.isActive ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-500"}`}
-                        >
-                          {sup.isActive ? "Đang hợp tác" : "Ngừng"}
-                        </span>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <div className="flex items-center justify-center gap-1">
+                      {isAllSelected ? (
+                        <SquareCheckBig size={18} className="text-primary" />
+                      ) : isIndeterminate ? (
+                        <SquareCheckBig size={18} className="text-primary/60" />
+                      ) : (
+                        <Square size={18} />
+                      )}
+                    </button>
+                  </th>
+                  <th className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70">Nhà cung cấp</th>
+                  <th className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70 hidden md:table-cell">
+                    Danh mục
+                  </th>
+                  <th className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70 hidden lg:table-cell">SĐT</th>
+                  <th className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70 hidden lg:table-cell">Email</th>
+                  <th className="text-center px-5 py-3.5 text-sm font-semibold text-foreground/70">Trạng thái</th>
+                  <th className="text-center px-5 py-3.5 text-sm font-semibold text-foreground/70">Thao tác</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="px-5 py-16 text-center text-muted-foreground">
+                      <Truck size={40} className="mx-auto mb-3 text-muted-foreground/20" />
+                      <p className="text-sm">Không tìm thấy nhà cung cấp nào</p>
+                    </td>
+                  </tr>
+                ) : (
+                  filtered.map(sup => {
+                    const supplierId = sup._id || sup.id || "";
+                    const isSelected = selectedIds.has(supplierId);
+                    return (
+                      <tr
+                        key={supplierId}
+                        className={`border-b border-border last:border-b-0 hover:bg-muted/20 transition-colors ${isSelected ? "bg-primary/5" : ""} ${!sup.isActive ? "opacity-50" : ""}`}
+                      >
+                        <td className="px-4 py-3.5">
                           <button
-                            onClick={() => openEditModal(sup)}
-                            className="p-2 rounded-lg hover:bg-blue-50 text-muted-foreground hover:text-blue-500 transition-colors"
-                            title="Chỉnh sửa"
+                            onClick={() => toggleSelectOne(supplierId)}
+                            className="flex items-center justify-center w-full text-muted-foreground hover:text-foreground transition-colors"
                           >
-                            <Edit2 size={16} />
+                            {isSelected ? <SquareCheckBig size={18} className="text-primary" /> : <Square size={18} />}
                           </button>
-                          <button
-                            onClick={() => handleDelete(sup)}
-                            className="p-2 rounded-lg hover:bg-red-50 text-muted-foreground hover:text-red-500 transition-colors"
-                            title="Xoá"
+                        </td>
+                        <td className="px-5 py-3.5">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                              <Truck size={18} className="text-primary" />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold text-foreground truncate">{sup.name}</p>
+                              <p className="text-xs text-muted-foreground md:hidden mt-0.5">
+                                {supplierCategoryLabels[sup.supplier_category] || sup.supplier_category}
+                              </p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-5 py-3.5 hidden md:table-cell">
+                          <span className="text-sm text-foreground/80">
+                            {supplierCategoryLabels[sup.supplier_category] || sup.supplier_category}
+                          </span>
+                        </td>
+                        <td className="px-5 py-3.5 hidden lg:table-cell">
+                          <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                            <Phone size={13} />
+                            <span>{sup.phone || "-"}</span>
+                          </div>
+                        </td>
+                        <td className="px-5 py-3.5 hidden lg:table-cell">
+                          <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                            <Mail size={13} />
+                            <span className="truncate max-w-[180px]">{sup.email || "-"}</span>
+                          </div>
+                        </td>
+                        <td className="px-5 py-3.5 text-center">
+                          <span
+                            className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${sup.isActive ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-500"}`}
                           >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+                            {sup.isActive ? "Đang hợp tác" : "Ngừng"}
+                          </span>
+                        </td>
+                        <td className="px-5 py-3.5">
+                          <div className="flex items-center justify-center gap-1">
+                            <button
+                              onClick={() => openEditModal(sup)}
+                              className="p-2 rounded-lg hover:bg-blue-50 text-muted-foreground hover:text-blue-500 transition-colors"
+                              title="Chỉnh sửa"
+                            >
+                              <Edit2 size={16} />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(sup)}
+                              className="p-2 rounded-lg hover:bg-red-50 text-muted-foreground hover:text-red-500 transition-colors"
+                              title="Xoá"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {/* Modal */}

@@ -211,6 +211,7 @@ export default function IndexPage() {
 
   const [activeCategory, setActiveCategory] = useState<string>("all");
   const [categories, setCategories] = useState<MenuCategoryUI[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   const [product, setProduct] = useState<Product | null>(null);
   const [note, setNote] = useState<string>("");
@@ -231,7 +232,7 @@ export default function IndexPage() {
   const comboCounterRef = useRef(0);
   const ruleRefs = useRef<(HTMLDivElement | null)[]>([]);
 
-  // Auto-scroll đến rule chưa hoàn thành tiếp theo khi rule hiện tại vừa được fill đầy
+  // scroll đến rule chưa hoàn thành tiếp theo khi rule hiện tại vừa được fill đầy
   useEffect(() => {
     if (!selectedCombo) return;
 
@@ -264,7 +265,11 @@ export default function IndexPage() {
   };
 
   const filteredMenu1 =
-    activeCategory === "all" ? menu?.products : menu?.products.filter(m => m?.category.slug === activeCategory);
+    activeCategory === "combo"
+      ? []
+      : activeCategory === "all"
+        ? menu?.products
+        : menu?.products.filter(m => m?.category.slug === activeCategory);
 
   const availableSizes = useMemo(() => {
     if (!product) return [];
@@ -365,7 +370,6 @@ export default function IndexPage() {
     syncSelectedStore();
     window.addEventListener("storage", handleStorage);
     window.addEventListener("selected-store-changed", handleStoreChanged);
-    // Fallback: re-sync on focus in case custom event was missed
     window.addEventListener("focus", syncSelectedStore);
 
     return () => {
@@ -378,6 +382,7 @@ export default function IndexPage() {
   useEffect(() => {
     const fectData = async () => {
       try {
+        setIsLoading(true);
         const categories = await getAllCategories();
         const menu = selectedStoreId ? await getMenuByStoreId(selectedStoreId) : null;
 
@@ -389,18 +394,29 @@ export default function IndexPage() {
             icon: cat.icon,
           }));
 
+        const comboIconSvg =
+          "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJsdWNpZGUgbHVjaWRlLWdpZnQiPjxyZWN0IHg9IjMiIHk9IjgiIHdpZHRoPSIxOCIgaGVpZ2h0PSI0IiByeD0iMSIvPjxwYXRoIGQ9Ik0xMiA4djEzIi8+PHBhdGggZD0iTTE5IDEydjdhMiAyIDAgMCAxLTIgMkg3YTIgMiAwIDAgMS0yLTJ2LTciLz48cGF0aCBkPSJNNy41IDhhMi41IDIuNSAwIDAgMSAwLTVBMyAzIDAgMCAxIDEyIDhhMyAzIDAgMCAxIDQuNS0yLjVBMi41IDIuNSAwIDAgMSAxNi41IDgiLz48L3N2Zz4=";
+
         const finalCategories: MenuCategoryUI[] = [
           {
             slug: "all",
             name: "Tất cả",
             icon: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJsdWNpZGUgbHVjaWRlLXV0ZW5zaWxzLWNyb3NzZWQtaWNvbiBsdWNpZGUtdXRlbnNpbHMtY3Jvc3NlZCI+PHBhdGggZD0ibTE2IDItMi4zIDIuM2EzIDMgMCAwIDAgMCA0LjJsMS44IDEuOGEzIDMgMCAwIDAgNC4yIDBMMjIgOCIvPjxwYXRoIGQ9Ik0xNSAxNSAzLjMgMy4zYTQuMiA0LjIgMCAwIDAgMCA2bDcuMyA3LjNjLjcuNyAyIC43IDIuOCAwTDE1IDE1Wm0wIDAgNyA3Ii8+PHBhdGggZD0ibTIuMSAyMS44IDYuNC02LjMiLz48cGF0aCBkPSJtMTkgNS03IDciLz48L3N2Zz4=",
           },
+          {
+            slug: "combo",
+            name: "Combo",
+            icon: comboIconSvg,
+          },
           ...mappedCategories,
         ];
 
         setCategories(finalCategories);
         setMenu(menu || undefined);
-      } catch {}
+      } catch {
+      } finally {
+        setIsLoading(false);
+      }
     };
     fectData();
 
@@ -511,16 +527,10 @@ export default function IndexPage() {
     setEditingComboId(null);
   }, [editingComboId, menu, cart?.items, setEditingComboId]);
 
-  // (() => {
-  //   filteredMenu1?.map(item => {
-  //     console.log(item);
-  //   });
-  // })();
   const hanldeProduct = (selectedProduct: Product) => {
     setProduct(selectedProduct);
 
     const firstVariant = selectedProduct.variants[0];
-    console.log(selectedProduct);
     const isPizza =
       selectedProduct.category?.slug?.toLowerCase().includes("pizza") || selectedProduct.name?.toLowerCase().includes("pizza");
     const firstCrust = parseCrustOptions(firstVariant?.crust)[0] || "";
@@ -751,8 +761,6 @@ export default function IndexPage() {
       }
       editingComboOldSkuRef.current = null;
     }
-
-    // Generate unique SKU for each combo instance
     comboCounterRef.current += 1;
     const newSku = `combo-${selectedCombo._id}-${comboCounterRef.current}`;
 
@@ -939,10 +947,10 @@ export default function IndexPage() {
                   Xem menu <ArrowRight size={18} />
                 </a>
                 <a
-                  href="tel:19001234"
+                  href={`tel:${menu?.store.phone}`}
                   className="inline-flex items-center justify-center gap-2 border border-border text-foreground px-6 py-3 rounded-xl hover:bg-muted transition-colors"
                 >
-                  <Phone size={18} /> 1900 1234
+                  <Phone size={18} /> {menu?.store.phone}
                 </a>
               </div>
               <div className="flex items-center gap-8 mt-10">
@@ -1020,28 +1028,54 @@ export default function IndexPage() {
             </p>
           </div>
           <div className="sticky top-[72px] w-full z-20 bg-white/90 backdrop-blur-md py-2 px-3 sm:px-2 border border-border/80 shadow-sm rounded-2xl sm:rounded-[24px]  sm:mx-auto max-w-7xl transition-all duration-300">
-            <div
-              className="flex flex-nowrap items-center gap-2 overflow-x-auto no-scrollbar py-1 w-full justify-start sm:justify-center"
-              style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
-            >
-              {categories.map(cat => (
-                <button
-                  key={cat.slug}
-                  onClick={() => handleCategoryClick(cat.slug)}
-                  className={`flex items-center gap-2 px-4 sm:px-5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
-                    activeCategory === cat.slug
-                      ? "border-primary/30 bg-primary/5 text-primary shadow-lg shadow-primary/10 border "
-                      : "bg-card border border-border text-muted-foreground hover:border-primary/30 hover:text-primary hover:bg-primary/5"
-                  }`}
-                >
-                  <Image src={cat.icon || ""} width={18} height={18} alt={cat.name} /> {cat.name}
-                </button>
-              ))}
-            </div>
+            {isLoading && categories.length === 0 ? (
+              <div className="flex flex-nowrap items-center gap-2 overflow-x-auto no-scrollbar py-1 w-full justify-start sm:justify-center">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <div key={i} className="h-9 w-24 rounded-xl bg-muted animate-pulse shrink-0" />
+                ))}
+              </div>
+            ) : (
+              <div
+                className="flex flex-nowrap items-center gap-2 overflow-x-auto no-scrollbar py-1 w-full justify-start sm:justify-center"
+                style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+              >
+                {categories.map(cat => (
+                  <button
+                    key={cat.slug}
+                    onClick={() => handleCategoryClick(cat.slug)}
+                    className={`flex items-center gap-2 px-4 sm:px-5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
+                      activeCategory === cat.slug
+                        ? "border-primary/30 bg-primary/5 text-primary shadow-lg shadow-primary/10 border "
+                        : "bg-card border border-border text-muted-foreground hover:border-primary/30 hover:text-primary hover:bg-primary/5"
+                    }`}
+                  >
+                    <Image src={cat.icon || ""} width={18} height={18} alt={cat.name} /> {cat.name}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
+          {/* ---- Loading Skeleton for Products ---- */}
+          {isLoading && (!menu || !menu.products) && (
+            <div className="mt-8 space-y-6">
+              <div className="h-7 w-48 bg-muted animate-pulse rounded-lg" />
+              <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
+                {Array.from({ length: 10 }).map((_, i) => (
+                  <div key={i} className="bg-card rounded-2xl border border-border overflow-hidden">
+                    <div className="aspect-square bg-muted animate-pulse" />
+                    <div className="p-4 space-y-2">
+                      <div className="h-4 w-3/4 bg-muted animate-pulse rounded" />
+                      <div className="h-3 w-1/2 bg-muted animate-pulse rounded" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* ---- Combo Section ---- */}
-          {activeCategory === "all" && menu?.combos && menu.combos.length > 0 && (
+          {(activeCategory === "all" || activeCategory === "combo") && menu?.combos && menu.combos.length > 0 && (
             <div className="mt-8 space-y-6">
               <div className="border-l-4 border-orange-500 pl-4 py-1">
                 <h3 className="text-xl sm:text-2xl font-black text-foreground flex items-center gap-2">Combo Ưu Đãi</h3>
@@ -1236,7 +1270,7 @@ export default function IndexPage() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-4xl mx-auto">
             {[
-              { icon: <Phone size={22} />, label: "Hotline", value: "19000860" },
+              { icon: <Phone size={22} />, label: "Hotline", value: menu?.store.phone || "1900 0860" },
               {
                 icon: <MapPin size={22} />,
                 label: "Địa chỉ",

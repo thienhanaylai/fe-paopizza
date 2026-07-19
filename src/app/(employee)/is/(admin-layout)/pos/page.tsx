@@ -198,6 +198,7 @@ export default function POS() {
   const [activeTab, setActiveTab] = useState<MenuTab>("all");
   const [products, setProducts] = useState<Product[]>([]);
   const [combos, setCombos] = useState<ComboDisplay[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [contactModal, setContactModal] = useState(false);
   const [categories, setCategories] = useState<MenuCategoryUI[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -238,6 +239,7 @@ export default function POS() {
   useEffect(() => {
     const fectData = async () => {
       try {
+        setIsLoading(true);
         const categories = await getAllCategories();
         const products = await getAllProducts();
 
@@ -249,11 +251,19 @@ export default function POS() {
             icon: cat.icon,
           }));
 
+        const comboIconSvg =
+          "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJsdWNpZGUgbHVjaWRlLWdpZnQiPjxyZWN0IHg9IjMiIHk9IjgiIHdpZHRoPSIxOCIgaGVpZ2h0PSI0IiByeD0iMSIvPjxwYXRoIGQ9Ik0xMiA4djEzIi8+PHBhdGggZD0iTTE5IDEydjdhMiAyIDAgMCAxLTIgMkg3YTIgMiAwIDAgMS0yLTJ2LTciLz48cGF0aCBkPSJNNy41IDhhMi41IDIuNSAwIDAgMSAwLTVBMyAzIDAgMCAxIDEyIDhhMyAzIDAgMCAxIDQuNS0yLjVBMi41IDIuNSAwIDAgMSAxNi41IDgiLz48L3N2Zz4=";
+
         const finalCategories: MenuCategoryUI[] = [
           {
             slug: "all",
             name: "Tất cả",
             icon: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJsdWNpZGUgbHVjaWRlLXV0ZW5zaWxzLWNyb3NzZWQtaWNvbiBsdWNpZGUtdXRlbnNpbHMtY3Jvc3NlZCI+PHBhdGggZD0ibTE2IDItMi4zIDIuM2EzIDMgMCAwIDAgMCA0LjJsMS44IDEuOGEzIDMgMCAwIDAgNC4yIDBMMjIgOCIvPjxwYXRoIGQ9Ik0xNSAxNSAzLjMgMy4zYTQuMiA0LjIgMCAwIDAgMCA2bDcuMyA3LjNjLjcuNyAyIC43IDIuOCAwTDE1IDE1Wm0wIDAgNyA3Ii8+PHBhdGggZD0ibTIuMSAyMS44IDYuNC02LjMiLz48cGF0aCBkPSJtMTkgNS03IDciLz48L3N2Zz4=",
+          },
+          {
+            slug: "combo",
+            name: "Combo",
+            icon: comboIconSvg,
           },
           ...mappedCategories,
         ];
@@ -289,24 +299,34 @@ export default function POS() {
         }
       } catch (error) {
         return;
+      } finally {
+        setIsLoading(false);
       }
     };
     fectData();
   }, [user?.store_id]);
 
   const filteredMenu = useMemo(() => {
-    if (activeTab === "combos") return [];
+    if (activeTab === "combos" || activeCategory === "combo") return [];
     let items = activeCategory === "all" ? products : products.filter(m => m?.category.slug === activeCategory);
     if (search) items = items.filter(m => m.name.toLowerCase().includes(search.toLowerCase()));
+    // Sort by category order in sidebar
+    const catOrderMap = new Map(categories.map((cat, idx) => [cat.slug, idx]));
+    items = [...items].sort((a, b) => {
+      const orderA = catOrderMap.get(a.category?.slug) ?? Infinity;
+      const orderB = catOrderMap.get(b.category?.slug) ?? Infinity;
+      return orderA - orderB;
+    });
     return items;
-  }, [products, activeCategory, search, activeTab]);
+  }, [products, activeCategory, search, activeTab, categories]);
 
   const filteredCombos = useMemo(() => {
     if (activeTab === "products") return [];
-    let items = combos;
+    let items = activeCategory === "combo" || activeCategory === "all" ? combos : [];
+    if (activeCategory !== "all" && activeCategory !== "combo") items = [];
     if (search) items = items.filter(c => c.name.toLowerCase().includes(search.toLowerCase()));
     return items;
-  }, [combos, search, activeTab]);
+  }, [combos, search, activeCategory, activeTab]);
 
   const addToCart = (item: CartItem) => {
     setCart(prev => {
@@ -914,7 +934,14 @@ export default function POS() {
           {categories.map(cat => (
             <button
               key={cat.slug}
-              onClick={() => setActiveCategory(cat.slug)}
+              onClick={() => {
+                setActiveCategory(cat.slug);
+                if (cat.slug === "combo") {
+                  setActiveTab("combos");
+                } else {
+                  setActiveTab("all");
+                }
+              }}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 ${activeCategory === cat.slug ? "bg-primary text-white shadow-lg shadow-primary/25" : "bg-card border border-border text-muted-foreground hover:border-primary/30 hover:text-primary"}`}
             >
               <Image src={cat.icon || ""} width={18} height={18} alt={cat.name} />
@@ -1002,39 +1029,93 @@ export default function POS() {
         </div>
 
         <div className="flex-1 overflow-y-auto p-4">
-          {/* ─── Products ─── */}
-          {activeTab !== "combos" && (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 mb-4">
-              {filteredMenu.map(item => {
-                return item.variants.map(prd => {
-                  return (
+          {/* ─── Loading Skeleton ─── */}
+          {isLoading && products.length === 0 ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
+              {Array.from({ length: 12 }).map((_, i) => (
+                <div key={i} className="bg-card rounded-xl border overflow-hidden">
+                  <div className="aspect-[4/3] bg-muted animate-pulse" />
+                  <div className="p-2.5 space-y-1.5">
+                    <div className="h-3 w-3/4 bg-muted animate-pulse rounded" />
+                    <div className="h-3 w-1/3 bg-muted animate-pulse rounded" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <>
+              {/* ─── Products ─── */}
+              {activeTab !== "combos" && (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 mb-4">
+                  {filteredMenu.map(item => {
+                    return item.variants.map(prd => {
+                      return (
+                        <button
+                          key={prd.sku}
+                          onClick={() => {
+                            const itemCart: CartItem = {
+                              item_type: "product",
+                              product_id: item._id,
+                              name: item.name,
+                              note: "",
+                              price: prd.price,
+                              quantity: 1,
+                              size: prd.size,
+                              sku: prd.sku,
+                              image: prd.image.url,
+                            };
+                            addToCart(itemCart);
+                          }}
+                          className={`bg-card rounded-xl border overflow-hidden hover:shadow-lg transition-all text-left group relative `}
+                        >
+                          <div className="aspect-[4/3] bg-white relative overflow-hidden">
+                            {prd.image.url ? (
+                              <Image
+                                fill
+                                loading="eager"
+                                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                                src={prd?.image.url}
+                                alt={item.name}
+                                className="object-contain"
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center">
+                                <Pizza size={28} className="text-muted-foreground/20" />
+                              </div>
+                            )}
+                          </div>
+                          <div className="p-2.5">
+                            <p className="text-xs text-foreground truncate">
+                              {item.name} - {prd.size}
+                            </p>
+                            <div className="flex items-center gap-1.5 mt-1">
+                              <span className="text-xs text-primary">{formatVND(prd?.price)}</span>
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    });
+                  })}
+                </div>
+              )}
+
+              {/* ─── Combos ─── */}
+              {activeTab !== "products" && filteredCombos.length > 0 && (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 mb-4">
+                  {filteredCombos.map(combo => (
                     <button
-                      key={prd.sku}
-                      onClick={() => {
-                        const itemCart: CartItem = {
-                          item_type: "product",
-                          product_id: item._id,
-                          name: item.name,
-                          note: "",
-                          price: prd.price,
-                          quantity: 1,
-                          size: prd.size,
-                          sku: prd.sku,
-                          image: prd.image.url,
-                        };
-                        addToCart(itemCart);
-                      }}
-                      className={`bg-card rounded-xl border overflow-hidden hover:shadow-lg transition-all text-left group relative `}
+                      key={combo._id}
+                      onClick={() => handleOpenCombo(combo)}
+                      className="bg-card rounded-xl border overflow-hidden hover:shadow-lg transition-all text-left group relative"
                     >
-                      <div className="aspect-[4/3] bg-white relative overflow-hidden">
-                        {prd.image.url ? (
+                      <div className="aspect-[4/3] bg-muted relative overflow-hidden">
+                        {combo.image ? (
                           <Image
                             fill
                             loading="eager"
                             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                            src={prd?.image.url}
-                            alt={item.name}
-                            className="object-contain"
+                            src={combo.image}
+                            alt={combo.name}
                           />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center">
@@ -1043,60 +1124,23 @@ export default function POS() {
                         )}
                       </div>
                       <div className="p-2.5">
-                        <p className="text-xs text-foreground truncate">
-                          {item.name} - {prd.size}
-                        </p>
+                        <p className="text-xs text-foreground truncate">{combo.name}</p>
                         <div className="flex items-center gap-1.5 mt-1">
-                          <span className="text-xs text-primary">{formatVND(prd?.price)}</span>
+                          <span className="text-xs text-primary">{formatVND(combo.price)}</span>
                         </div>
                       </div>
                     </button>
-                  );
-                });
-              })}
-            </div>
-          )}
+                  ))}
+                </div>
+              )}
 
-          {/* ─── Combos ─── */}
-          {activeTab !== "products" && filteredCombos.length > 0 && (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 mb-4">
-              {filteredCombos.map(combo => (
-                <button
-                  key={combo._id}
-                  onClick={() => handleOpenCombo(combo)}
-                  className="bg-card rounded-xl border overflow-hidden hover:shadow-lg transition-all text-left group relative"
-                >
-                  <div className="aspect-[4/3] bg-muted relative overflow-hidden">
-                    {combo.image ? (
-                      <Image
-                        fill
-                        loading="eager"
-                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                        src={combo.image}
-                        alt={combo.name}
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <Pizza size={28} className="text-muted-foreground/20" />
-                      </div>
-                    )}
-                  </div>
-                  <div className="p-2.5">
-                    <p className="text-xs text-foreground truncate">{combo.name}</p>
-                    <div className="flex items-center gap-1.5 mt-1">
-                      <span className="text-xs text-primary">{formatVND(combo.price)}</span>
-                    </div>
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
-
-          {filteredMenu.length === 0 && filteredCombos.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-16 text-muted-foreground/40">
-              <Search size={40} className="mb-2" />
-              <p className="text-sm">Không tìm thấy sản phẩm</p>
-            </div>
+              {filteredMenu.length === 0 && filteredCombos.length === 0 && !isLoading && (
+                <div className="flex flex-col items-center justify-center py-16 text-muted-foreground/40">
+                  <Search size={40} className="mb-2" />
+                  <p className="text-sm">Không tìm thấy sản phẩm</p>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>

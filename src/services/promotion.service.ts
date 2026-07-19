@@ -9,10 +9,10 @@ export interface Promotion {
   code: string;
   type: PromotionType;
   value: number;
-  start_date: string;
-  end_date: string;
+  startDate: string;
+  endDate: string;
   status: PromotionStatus;
-  applicable_store: string[] | { _id: string; name: string }[];
+  applicableStore: string[] | { _id: string; name: string }[];
   isDeleted: boolean;
   createdAt: string;
   updatedAt: string;
@@ -22,10 +22,10 @@ export interface CreatePromotionPayload {
   code: string;
   type: PromotionType;
   value: number;
-  start_date: string;
-  end_date: string;
+  startDate: string;
+  endDate: string;
   status?: PromotionStatus;
-  applicable_store?: string[];
+  applicableStore?: string[];
 }
 
 export interface UpdatePromotionPayload {
@@ -33,10 +33,10 @@ export interface UpdatePromotionPayload {
   code?: string;
   type?: PromotionType;
   value?: number;
-  start_date?: string;
-  end_date?: string;
+  startDate?: string;
+  endDate?: string;
   status?: PromotionStatus;
-  applicable_store?: string[];
+  applicableStore?: string[];
 }
 
 export interface PromoCodeResult {

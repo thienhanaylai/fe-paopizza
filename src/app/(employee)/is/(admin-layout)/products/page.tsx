@@ -123,6 +123,7 @@ export default function Products() {
   const [categories, setCategories] = useState<MenuCategoryUI[]>([]);
   const [ingredients, setIngredients] = useState<IngredientList[]>();
   const [isLoading, setIsLoading] = useState(false);
+  const [isPageLoading, setIsPageLoading] = useState(true);
   const [confirmModal, setCongirmModal] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
@@ -235,7 +236,9 @@ export default function Products() {
       setProducts(ListProduct);
       setCategories(finalCategories);
       setIngredients(ListIngredients);
+      setIsPageLoading(false);
     } catch (error) {
+      setIsPageLoading(false);
       return error;
     }
   };
@@ -675,134 +678,161 @@ export default function Products() {
 
           {/* Products Table */}
           <div className="bg-card rounded-2xl border border-border overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-border bg-muted/50">
-                    <th className="w-12 px-4 py-3.5">
-                      <button
-                        onClick={toggleSelectAll}
-                        className="flex items-center justify-center w-full text-muted-foreground hover:text-foreground transition-colors"
-                      >
-                        {isAllSelected ? (
-                          <SquareCheckBig size={18} className="text-primary" />
-                        ) : isIndeterminate ? (
-                          <SquareCheckBig size={18} className="text-primary/60" />
-                        ) : (
-                          <Square size={18} />
-                        )}
-                      </button>
-                    </th>
-                    <th className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70">Sản phẩm</th>
-                    <th className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70">Danh mục</th>
-                    <th className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70">Giá</th>
-                    <th className="text-center px-5 py-3.5 text-sm font-semibold text-foreground/70">Trạng thái</th>
-                    <th className="text-center px-5 py-3.5 text-sm font-semibold text-foreground/70">Thao tác</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="px-5 py-16 text-center text-muted-foreground">
-                        <Pizza size={40} className="mx-auto mb-3 text-muted-foreground/20" />
-                        <p className="text-sm">Không tìm thấy sản phẩm nào</p>
-                      </td>
+            {isPageLoading ? (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-border bg-muted/50">
+                      {Array.from({ length: 6 }).map((_, i) => (
+                        <th key={i} className="px-5 py-3.5">
+                          <div className="h-4 w-16 bg-muted animate-pulse rounded" />
+                        </th>
+                      ))}
                     </tr>
-                  ) : (
-                    filtered.map(product => {
-                      const isSelected = selectedIds.has(product._id);
-                      return (
-                        <tr
-                          key={product._id}
-                          className={`border-b border-border last:border-b-0 hover:bg-muted/20 transition-colors ${!product.isActive ? "opacity-50" : ""} ${isSelected ? "bg-primary/5" : ""}`}
+                  </thead>
+                  <tbody>
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <tr key={i} className="border-b border-border last:border-b-0">
+                        {Array.from({ length: 6 }).map((_, j) => (
+                          <td key={j} className="px-5 py-3.5">
+                            <div className="h-4 bg-muted animate-pulse rounded" style={{ width: `${50 + j * 10}%` }} />
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-border bg-muted/50">
+                      <th className="w-12 px-4 py-3.5">
+                        <button
+                          onClick={toggleSelectAll}
+                          className="flex items-center justify-center w-full text-muted-foreground hover:text-foreground transition-colors"
                         >
-                          <td className="px-4 py-3.5">
-                            <button
-                              onClick={() => toggleSelectOne(product._id)}
-                              className="flex items-center justify-center w-full text-muted-foreground hover:text-foreground transition-colors"
-                            >
-                              {isSelected ? <SquareCheckBig size={18} className="text-primary" /> : <Square size={18} />}
-                            </button>
-                          </td>
-                          <td className="px-5 py-3.5">
-                            <div className="flex items-center gap-3.5">
-                              <div className="h-14 w-14 rounded-xl bg-muted overflow-hidden shrink-0 relative border border-border/50">
-                                {product.variants[0]?.image?.url ? (
-                                  <Image
-                                    src={product.variants[0].image.url}
-                                    alt={product.name}
-                                    fill
-                                    className="object-cover"
-                                    sizes="56px"
-                                  />
-                                ) : (
-                                  <div className="w-full h-full flex items-center justify-center">
-                                    <Pizza size={22} className="text-muted-foreground/25" />
-                                  </div>
+                          {isAllSelected ? (
+                            <SquareCheckBig size={18} className="text-primary" />
+                          ) : isIndeterminate ? (
+                            <SquareCheckBig size={18} className="text-primary/60" />
+                          ) : (
+                            <Square size={18} />
+                          )}
+                        </button>
+                      </th>
+                      <th className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70">Sản phẩm</th>
+                      <th className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70">Danh mục</th>
+                      <th className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70">Giá</th>
+                      <th className="text-center px-5 py-3.5 text-sm font-semibold text-foreground/70">Trạng thái</th>
+                      <th className="text-center px-5 py-3.5 text-sm font-semibold text-foreground/70">Thao tác</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filtered.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="px-5 py-16 text-center text-muted-foreground">
+                          <Pizza size={40} className="mx-auto mb-3 text-muted-foreground/20" />
+                          <p className="text-sm">Không tìm thấy sản phẩm nào</p>
+                        </td>
+                      </tr>
+                    ) : (
+                      filtered.map(product => {
+                        const isSelected = selectedIds.has(product._id);
+                        return (
+                          <tr
+                            key={product._id}
+                            className={`border-b border-border last:border-b-0 hover:bg-muted/20 transition-colors ${!product.isActive ? "opacity-50" : ""} ${isSelected ? "bg-primary/5" : ""}`}
+                          >
+                            <td className="px-4 py-3.5">
+                              <button
+                                onClick={() => toggleSelectOne(product._id)}
+                                className="flex items-center justify-center w-full text-muted-foreground hover:text-foreground transition-colors"
+                              >
+                                {isSelected ? <SquareCheckBig size={18} className="text-primary" /> : <Square size={18} />}
+                              </button>
+                            </td>
+                            <td className="px-5 py-3.5">
+                              <div className="flex items-center gap-3.5">
+                                <div className="h-14 w-14 rounded-xl bg-muted overflow-hidden shrink-0 relative border border-border/50">
+                                  {product.variants[0]?.image?.url ? (
+                                    <Image
+                                      src={product.variants[0].image.url}
+                                      alt={product.name}
+                                      fill
+                                      className="object-cover"
+                                      sizes="56px"
+                                    />
+                                  ) : (
+                                    <div className="w-full h-full flex items-center justify-center">
+                                      <Pizza size={22} className="text-muted-foreground/25" />
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="text-sm font-semibold text-foreground truncate">{product.name}</p>
+                                  <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
+                                    {product.description || product.category.name}
+                                  </p>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-5 py-3.5">
+                              <span className="text-sm text-foreground/80">{product.category.name}</span>
+                            </td>
+                            <td className="px-5 py-3.5">
+                              <span className="text-sm font-semibold text-foreground">
+                                {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(
+                                  product.variants[0]?.price ?? 0,
                                 )}
-                              </div>
-                              <div className="min-w-0">
-                                <p className="text-sm font-semibold text-foreground truncate">{product.name}</p>
-                                <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
-                                  {product.description || product.category.name}
-                                </p>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-5 py-3.5">
-                            <span className="text-sm text-foreground/80">{product.category.name}</span>
-                          </td>
-                          <td className="px-5 py-3.5">
-                            <span className="text-sm font-semibold text-foreground">
-                              {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(
-                                product.variants[0]?.price ?? 0,
-                              )}
-                            </span>
-                          </td>
-                          <td className="px-5 py-3.5 text-center">
-                            <span
-                              className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${product.isActive ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-500"}`}
-                            >
-                              {product.isActive ? "Đang bán" : "Đã ẩn"}
-                            </span>
-                          </td>
-                          <td className="px-5 py-3.5">
-                            <div className="flex items-center justify-center gap-1">
-                              <button
-                                onClick={() => toggleStatus(product._id)}
-                                className={`p-2 rounded-lg transition-colors ${product.isActive ? "hover:bg-red-50 text-muted-foreground hover:text-red-500" : "hover:bg-emerald-50 text-muted-foreground hover:text-emerald-500"}`}
-                                title={product.isActive ? "Ẩn sản phẩm" : "Hiện sản phẩm"}
+                              </span>
+                            </td>
+                            <td className="px-5 py-3.5 text-center">
+                              <span
+                                className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${product.isActive ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-500"}`}
                               >
-                                {product.isActive ? <EyeOff size={16} /> : <Eye size={16} />}
-                              </button>
-                              {isAdmin && (
+                                {product.isActive ? "Đang bán" : "Đã ẩn"}
+                              </span>
+                            </td>
+                            <td className="px-5 py-3.5">
+                              <div className="flex items-center justify-center gap-1">
                                 <button
-                                  onClick={() => openEdit(product)}
-                                  className="p-2 rounded-lg hover:bg-blue-50 text-muted-foreground hover:text-blue-500 transition-colors"
-                                  title="Chỉnh sửa"
+                                  onClick={() => toggleStatus(product._id)}
+                                  className={`p-2 rounded-lg transition-colors ${product.isActive ? "hover:bg-red-50 text-muted-foreground hover:text-red-500" : "hover:bg-emerald-50 text-muted-foreground hover:text-emerald-500"}`}
+                                  title={product.isActive ? "Ẩn sản phẩm" : "Hiện sản phẩm"}
                                 >
-                                  <Edit2 size={16} />
+                                  {product.isActive ? <EyeOff size={16} /> : <Eye size={16} />}
                                 </button>
-                              )}
-                              <button
-                                onClick={() => {
-                                  setCongirmModal(true);
-                                  setEditItem(product);
-                                }}
-                                className="p-2 rounded-lg hover:bg-red-50 text-muted-foreground hover:text-red-500 transition-colors"
-                                title="Xoá sản phẩm"
-                              >
-                                <X size={16} />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
+                                {isAdmin && (
+                                  <button
+                                    onClick={() => openEdit(product)}
+                                    className="p-2 rounded-lg hover:bg-blue-50 text-muted-foreground hover:text-blue-500 transition-colors"
+                                    title="Chỉnh sửa"
+                                  >
+                                    <Edit2 size={16} />
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => {
+                                    setCongirmModal(true);
+                                    setEditItem(product);
+                                  }}
+                                  className="p-2 rounded-lg hover:bg-red-50 text-muted-foreground hover:text-red-500 transition-colors"
+                                  title="Xoá sản phẩm"
+                                >
+                                  <X size={16} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
 
           {/* Product Add/Edit Modal */}

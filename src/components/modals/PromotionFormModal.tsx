@@ -42,10 +42,10 @@ export default function PromotionFormModal({ open, onClose, editingPromo, stores
       setFormCode(editingPromo.code);
       setFormType(editingPromo.type);
       setFormValue(String(editingPromo.value));
-      setFormStartDate(new Date(editingPromo.start_date).toISOString().slice(0, 16));
-      setFormEndDate(new Date(editingPromo.end_date).toISOString().slice(0, 16));
+      setFormStartDate(new Date(editingPromo.startDate).toISOString().slice(0, 16));
+      setFormEndDate(new Date(editingPromo.endDate).toISOString().slice(0, 16));
       setFormStatus(editingPromo.status);
-      setFormStoreIds(editingPromo.applicable_store?.map(s => (typeof s === "string" ? s : s._id)) || []);
+      setFormStoreIds(editingPromo.applicableStore?.map(s => (typeof s === "string" ? s : s._id)) || []);
     } else {
       setFormCode("");
       setFormType("percentage");
@@ -89,10 +89,10 @@ export default function PromotionFormModal({ open, onClose, editingPromo, stores
           code: formCode.trim(),
           type: formType,
           value: numericValue,
-          start_date: new Date(formStartDate).toISOString(),
-          end_date: new Date(formEndDate).toISOString(),
+          startDate: new Date(formStartDate).toISOString(),
+          endDate: new Date(formEndDate).toISOString(),
           status: formStatus,
-          applicable_store: formStoreIds,
+          applicableStore: formStoreIds,
         };
         await updatePromotion(payload);
         toast.success("Cập nhật khuyến mãi thành công!");
@@ -101,10 +101,10 @@ export default function PromotionFormModal({ open, onClose, editingPromo, stores
           code: formCode.trim(),
           type: formType,
           value: numericValue,
-          start_date: new Date(formStartDate).toISOString(),
-          end_date: new Date(formEndDate).toISOString(),
+          startDate: new Date(formStartDate).toISOString(),
+          endDate: new Date(formEndDate).toISOString(),
           status: formStatus,
-          applicable_store: formStoreIds.length > 0 ? formStoreIds : [],
+          applicableStore: formStoreIds.length > 0 ? formStoreIds : [],
         };
         await createPromotion(payload);
         toast.success("Tạo khuyến mãi thành công!");

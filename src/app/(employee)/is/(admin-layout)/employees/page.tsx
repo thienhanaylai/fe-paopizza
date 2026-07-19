@@ -94,6 +94,7 @@ export default function Employees() {
   const [showModal, setShowModal] = useState(false);
   const [editItem, setEditItem] = useState<Employee | null>(null);
   const [listEmployee, setListEmployee] = useState<Employee[]>([]);
+  const [isPageLoading, setIsPageLoading] = useState(true);
   const [formName, setFormName] = useState("");
   const [formUsername, setFormUsername] = useState("");
   const [formPassword, setFormPassword] = useState("");
@@ -124,11 +125,13 @@ export default function Employees() {
         const res = await getInfo();
         setInfo(res);
         setListEmployee(list);
+        setIsPageLoading(false);
         return;
       }
 
       const list = await getAllEmployee();
       setListEmployee(list);
+      setIsPageLoading(false);
     },
     [authMode],
   );
@@ -367,7 +370,26 @@ export default function Employees() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        {filtered.map((employee, i) => {
+        {isPageLoading ? (
+          Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="bg-card rounded-2xl border border-border p-5">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 rounded-full bg-muted animate-pulse" />
+                <div className="space-y-2 flex-1">
+                  <div className="h-4 w-32 bg-muted animate-pulse rounded" />
+                  <div className="h-3 w-24 bg-muted animate-pulse rounded" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="h-10 bg-muted animate-pulse rounded-lg" />
+                <div className="h-10 bg-muted animate-pulse rounded-lg" />
+                <div className="h-10 bg-muted animate-pulse rounded-lg" />
+                <div className="h-10 bg-muted animate-pulse rounded-lg" />
+              </div>
+            </div>
+          ))
+        ) : (
+          filtered.map((employee, i) => {
           const station = getEmployeeStation(employee);
           const type = getEmployeeType(employee);
           const status = getEmployeeStatus(employee);
@@ -465,6 +487,7 @@ export default function Employees() {
             </div>
           );
         })}
+        )}
       </div>
 
       {showModal && (

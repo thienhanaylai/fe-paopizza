@@ -77,6 +77,7 @@ export default function Accounts() {
   const [listUser, setListUser] = useState<User[]>();
   const [listStore, setListStore] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isPageLoading, setIsPageLoading] = useState(true);
 
   const [formData, setFormData] = useState(createEmptyForm);
 
@@ -94,6 +95,7 @@ export default function Accounts() {
       const res2 = await getAllStore();
       setListStore(res2);
       setListUser(res);
+      setIsPageLoading(false);
     };
     fecthData();
   }, [isLoading]);
@@ -305,143 +307,170 @@ export default function Accounts() {
       </div>
 
       <div className="bg-card rounded-2xl border border-border overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-muted/50 text-muted-foreground text-left">
-                <th className="px-4 py-3">Người dùng</th>
-                <th className="px-4 py-3">Vai trò</th>
-                <th className="px-4 py-3 hidden md:table-cell">Level / Station</th>
-                <th className="px-4 py-3 hidden lg:table-cell">Liên hệ</th>
-                <th className="px-4 py-3">Trạng thái</th>
-                {/* <th className="px-4 py-3 hidden lg:table-cell">Lần đăng nhập cuối</th> */}
-                <th className="px-4 py-3 text-right">Thao tác</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered?.map((account, i) => {
-                const st = statusConfig[account.status];
-                return (
-                  <tr key={account._id} className="border-t border-border/50 hover:bg-muted/30">
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        <div
-                          className={`w-9 h-9 rounded-full ${avatarColors[i % avatarColors.length]} flex items-center justify-center text-white text-xs`}
-                        >
-                          {account.ref_id.name
-                            .split(" ")
-                            .map(w => w[0])
-                            .slice(-2)
-                            .join("")}
-                        </div>
-                        <div>
-                          <p className="text-foreground">{account.ref_id.name}</p>
-                          <p className="text-xs text-muted-foreground">{account.ref_id.email}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      {account.role ? (
-                        <span
-                          className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs ${getRoleColor(account.role)}`}
-                        >
-                          {getRoleLabel(account.role)}
-                        </span>
-                      ) : (
-                        <span
-                          className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs ${getRoleColor(account.role)}`}
-                        >
-                          Khách hàng
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 hidden md:table-cell">
-                      {account.ref_id.station ? (
-                        <div className="flex items-center gap-1">
-                          <span className={`px-1.5 py-0.5 rounded text-[10px] ${getStationColor(account.ref_id.station)}`}>
-                            {getStationLabel(account.ref_id.station)}
-                          </span>
-                        </div>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">—</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 hidden lg:table-cell">
-                      <div className="flex items-center gap-1.5 text-muted-foreground text-xs">
-                        <Phone size={12} /> {account.ref_id.phone}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={`px-2 py-1 rounded-full text-[11px] ${st.color}`}>{st.label}</span>
-                    </td>
-                    {/* <td className="px-4 py-3 text-muted-foreground text-xs hidden lg:table-cell">{account.lastLogin}</td> */}
-                    <td className="px-4 py-3 text-right">
-                      <div className="relative">
-                        <button
-                          onClick={() => setActionMenu(actionMenu === account._id ? null : account._id)}
-                          className="p-2 rounded-lg hover:bg-muted text-muted-foreground transition-colors"
-                        >
-                          <MoreVertical size={16} />
-                        </button>
-                        {actionMenu === account._id && (
-                          <div className="absolute right-0 mt-1 w-44 bg-card rounded-xl border border-border shadow-xl z-10 py-1">
-                            <button
-                              onClick={() => {
-                                setEditAccount(account);
-                                const isCustomer = account.user_type === "Customer" || account.role === null;
-                                setFormData({
-                                  role: isCustomer ? "customer" : account.role || "staff",
-                                  name: account.ref_id?.name || "",
-                                  email: account.ref_id?.email || "",
-                                  phone: account.ref_id?.phone || "",
-                                  address: account.ref_id?.address || "",
-                                  birthday: !isCustomer ? toDateInputValue((account.ref_id as any)?.birthday) : "",
-                                  station: !isCustomer ? (account.ref_id as any)?.station || "kitchen" : "kitchen",
-                                  salary: !isCustomer ? (account.ref_id as any)?.salary || 0 : 0,
-                                  salary_type: !isCustomer ? (account.ref_id as any)?.salary_type || "monthly" : "monthly",
-                                  store_id: !isCustomer ? (account.ref_id as any)?.store_id || "" : "",
-                                  username: account.username || "",
-                                  password: "",
-                                });
-                                setShowModal(true);
-                                setActionMenu(null);
-                              }}
-                              className="w-full flex items-center gap-2 px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors"
-                            >
-                              <Edit2 size={14} /> Chỉnh sửa
-                            </button>
-                            <button
-                              onClick={() => handleTogleStatus(account)}
-                              className="w-full flex items-center gap-2 px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors"
-                            >
-                              {account.status === false ? (
-                                <>
-                                  <Unlock size={14} /> Mở khóa
-                                </>
-                              ) : (
-                                <>
-                                  <Lock size={14} /> Khóa tài khoản
-                                </>
-                              )}
-                            </button>
-                            {account.role !== "admin" && (
-                              <button
-                                onClick={() => handleDeleteAccount(account)}
-                                className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
-                              >
-                                <Trash2 size={14} /> Xóa tài khoản
-                              </button>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </td>
+        {isPageLoading ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-muted/50 text-muted-foreground text-left">
+                  {Array.from({ length: 7 }).map((_, i) => (
+                    <th key={i} className="px-4 py-3">
+                      <div className="h-4 w-16 bg-muted animate-pulse rounded" />
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <tr key={i} className="border-t border-border/50">
+                    {Array.from({ length: 7 }).map((_, j) => (
+                      <td key={j} className="px-4 py-3">
+                        <div className="h-4 bg-muted animate-pulse rounded" style={{ width: `${50 + j * 10}%` }} />
+                      </td>
+                    ))}
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-muted/50 text-muted-foreground text-left">
+                  <th className="px-4 py-3">Người dùng</th>
+                  <th className="px-4 py-3">Vai trò</th>
+                  <th className="px-4 py-3 hidden md:table-cell">Level / Station</th>
+                  <th className="px-4 py-3 hidden lg:table-cell">Liên hệ</th>
+                  <th className="px-4 py-3">Trạng thái</th>
+                  {/* <th className="px-4 py-3 hidden lg:table-cell">Lần đăng nhập cuối</th> */}
+                  <th className="px-4 py-3 text-right">Thao tác</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered?.map((account, i) => {
+                  const st = statusConfig[account.status];
+                  return (
+                    <tr key={account._id} className="border-t border-border/50 hover:bg-muted/30">
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={`w-9 h-9 rounded-full ${avatarColors[i % avatarColors.length]} flex items-center justify-center text-white text-xs`}
+                          >
+                            {account.ref_id.name
+                              .split(" ")
+                              .map(w => w[0])
+                              .slice(-2)
+                              .join("")}
+                          </div>
+                          <div>
+                            <p className="text-foreground">{account.ref_id.name}</p>
+                            <p className="text-xs text-muted-foreground">{account.ref_id.email}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        {account.role ? (
+                          <span
+                            className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs ${getRoleColor(account.role)}`}
+                          >
+                            {getRoleLabel(account.role)}
+                          </span>
+                        ) : (
+                          <span
+                            className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs ${getRoleColor(account.role)}`}
+                          >
+                            Khách hàng
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 hidden md:table-cell">
+                        {account.ref_id.station ? (
+                          <div className="flex items-center gap-1">
+                            <span className={`px-1.5 py-0.5 rounded text-[10px] ${getStationColor(account.ref_id.station)}`}>
+                              {getStationLabel(account.ref_id.station)}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 hidden lg:table-cell">
+                        <div className="flex items-center gap-1.5 text-muted-foreground text-xs">
+                          <Phone size={12} /> {account.ref_id.phone}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`px-2 py-1 rounded-full text-[11px] ${st.color}`}>{st.label}</span>
+                      </td>
+                      {/* <td className="px-4 py-3 text-muted-foreground text-xs hidden lg:table-cell">{account.lastLogin}</td> */}
+                      <td className="px-4 py-3 text-right">
+                        <div className="relative">
+                          <button
+                            onClick={() => setActionMenu(actionMenu === account._id ? null : account._id)}
+                            className="p-2 rounded-lg hover:bg-muted text-muted-foreground transition-colors"
+                          >
+                            <MoreVertical size={16} />
+                          </button>
+                          {actionMenu === account._id && (
+                            <div className="absolute right-0 mt-1 w-44 bg-card rounded-xl border border-border shadow-xl z-10 py-1">
+                              <button
+                                onClick={() => {
+                                  setEditAccount(account);
+                                  const isCustomer = account.user_type === "Customer" || account.role === null;
+                                  setFormData({
+                                    role: isCustomer ? "customer" : account.role || "staff",
+                                    name: account.ref_id?.name || "",
+                                    email: account.ref_id?.email || "",
+                                    phone: account.ref_id?.phone || "",
+                                    address: account.ref_id?.address || "",
+                                    birthday: !isCustomer ? toDateInputValue((account.ref_id as any)?.birthday) : "",
+                                    station: !isCustomer ? (account.ref_id as any)?.station || "kitchen" : "kitchen",
+                                    salary: !isCustomer ? (account.ref_id as any)?.salary || 0 : 0,
+                                    salary_type: !isCustomer ? (account.ref_id as any)?.salary_type || "monthly" : "monthly",
+                                    store_id: !isCustomer ? (account.ref_id as any)?.store_id || "" : "",
+                                    username: account.username || "",
+                                    password: "",
+                                  });
+                                  setShowModal(true);
+                                  setActionMenu(null);
+                                }}
+                                className="w-full flex items-center gap-2 px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors"
+                              >
+                                <Edit2 size={14} /> Chỉnh sửa
+                              </button>
+                              <button
+                                onClick={() => handleTogleStatus(account)}
+                                className="w-full flex items-center gap-2 px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors"
+                              >
+                                {account.status === false ? (
+                                  <>
+                                    <Unlock size={14} /> Mở khóa
+                                  </>
+                                ) : (
+                                  <>
+                                    <Lock size={14} /> Khóa tài khoản
+                                  </>
+                                )}
+                              </button>
+                              {account.role !== "admin" && (
+                                <button
+                                  onClick={() => handleDeleteAccount(account)}
+                                  className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                                >
+                                  <Trash2 size={14} /> Xóa tài khoản
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {showModal && (

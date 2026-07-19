@@ -23,8 +23,8 @@ type RevenueMetrics = {
 };
 
 type RevenueRange = {
-  start_date?: string;
-  end_date?: string;
+  startDate?: string;
+  endDate?: string;
 };
 
 type RevenueData = {
@@ -198,7 +198,7 @@ function getPointRevenue(point: RevenueSeriesPoint) {
 }
 
 function getPointDate(point: RevenueSeriesPoint) {
-  const dateKeys = ["date", "datetime", "timestamp", "start_date", "period_start", "created_at"];
+  const dateKeys = ["date", "datetime", "timestamp", "startDate", "period_start", "created_at"];
   for (const key of dateKeys) {
     const parsed = parseDate(point[key]);
     if (parsed) {
@@ -482,8 +482,8 @@ async function getTimelineSeries(period: Period, storeId: string) {
   return results.map((result, index) => {
     const metrics = result.status === "fulfilled" ? (result.value as RevenueData).metrics : null;
     return {
-      start_date: buckets[index].start,
-      end_date: buckets[index].end,
+      startDate: buckets[index].start,
+      endDate: buckets[index].end,
       total_revenue: getMetricNumber(metrics, ["total_revenue", "totalRevenue", "revenue"]),
     } as RevenueSeriesPoint;
   });
@@ -527,8 +527,8 @@ export default function Revenue() {
         return;
       }
 
-      const startLabel = response?.range?.start_date ? formatDateOnly(response.range.start_date) : formatDateOnly(startDate);
-      const endLabel = response?.range?.end_date ? formatDateOnly(response.range.end_date) : formatDateOnly(endDate);
+      const startLabel = response?.range?.startDate ? formatDateOnly(response.range.startDate) : formatDateOnly(startDate);
+      const endLabel = response?.range?.endDate ? formatDateOnly(response.range.endDate) : formatDateOnly(endDate);
       setDateRanger(`${startLabel} - ${endLabel}`);
     },
     [isAdmin],
@@ -666,7 +666,7 @@ export default function Revenue() {
   const chartData = useMemo(() => {
     const meta = chartMeta[period];
     const series = getRevenueSeriesByPeriod(revenue, period);
-    const rangeStart = parseDate(revenue.range?.start_date) ?? getDefaultRangeStart(period);
+    const rangeStart = parseDate(revenue.range?.startDate) ?? getDefaultRangeStart(period);
     const buckets: ChartPoint[] = Array.from({ length: meta.size }, (_, index) => ({
       label: meta.makeLabel(index, rangeStart),
       revenue: 0,

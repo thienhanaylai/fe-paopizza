@@ -145,7 +145,24 @@ export default function StaffContacts() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        {filtered.map((contact, i) => {
+        {isLoading ? (
+          Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="bg-card rounded-2xl border border-border p-5">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 rounded-full bg-muted animate-pulse" />
+                <div className="space-y-2 flex-1">
+                  <div className="h-4 w-32 bg-muted animate-pulse rounded" />
+                  <div className="h-3 w-20 bg-muted animate-pulse rounded" />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <div className="h-3 w-full bg-muted animate-pulse rounded" />
+                <div className="h-3 w-3/4 bg-muted animate-pulse rounded" />
+              </div>
+            </div>
+          ))
+        ) : (
+          filtered.map((contact, i) => {
           const st = statusConfig[contact.status];
           return (
             <div key={contact.id} className="bg-card rounded-2xl border border-border p-5 hover:shadow-lg transition-shadow">
@@ -201,6 +218,7 @@ export default function StaffContacts() {
             </div>
           );
         })}
+        )}
       </div>
       {!isLoading && filtered.length === 0 && (
         <div className="text-sm text-muted-foreground">Khong tim thay nhan vien phu hop.</div>

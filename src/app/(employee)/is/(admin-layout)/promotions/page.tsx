@@ -50,8 +50,8 @@ const PROMOTION_STATUS_CONFIG: Record<PromotionStatus, { label: string; color: s
 // ─── Helper: compute effective status based on dates ────
 function getEffectiveStatus(promo: Promotion): PromotionStatus {
   const now = new Date();
-  const start = new Date(promo.start_date);
-  const end = new Date(promo.end_date);
+  const start = new Date(promo.startDate);
+  const end = new Date(promo.endDate);
 
   if (promo.status === "draft" || promo.status === "inactive") return promo.status;
   if (now > end) return "expired";
@@ -60,8 +60,8 @@ function getEffectiveStatus(promo: Promotion): PromotionStatus {
 }
 
 function getStoreNames(promo: Promotion, storeMap: Map<string, string>): string {
-  if (!promo.applicable_store || promo.applicable_store.length === 0) return "Tất cả cửa hàng";
-  return promo.applicable_store
+  if (!promo.applicableStore || promo.applicableStore.length === 0) return "Tất cả cửa hàng";
+  return promo.applicableStore
     .map(s => {
       if (typeof s === "string") return storeMap.get(s) || s;
       return s.name || s._id;
@@ -82,6 +82,7 @@ export default function PromotionsPage() {
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState<"all" | PromotionStatus>("all");
   const [listPromotions, setListPromotions] = useState<Promotion[]>([]);
+  const [isPageLoading, setIsPageLoading] = useState(true);
   const [storeMap, setStoreMap] = useState<Map<string, string>>(new Map());
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
@@ -108,6 +109,7 @@ export default function PromotionsPage() {
         stores.forEach((s: { _id: string; name: string }) => map.set(s._id, s.name));
       }
       setStoreMap(map);
+      setIsPageLoading(false);
     } catch {
       toast.error("Không thể tải dữ liệu khuyến mãi!");
     }
@@ -368,130 +370,161 @@ export default function PromotionsPage() {
 
       {/* Table */}
       <div className="bg-card rounded-2xl border border-border overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-border bg-muted/50">
-                <th className="w-12 px-4 py-3.5">
-                  <button
-                    onClick={toggleSelectAll}
-                    className="flex items-center justify-center w-full text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    {isAllSelected ? (
-                      <SquareCheckBig size={18} className="text-primary" />
-                    ) : isIndeterminate ? (
-                      <SquareCheckBig size={18} className="text-primary/60" />
-                    ) : (
-                      <Square size={18} />
-                    )}
-                  </button>
-                </th>
-                <th className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70">Mã khuyến mãi</th>
-                <th className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70 hidden md:table-cell">Loại</th>
-                <th className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70">Giá trị</th>
-                <th className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70 hidden lg:table-cell">Thời gian</th>
-                <th className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70 hidden xl:table-cell">Áp dụng</th>
-                <th className="text-center px-5 py-3.5 text-sm font-semibold text-foreground/70">Trạng thái</th>
-                <th className="text-center px-5 py-3.5 text-sm font-semibold text-foreground/70">Thao tác</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="px-5 py-16 text-center text-muted-foreground">
-                    <Gift size={40} className="mx-auto mb-3 text-muted-foreground/20" />
-                    <p className="text-sm">Không tìm thấy khuyến mãi nào</p>
-                  </td>
+        {isPageLoading ? (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-border bg-muted/50">
+                  {Array.from({ length: 9 }).map((_, i) => (
+                    <th key={i} className="px-5 py-3.5">
+                      <div className="h-4 w-16 bg-muted animate-pulse rounded" />
+                    </th>
+                  ))}
                 </tr>
-              ) : (
-                filtered.map(promo => {
-                  const isSelected = selectedIds.has(promo._id);
-                  const effectiveStatus = getEffectiveStatus(promo);
-                  const statusConfig = PROMOTION_STATUS_CONFIG[effectiveStatus];
-                  return (
-                    <tr
-                      key={promo._id}
-                      className={`border-b border-border last:border-b-0 hover:bg-muted/20 transition-colors ${isSelected ? "bg-primary/5" : ""} ${effectiveStatus === "expired" || effectiveStatus === "inactive" ? "opacity-60" : ""}`}
+              </thead>
+              <tbody>
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <tr key={i} className="border-b border-border last:border-b-0">
+                    {Array.from({ length: 9 }).map((_, j) => (
+                      <td key={j} className="px-5 py-3.5">
+                        <div className="h-4 bg-muted animate-pulse rounded" style={{ width: `${50 + j * 10}%` }} />
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-border bg-muted/50">
+                  <th className="w-12 px-4 py-3.5">
+                    <button
+                      onClick={toggleSelectAll}
+                      className="flex items-center justify-center w-full text-muted-foreground hover:text-foreground transition-colors"
                     >
-                      <td className="px-4 py-3.5">
-                        <button
-                          onClick={() => toggleSelectOne(promo._id)}
-                          className="flex items-center justify-center w-full text-muted-foreground hover:text-foreground transition-colors"
-                        >
-                          {isSelected ? <SquareCheckBig size={18} className="text-primary" /> : <Square size={18} />}
-                        </button>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                            <Tag size={18} className="text-primary" />
+                      {isAllSelected ? (
+                        <SquareCheckBig size={18} className="text-primary" />
+                      ) : isIndeterminate ? (
+                        <SquareCheckBig size={18} className="text-primary/60" />
+                      ) : (
+                        <Square size={18} />
+                      )}
+                    </button>
+                  </th>
+                  <th className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70">Mã khuyến mãi</th>
+                  <th className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70 hidden md:table-cell">Loại</th>
+                  <th className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70">Giá trị</th>
+                  <th className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70 hidden lg:table-cell">
+                    Thời gian
+                  </th>
+                  <th className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70 hidden xl:table-cell">Áp dụng</th>
+                  <th className="text-center px-5 py-3.5 text-sm font-semibold text-foreground/70">Trạng thái</th>
+                  <th className="text-center px-5 py-3.5 text-sm font-semibold text-foreground/70">Thao tác</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="px-5 py-16 text-center text-muted-foreground">
+                      <Gift size={40} className="mx-auto mb-3 text-muted-foreground/20" />
+                      <p className="text-sm">Không tìm thấy khuyến mãi nào</p>
+                    </td>
+                  </tr>
+                ) : (
+                  filtered.map(promo => {
+                    const isSelected = selectedIds.has(promo._id);
+                    const effectiveStatus = getEffectiveStatus(promo);
+                    const statusConfig = PROMOTION_STATUS_CONFIG[effectiveStatus];
+                    return (
+                      <tr
+                        key={promo._id}
+                        className={`border-b border-border last:border-b-0 hover:bg-muted/20 transition-colors ${isSelected ? "bg-primary/5" : ""} ${effectiveStatus === "expired" || effectiveStatus === "inactive" ? "opacity-60" : ""}`}
+                      >
+                        <td className="px-4 py-3.5">
+                          <button
+                            onClick={() => toggleSelectOne(promo._id)}
+                            className="flex items-center justify-center w-full text-muted-foreground hover:text-foreground transition-colors"
+                          >
+                            {isSelected ? <SquareCheckBig size={18} className="text-primary" /> : <Square size={18} />}
+                          </button>
+                        </td>
+                        <td className="px-5 py-3.5">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                              <Tag size={18} className="text-primary" />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold text-foreground font-mono tracking-wider">{promo.code}</p>
+                              <p className="text-xs text-muted-foreground md:hidden mt-0.5">
+                                {PROMOTION_TYPE_LABELS[promo.type]}
+                              </p>
+                            </div>
                           </div>
-                          <div className="min-w-0">
-                            <p className="text-sm font-semibold text-foreground font-mono tracking-wider">{promo.code}</p>
-                            <p className="text-xs text-muted-foreground md:hidden mt-0.5">{PROMOTION_TYPE_LABELS[promo.type]}</p>
+                        </td>
+                        <td className="px-5 py-3.5 hidden md:table-cell">
+                          <span className="text-sm text-foreground/80">{PROMOTION_TYPE_LABELS[promo.type]}</span>
+                        </td>
+                        <td className="px-5 py-3.5">
+                          <span className="text-sm font-medium text-foreground">
+                            {promo.type === "percentage" ? `${promo.value}%` : formatVND(promo.value)}
+                          </span>
+                        </td>
+                        <td className="px-5 py-3.5 hidden lg:table-cell">
+                          <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                            <Calendar size={13} />
+                            <span>{formatDateRange(promo.startDate, promo.endDate)}</span>
                           </div>
-                        </div>
-                      </td>
-                      <td className="px-5 py-3.5 hidden md:table-cell">
-                        <span className="text-sm text-foreground/80">{PROMOTION_TYPE_LABELS[promo.type]}</span>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <span className="text-sm font-medium text-foreground">
-                          {promo.type === "percentage" ? `${promo.value}%` : formatVND(promo.value)}
-                        </span>
-                      </td>
-                      <td className="px-5 py-3.5 hidden lg:table-cell">
-                        <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                          <Calendar size={13} />
-                          <span>{formatDateRange(promo.start_date, promo.end_date)}</span>
-                        </div>
-                      </td>
-                      <td className="px-5 py-3.5 hidden xl:table-cell">
-                        <div className="flex items-center gap-1.5 text-sm text-muted-foreground max-w-50">
-                          <Store size={13} className="shrink-0" />
-                          <span className="truncate">{getStoreNames(promo, storeMap)}</span>
-                        </div>
-                      </td>
-                      <td className="px-5 py-3.5 text-center">
-                        <span
-                          className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${statusConfig?.color || "bg-gray-100 text-gray-600"}`}
-                        >
-                          {statusConfig?.icon}
-                          {statusConfig?.label || effectiveStatus}
-                        </span>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <div className="flex items-center justify-center gap-1">
-                          <button
-                            onClick={() => openEditModal(promo)}
-                            className="p-2 rounded-lg hover:bg-blue-50 text-muted-foreground hover:text-blue-500 transition-colors"
-                            title="Chỉnh sửa"
+                        </td>
+                        <td className="px-5 py-3.5 hidden xl:table-cell">
+                          <div className="flex items-center gap-1.5 text-sm text-muted-foreground max-w-50">
+                            <Store size={13} className="shrink-0" />
+                            <span className="truncate">{getStoreNames(promo, storeMap)}</span>
+                          </div>
+                        </td>
+                        <td className="px-5 py-3.5 text-center">
+                          <span
+                            className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${statusConfig?.color || "bg-gray-100 text-gray-600"}`}
                           >
-                            <Edit2 size={16} />
-                          </button>
-                          <button
-                            onClick={() => handleToggleStatus(promo)}
-                            className={`p-2 rounded-lg transition-colors ${promo.status === "active" ? "hover:bg-red-50 text-muted-foreground hover:text-red-500" : "hover:bg-green-50 text-muted-foreground hover:text-green-500"}`}
-                            title={promo.status === "active" ? "Ngừng kích hoạt" : "Kích hoạt"}
-                          >
-                            {promo.status === "active" ? <XCircle size={16} /> : <CheckCircle2 size={16} />}
-                          </button>
-                          <button
-                            onClick={() => handleDeleteClick(promo)}
-                            className="p-2 rounded-lg hover:bg-red-50 text-muted-foreground hover:text-red-500 transition-colors"
-                            title="Xoá"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+                            {statusConfig?.icon}
+                            {statusConfig?.label || effectiveStatus}
+                          </span>
+                        </td>
+                        <td className="px-5 py-3.5">
+                          <div className="flex items-center justify-center gap-1">
+                            <button
+                              onClick={() => openEditModal(promo)}
+                              className="p-2 rounded-lg hover:bg-blue-50 text-muted-foreground hover:text-blue-500 transition-colors"
+                              title="Chỉnh sửa"
+                            >
+                              <Edit2 size={16} />
+                            </button>
+                            <button
+                              onClick={() => handleToggleStatus(promo)}
+                              className={`p-2 rounded-lg transition-colors ${promo.status === "active" ? "hover:bg-red-50 text-muted-foreground hover:text-red-500" : "hover:bg-green-50 text-muted-foreground hover:text-green-500"}`}
+                              title={promo.status === "active" ? "Ngừng kích hoạt" : "Kích hoạt"}
+                            >
+                              {promo.status === "active" ? <XCircle size={16} /> : <CheckCircle2 size={16} />}
+                            </button>
+                            <button
+                              onClick={() => handleDeleteClick(promo)}
+                              className="p-2 rounded-lg hover:bg-red-50 text-muted-foreground hover:text-red-500 transition-colors"
+                              title="Xoá"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {/* ─── Promotion form modal ──────────────────────── */}

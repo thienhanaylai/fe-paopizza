@@ -41,6 +41,7 @@ export default function IndexPage() {
   const [currentInput, setCurrentInput] = useState("");
   const stocktakeInputRef = useRef<HTMLInputElement>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isPageLoading, setIsPageLoading] = useState(true);
   const [selectedIngredientId, setSelectedIngredientId] = useState("");
   const [addStockInput, setAddStockInput] = useState("");
   const [addMinStockInput, setAddMinStockInput] = useState("");
@@ -110,6 +111,8 @@ export default function IndexPage() {
     } catch (error) {
       console.log(error);
       return;
+    } finally {
+      setIsPageLoading(false);
     }
   };
 
@@ -317,69 +320,96 @@ export default function IndexPage() {
       </div>
 
       <div className="bg-card rounded-2xl border border-border overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-muted/50 text-muted-foreground text-left">
-                <th className="px-4 py-3">Mã</th>
-                <th className="px-4 py-3">Tên nguyên liệu</th>
-                <th className="px-4 py-3 hidden md:table-cell">Loại</th>
-                <th className="px-4 py-3">Tồn kho</th>
-                <th className="px-4 py-3 hidden lg:table-cell">Đơn giá</th>
-                <th className="px-4 py-3">Trạng thái</th>
-                <th className="px-4 py-3 text-right">Thao tác</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered?.map(item => {
-                const isLow = item.current_stock <= item.min_stock_level;
-                return (
-                  <tr key={item._id} className="border-t border-border/50 hover:bg-muted/30">
-                    <td className="px-4 py-3 text-muted-foreground">...{item._id.slice(-8)}</td>
-                    <td className="px-4 py-3 text-foreground">{item.ingredient_id.name}</td>
-                    <td className="px-4 py-3 text-muted-foreground hidden md:table-cell">{item.ingredient_id.category}</td>
-                    <td className="px-4 py-3">
-                      <span className={isLow ? "text-red-600" : "text-foreground"}>
-                        {item.current_stock} {item.ingredient_id.unit}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-foreground hidden lg:table-cell">
-                      {formatVND(item.ingredient_id.costPerUnit)}/{item.ingredient_id.unit}
-                    </td>
-
-                    <td className="px-4 py-3">
-                      {isLow ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-red-100 text-red-600">
-                          <AlertTriangle size={12} /> Sắp hết
-                        </span>
-                      ) : (
-                        <span className="px-2 py-1 rounded-full text-xs bg-green-100 text-green-700">Đủ hàng</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <button
-                          onClick={() => {
-                            setEditItem(item);
-                            setEditStockInput(String(item.current_stock));
-                            setEditMinStockInput(String(item.min_stock_level));
-                            setShowModal(true);
-                          }}
-                          className="p-2 rounded-lg hover:bg-primary/10 text-primary transition-colors"
-                        >
-                          <Edit2 size={15} />
-                        </button>
-                        <button className="p-2 rounded-lg hover:bg-red-50 text-red-500 transition-colors">
-                          <Trash2 size={15} />
-                        </button>
-                      </div>
-                    </td>
+        {isPageLoading ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-muted/50 text-muted-foreground text-left">
+                  {Array.from({ length: 7 }).map((_, i) => (
+                    <th key={i} className="px-4 py-3">
+                      <div className="h-4 w-16 bg-muted animate-pulse rounded" />
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <tr key={i} className="border-t border-border/50">
+                    {Array.from({ length: 7 }).map((_, j) => (
+                      <td key={j} className="px-4 py-3">
+                        <div className="h-4 bg-muted animate-pulse rounded" style={{ width: `${50 + j * 10}%` }} />
+                      </td>
+                    ))}
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-muted/50 text-muted-foreground text-left">
+                  <th className="px-4 py-3">Mã</th>
+                  <th className="px-4 py-3">Tên nguyên liệu</th>
+                  <th className="px-4 py-3 hidden md:table-cell">Loại</th>
+                  <th className="px-4 py-3">Tồn kho</th>
+                  <th className="px-4 py-3 hidden lg:table-cell">Đơn giá</th>
+                  <th className="px-4 py-3">Trạng thái</th>
+                  <th className="px-4 py-3 text-right">Thao tác</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered?.map(item => {
+                  const isLow = item.current_stock <= item.min_stock_level;
+                  return (
+                    <tr key={item._id} className="border-t border-border/50 hover:bg-muted/30">
+                      <td className="px-4 py-3 text-muted-foreground">...{item._id.slice(-8)}</td>
+                      <td className="px-4 py-3 text-foreground">{item.ingredient_id.name}</td>
+                      <td className="px-4 py-3 text-muted-foreground hidden md:table-cell">{item.ingredient_id.category}</td>
+                      <td className="px-4 py-3">
+                        <span className={isLow ? "text-red-600" : "text-foreground"}>
+                          {item.current_stock} {item.ingredient_id.unit}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-foreground hidden lg:table-cell">
+                        {formatVND(item.ingredient_id.costPerUnit)}/{item.ingredient_id.unit}
+                      </td>
+
+                      <td className="px-4 py-3">
+                        {isLow ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-red-100 text-red-600">
+                            <AlertTriangle size={12} /> Sắp hết
+                          </span>
+                        ) : (
+                          <span className="px-2 py-1 rounded-full text-xs bg-green-100 text-green-700">Đủ hàng</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            onClick={() => {
+                              setEditItem(item);
+                              setEditStockInput(String(item.current_stock));
+                              setEditMinStockInput(String(item.min_stock_level));
+                              setShowModal(true);
+                            }}
+                            className="p-2 rounded-lg hover:bg-primary/10 text-primary transition-colors"
+                          >
+                            <Edit2 size={15} />
+                          </button>
+                          <button className="p-2 rounded-lg hover:bg-red-50 text-red-500 transition-colors">
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {showModal && (
