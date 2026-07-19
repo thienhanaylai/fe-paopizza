@@ -9,7 +9,7 @@ import type { ToppingRef, ProductPopulated } from "@/src/context/cartContext";
 import type { ComboSelectionPayload } from "@/src/services/cart.service";
 import { removeFromCartApi } from "@/src/services/cart.service";
 import { Textarea } from "@/src/components/ui/textarea";
-import { toast, Toaster } from "sonner";
+import { toast } from "sonner";
 import { formatVND } from "@/src/utils/formatVND";
 import { getMenuByStoreId, MenuData, Product, Combo } from "@/src/services/menu.service";
 import { IngredientData, getAllIngredients } from "@/src/services/ingredient.service";
@@ -843,7 +843,7 @@ export default function IndexPage() {
           </>
         )}
       </span>,
-      { duration: 2000, position: "bottom-right" },
+      { duration: 2000, position: "top-right" },
     );
   };
 
@@ -917,7 +917,7 @@ export default function IndexPage() {
           </>
         )}
       </span>,
-      { duration: 2000, position: "bottom-right" },
+      { duration: 2000, position: "top-right" },
     );
   };
 
@@ -1644,8 +1644,6 @@ export default function IndexPage() {
             </div>
           );
         })()}
-
-      <Toaster position="top-right" richColors />
     </>
   );
 }

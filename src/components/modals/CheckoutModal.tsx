@@ -6,7 +6,7 @@ import { useCart } from "@/src/context/cartContext";
 import { getAllStore, StoreData } from "@/src/services/store.service";
 import { Order, createOrder, PaymentMethod } from "@/src/services/order.service";
 import { useCustomerAuth } from "@/src/context/authCustomerContext";
-import { toast, Toaster } from "sonner";
+import { toast } from "sonner";
 import Image from "next/image";
 import { checkPaymentStatus } from "@/src/services/payment.service";
 import { applyPromoCode, PromoCodeResult } from "@/src/services/promotion.service";
@@ -694,7 +694,6 @@ export const CheckoutModal = () => {
           </div>
         )}
       </div>
-      <Toaster position="top-right" richColors />
     </div>
   );
 };

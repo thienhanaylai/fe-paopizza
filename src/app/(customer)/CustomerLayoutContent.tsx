@@ -8,6 +8,7 @@ import { CartModal } from "@/src/components/modals/CartModal";
 import { useEffect } from "react";
 import { useCustomerAuth } from "@/src/context/authCustomerContext";
 import { CheckoutModal } from "@/src/components/modals/CheckoutModal";
+import { Toaster } from "sonner";
 
 export default function CustomerLayoutContent({ children }: { children: React.ReactNode }) {
   const { authMode, user, setAuthMode } = useCustomerAuth();
@@ -33,6 +34,7 @@ export default function CustomerLayoutContent({ children }: { children: React.Re
       {authMode && <AuthModal />}
       {showCart && <CartModal />}
       {checkout && <CheckoutModal key={Date.now()} />}
+      <Toaster position="top-right" richColors />
     </>
   );
 }
