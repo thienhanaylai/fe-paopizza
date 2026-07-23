@@ -388,7 +388,7 @@ export default function Profile() {
                           </p>
                           <div className="flex items-center justify-between">
                             <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-foreground">
-                              {orderTypeLabels[order.order_type]}
+                              {orderTypeLabels[order.orderType]}
                             </span>
                             <span className="text-primary text-sm">{formatVND(order.total)}</span>
                           </div>

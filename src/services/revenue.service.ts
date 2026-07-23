@@ -14,7 +14,7 @@ export const getRevenue = async (
 ) => {
   try {
     const response = await http(
-      `/api/v1/revenue/overview?startDate=${revenueStartDate}&endDate=${revenueEndDate}&store_id=${storeId}&paymentMethod=${revenuePaymentMethod}&order_type=${revenueOrderType}`,
+      `/api/v1/revenue/overview?startDate=${revenueStartDate}&endDate=${revenueEndDate}&store_id=${storeId}&paymentMethod=${revenuePaymentMethod}&orderType=${revenueOrderType}`,
       {
         method: "GET",
       },

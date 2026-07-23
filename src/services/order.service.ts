@@ -74,7 +74,7 @@ export interface OrderItemHistory {
 }
 
 export interface Order {
-  order_type: OrderMethod;
+  orderType: OrderMethod;
   paymentMethod: PaymentMethod;
   paymentStatus?: paymentStatus;
   contact_info: {
@@ -85,7 +85,7 @@ export interface Order {
   };
   store_id: string;
   items: OrderItem[];
-  sub_total?: number;
+  subTotal?: number;
   discount_amount?: number;
   promotion_code?: string;
   total?: number;
@@ -99,7 +99,7 @@ export interface PosOrder extends Order {
 
 export interface OrderHistory {
   _id: string;
-  order_type: OrderMethod;
+  orderType: OrderMethod;
   paymentMethod: PaymentMethod;
   paymentStatus: paymentStatus;
   contact_info: {
@@ -116,7 +116,7 @@ export interface OrderHistory {
     email: string;
   };
   items: OrderItemHistory[];
-  sub_total: number;
+  subTotal: number;
   discount_amount: number;
   total: number;
   status: OrderStatus;

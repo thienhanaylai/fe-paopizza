@@ -620,9 +620,9 @@ export default function DashboardPage() {
           const monthStart = getStartOfMonth();
           const monthOrders = safeOrders.filter(o => new Date(o.createdAt).getTime() >= monthStart.getTime());
           const orderTypeCount = {
-            dine_in: monthOrders.filter(o => o.order_type === "dine_in").length,
-            carry_out: monthOrders.filter(o => o.order_type === "carry_out").length,
-            delivery: monthOrders.filter(o => o.order_type === "delivery").length,
+            dine_in: monthOrders.filter(o => o.orderType === "dine_in").length,
+            carry_out: monthOrders.filter(o => o.orderType === "carry_out").length,
+            delivery: monthOrders.filter(o => o.orderType === "delivery").length,
           };
 
           const todayOrders = safeOrders.filter(o => isToday(o.createdAt));

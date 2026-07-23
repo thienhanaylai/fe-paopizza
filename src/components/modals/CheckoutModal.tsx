@@ -173,7 +173,7 @@ export const CheckoutModal = () => {
     const currentStoreId = localStorage.getItem("selected_store") || storeId;
 
     const order: Order = {
-      order_type: orderMethod,
+      orderType: orderMethod,
       paymentMethod: paymentMethod,
       contact_info: {
         full_name: custName,

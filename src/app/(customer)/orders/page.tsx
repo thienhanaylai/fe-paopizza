@@ -110,7 +110,7 @@ export default function Orders() {
                     <div className="flex flex-col items-end gap-2">
                       <div className="flex gap-2">
                         <span className="px-2 py-1 rounded-full text-xs bg-muted text-foreground">
-                          {orderTypeLabels[order.order_type]}
+                          {orderTypeLabels[order.orderType]}
                         </span>
                         <span className={`px-2 py-1 rounded-full text-xs ${pt.color}`}>{pt.label}</span>
                       </div>

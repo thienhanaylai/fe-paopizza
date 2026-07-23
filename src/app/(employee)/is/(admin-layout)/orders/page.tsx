@@ -144,7 +144,7 @@ export default function Orders() {
     ?.filter(
       o =>
         (statusFilter === "all" || o.status === statusFilter) &&
-        (typeFilter === "all" || o.order_type === typeFilter) &&
+        (typeFilter === "all" || o.orderType === typeFilter) &&
         (o._id.toLowerCase().includes(search.toLowerCase()) ||
           o.contact_info.full_name.toLowerCase().includes(search.toLowerCase())),
     )
@@ -174,15 +174,15 @@ export default function Orders() {
   };
 
   const typeCounts = {
-    dine_in: allOrders?.filter(o => o.order_type === "dine_in").length,
-    carry_out: allOrders?.filter(o => o.order_type === "carry_out").length,
-    delivery: allOrders?.filter(o => o.order_type === "delivery").length,
+    dine_in: allOrders?.filter(o => o.orderType === "dine_in").length,
+    carry_out: allOrders?.filter(o => o.orderType === "carry_out").length,
+    delivery: allOrders?.filter(o => o.orderType === "delivery").length,
   };
 
   const handleCancelOrder = async () => {
     setIsLoading(true);
     try {
-      if (!selectedOrder || !selectedOrder.order_type) {
+      if (!selectedOrder || !selectedOrder.orderType) {
         console.error("Không tìm thấy đơn hàng hoặc loại đơn hàng!");
         return;
       }
@@ -200,7 +200,7 @@ export default function Orders() {
   const handleUpdatePaymentStatusOrder = async () => {
     setIsLoading(true);
     try {
-      if (!selectedOrder || !selectedOrder.order_type) {
+      if (!selectedOrder || !selectedOrder.orderType) {
         console.error("Không tìm thấy đơn hàng hoặc loại đơn hàng!");
         return;
       }
@@ -216,10 +216,10 @@ export default function Orders() {
   };
 
   const quickUpdateStatus = async (order: OrderHistory) => {
-    if (!order?.order_type) return;
+    if (!order?.orderType) return;
     setActioningId(order._id);
     try {
-      const flow = flowConfig[order.order_type];
+      const flow = flowConfig[order.orderType];
       if (!flow || !Array.isArray(flow)) return;
       const currentIndex = flow.indexOf(order.status);
       if (currentIndex !== -1 && currentIndex < flow.length - 1) {
@@ -262,14 +262,14 @@ export default function Orders() {
   };
 
   const getNextActionLabel = (order: OrderHistory): string | null => {
-    if (order.order_type === "delivery") {
+    if (order.orderType === "delivery") {
       return (actionTextMapDelivery as Record<string, string>)[order.status] || null;
     }
     return (actionTextMap as Record<string, string>)[order.status] || null;
   };
 
   const getNextActionIcon = (order: OrderHistory): React.ReactNode => {
-    if (order.order_type === "delivery") {
+    if (order.orderType === "delivery") {
       const map: Record<string, React.ReactNode> = {
         pending: <CircleCheckBig size={15} />,
         confirmed: <ChefHat size={15} />,
@@ -289,11 +289,11 @@ export default function Orders() {
   const handleUpdateOrder = async () => {
     setIsLoading(true);
     try {
-      if (!selectedOrder || !selectedOrder.order_type) {
+      if (!selectedOrder || !selectedOrder.orderType) {
         console.error("Không tìm thấy đơn hàng hoặc loại đơn hàng!");
         return;
       }
-      const flow = flowConfig[selectedOrder?.order_type];
+      const flow = flowConfig[selectedOrder?.orderType];
       if (!flow || !Array.isArray(flow)) return;
       const currentIndex = flow.indexOf(selectedOrder.status);
       if (currentIndex !== -1 && currentIndex < flow.length - 1) {
@@ -459,7 +459,7 @@ export default function Orders() {
               <tbody>
                 {filtered?.map(order => {
                   const st = statusConfig[order.status];
-                  const tc = typeConfig[order.order_type];
+                  const tc = typeConfig[order.orderType];
                   const pmst = paymentStatusConfig[order.paymentStatus];
                   return (
                     <tr key={order._id} className="border-t border-border/50 hover:bg-muted/30">
@@ -587,18 +587,18 @@ export default function Orders() {
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Loại đơn:</span>
                   <span
-                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs ${typeConfig[selectedOrder.order_type].color}`}
+                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs ${typeConfig[selectedOrder.orderType].color}`}
                   >
-                    {typeConfig[selectedOrder.order_type].icon} {typeConfig[selectedOrder.order_type].label}
+                    {typeConfig[selectedOrder.orderType].icon} {typeConfig[selectedOrder.orderType].label}
                   </span>
                 </div>
-                {selectedOrder.order_type === "dine_in" && (
+                {selectedOrder.orderType === "dine_in" && (
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Số bàn:</span>
                     <span className="text-foreground">-</span>
                   </div>
                 )}
-                {selectedOrder.order_type === "delivery" && (
+                {selectedOrder.orderType === "delivery" && (
                   <>
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Địa chỉ:</span>
@@ -691,7 +691,7 @@ export default function Orders() {
               <div className="space-y-1 pt-3 border-t border-border">
                 <div className="flex justify-between text-sm text-muted-foreground">
                   <span>Tạm tính:</span>
-                  <span>{formatVND(selectedOrder.sub_total)}</span>
+                  <span>{formatVND(selectedOrder.subTotal)}</span>
                 </div>
                 {(selectedOrder.discount_amount ?? 0) > 0 && (
                   <div className="flex justify-between text-sm text-red-500">
@@ -726,7 +726,7 @@ export default function Orders() {
                     onClick={() => handleUpdateOrder()}
                     className="flex-1 py-2.5 rounded-xl bg-primary text-white hover:bg-primary/90 transition-colors"
                   >
-                    {selectedOrder.order_type === "carry_out" || selectedOrder.order_type === "dine_in" ? (
+                    {selectedOrder.orderType === "carry_out" || selectedOrder.orderType === "dine_in" ? (
                       <>{(actionTextMap as Record<string, string>)[selectedOrder.status] || "Cập nhật"}</>
                     ) : (
                       <>{(actionTextMapDelivery as Record<string, string>)[selectedOrder.status] || "Cập nhật"}</>

@@ -5,7 +5,6 @@ import Image from "next/image";
 import { Plus, X } from "lucide-react";
 import CurrencyInput from "@/src/components/ui/currencyInput";
 
-// ─────────── Types ───────────
 interface ComboRule {
   groupName: string;
   applicableCategories: string[];
@@ -52,7 +51,6 @@ interface Combo {
   isActive?: boolean;
 }
 
-// ─────────── Constants ───────────
 const DISCOUNT_TYPE_OPTIONS = [
   { value: "percent", label: "Phần trăm (%)" },
   { value: "amount", label: "Tiền mặt (VNĐ)" },
@@ -63,7 +61,6 @@ const PRICING_TYPE_OPTIONS = [
   { value: "dynamic", label: "Tự động tính" },
 ];
 
-// ─────────── Helpers ───────────
 const createEmptyRule = (): ComboRule => ({
   groupName: "",
   applicableCategories: [],
@@ -90,7 +87,6 @@ const normalizeRuleForForm = (rule: any): ComboRule => ({
   requiredQuantity: rule.requiredQuantity || 1,
 });
 
-// ─────────── Props ───────────
 interface ComboFormModalProps {
   open: boolean;
   onClose: () => void;
@@ -102,7 +98,6 @@ interface ComboFormModalProps {
   onSubmit: (payload: ComboFormSubmitPayload) => Promise<void>;
 }
 
-// ─────────── Component ───────────
 export default function ComboFormModal({
   open,
   onClose,
@@ -127,7 +122,7 @@ export default function ComboFormModal({
   const [comboFormRules, setComboFormRules] = useState<ComboRule[]>([createEmptyRule()]);
   const [priceInputKey, setPriceInputKey] = useState(0);
   const [isMount, setIsMount] = useState(false);
-  // Initialize form when modal opens or editItem changes
+
   useLayoutEffect(() => {
     if (!open) {
       setIsMount(false);
@@ -159,7 +154,6 @@ export default function ComboFormModal({
     setIsMount(true);
   }, [open, editItem]);
 
-  // Cleanup preview URL on unmount
   useEffect(() => {
     return () => {
       if (formImage.preview) {
@@ -169,7 +163,7 @@ export default function ComboFormModal({
   }, [formImage.preview]);
 
   console.log(formPricing);
-  // ─── Rule handlers ───
+
   const comboAddRule = useCallback(() => {
     setComboFormRules(prev => [...prev, createEmptyRule()]);
   }, []);

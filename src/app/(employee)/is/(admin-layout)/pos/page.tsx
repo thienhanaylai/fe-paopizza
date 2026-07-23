@@ -31,6 +31,8 @@ import { toast, Toaster } from "sonner";
 import { cancelOrder, createPosOrder, PosOrder, PaymentMethod, type OrderItem } from "@/src/services/order.service";
 import { checkPaymentStatus } from "@/src/services/payment.service";
 import { formatVND } from "@/src/utils/formatVND";
+import { generateInvoicePDF, type InvoiceData, type InvoiceItem } from "@/src/utils/generateInvoicePDF";
+import { getAllStore, type StoreData } from "@/src/services/store.service";
 import { http } from "@/src/utils/config.api";
 import type { ComboRule } from "@/src/services/menu.service";
 
@@ -209,6 +211,8 @@ export default function POS() {
   const [customerAddress, setCustomerAddress] = useState("");
   const [order, setOder] = useState();
   const [testtime, setTestime] = useState<Date>();
+  const [storeInfo, setStoreInfo] = useState<StoreData | null>(null);
+  const [isPrinting, setIsPrinting] = useState(false);
 
   const pollingRef = useRef(null);
   const comboCounterRef = useRef(0);
@@ -545,7 +549,7 @@ export default function POS() {
       });
 
       const order: PosOrder = {
-        order_type: orderType,
+        orderType: orderType,
         paymentMethod: paymentMethod,
         paymentStatus: "pending",
         contact_info: {
@@ -589,6 +593,77 @@ export default function POS() {
     setOrderNote("");
     setShowSuccess(false);
     setContactModal(false);
+  };
+
+  // Fetch store info for invoice
+  useEffect(() => {
+    const fetchStoreInfo = async () => {
+      try {
+        const storeId = user?.store_id;
+        if (storeId) {
+          const stores = await getAllStore();
+          const matched = stores.find((s: StoreData) => s._id === storeId);
+          if (matched) setStoreInfo(matched);
+        }
+      } catch {
+        // store info is optional for invoice
+      }
+    };
+    fetchStoreInfo();
+  }, [user?.store_id]);
+
+  const handlePrintInvoice = async () => {
+    setIsPrinting(true);
+    try {
+      const invoiceItems: InvoiceItem[] = cart.map(item => ({
+        name: item.name,
+        size: item.size,
+        quantity: item.quantity,
+        price: item.price,
+        note: item.note || undefined,
+        isCombo: item.item_type === "combo",
+        comboSelections: item.combo_selections?.map(sel => {
+          const selProduct = menuProducts.find(p => p._id === sel.productId);
+          return {
+            name: selProduct?.name || sel.productId,
+            size: sel.size,
+          };
+        }),
+      }));
+
+      const paymentLabel = paymentOptions.find(p => p.key === paymentMethod)?.label || paymentMethod;
+      const storeAddress = storeInfo
+        ? `${storeInfo.address.streetNumber}, ${storeInfo.address.district}, ${storeInfo.address.city}`
+        : undefined;
+
+      const invoiceData: InvoiceData = {
+        orderId: lastOrderId,
+        orderType,
+        tableNumber: orderType === "dine_in" ? tableNumber : undefined,
+        paymentMethod: paymentLabel,
+        customerName: customerName || undefined,
+        customerPhone: customerPhone || undefined,
+        customerAddress: orderType === "delivery" ? customerAddress : undefined,
+        items: invoiceItems,
+        subtotal,
+        deliveryFee: orderType === "delivery" && subtotal < 200000 ? 25000 : 0,
+        total,
+        cashReceived: paymentMethod === "cash" ? cashReceivedNum : undefined,
+        change: paymentMethod === "cash" && change > 0 ? change : undefined,
+        storeName: storeInfo?.name,
+        storeAddress,
+        storePhone: storeInfo?.phone,
+        employeeName: user?.name,
+        note: orderNote || undefined,
+      };
+
+      await generateInvoicePDF(invoiceData);
+    } catch (error) {
+      console.error("Error generating invoice:", error);
+      toast.error("Không thể tạo hóa đơn PDF");
+    } finally {
+      setIsPrinting(false);
+    }
   };
 
   const handleCancelOrder = async (order_id: string) => {
@@ -898,8 +973,13 @@ export default function POS() {
             )}
           </div>
           <div className="flex gap-3 mt-6">
-            <button className="flex-1 py-3 rounded-xl border border-border text-foreground hover:bg-muted transition-colors flex items-center justify-center gap-2 text-sm">
-              <Printer size={16} /> In hóa đơn
+            <button
+              onClick={handlePrintInvoice}
+              disabled={isPrinting}
+              className="flex-1 py-3 rounded-xl border border-border text-foreground hover:bg-muted transition-colors flex items-center justify-center gap-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Printer size={16} />
+              {isPrinting ? "Đang in..." : "In hóa đơn"}
             </button>
             <button
               onClick={() => resetOrder()}

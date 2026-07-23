@@ -6,7 +6,6 @@ import { Plus, X } from "lucide-react";
 import { ImageInput } from "@/src/components/ui/input";
 import CurrencyInput from "@/src/components/ui/currencyInput";
 
-// ─────────── Types ───────────
 export interface RecipeItemPayload {
   ingredient_id: string;
   quantity: number;
@@ -80,7 +79,6 @@ interface Product {
   variants: ProductVariant[];
 }
 
-// ─────────── Constants ───────────
 const SIZE_OPTIONS = ["S", "M", "L", "3XL", "1L", "1.5L", "330ml"] as const;
 
 const CRUST_OPTIONS = [
@@ -89,7 +87,6 @@ const CRUST_OPTIONS = [
   { value: "thick", label: "Dày" },
 ] as const;
 
-// ─────────── Helpers ───────────
 const createEmptyVariant = (): VariantPayload => ({
   sku: "",
   size: "S",
@@ -128,7 +125,6 @@ const mapProductToVariants = (product: Product): VariantPayload[] => {
   }));
 };
 
-// ─────────── Props ───────────
 interface ProductFormModalProps {
   open: boolean;
   onClose: () => void;
@@ -139,7 +135,6 @@ interface ProductFormModalProps {
   onSubmit: (payload: ProductFormSubmitPayload) => Promise<void>;
 }
 
-// ─────────── Component ───────────
 export default function ProductFormModal({
   open,
   onClose,

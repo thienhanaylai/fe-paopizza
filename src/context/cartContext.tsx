@@ -46,10 +46,26 @@ export type ComboSelection = {
 
 export type CartItemType = "product" | "combo";
 
+export type ComboPricingMeta = {
+  pricingType?: "static" | "dynamic";
+  discountType?: "percent" | "amount";
+  discount?: number;
+};
+
 export type CartItem = {
   item_type: CartItemType;
   product_id?: string | ProductPopulated;
-  combo?: string | { _id: string; name: string; price?: number; image?: string };
+  combo?:
+    | string
+    | {
+        _id: string;
+        name: string;
+        price?: number;
+        image?: string;
+        pricingType?: "static" | "dynamic";
+        discountType?: "percent" | "amount";
+        discount?: number;
+      };
   combo_selections?: ComboSelection[];
   added_topping: ToppingRef[];
   price: number;
@@ -69,7 +85,14 @@ export type Cart = {
 type AddToCartInput = Omit<AddToCartPayload, "userId"> & {
   userId?: string;
   product?: ProductPopulated;
-  comboInfo?: { _id: string; name: string; image?: string };
+  comboInfo?: {
+    _id: string;
+    name: string;
+    image?: string;
+    pricingType?: "static" | "dynamic";
+    discountType?: "percent" | "amount";
+    discount?: number;
+  };
   price?: number;
   sku: string;
   crust?: string;
@@ -259,6 +282,42 @@ const normalizeComboSelection = (selection: unknown): ComboSelection | null => {
   };
 };
 
+// tính giá của 1 combo item từ danh sách combo_selections
+
+const computeComboPriceFromSelections = (
+  selections: ComboSelection[],
+  pricingMeta?: { pricingType?: "static" | "dynamic"; discountType?: "percent" | "amount"; discount?: number },
+): number | null => {
+  if (!selections || selections.length === 0) return null;
+
+  // Nếu pricingType là static thì không tính
+  if (pricingMeta?.pricingType === "static") return null;
+
+  let total = 0;
+  let canCompute = false;
+
+  for (const sel of selections) {
+    if (typeof sel.product_id === "string") continue; // không đủ dữ liệu
+    const product = sel.product_id as ProductPopulated;
+    const variant = product.variants?.find(v => v.sku === sel.sku || v.size === sel.size);
+    if (variant && typeof variant.price === "number") {
+      total += variant.price;
+      canCompute = true;
+    }
+  }
+
+  if (!canCompute) return null;
+
+  // Áp dụng discount nếu có
+  if (pricingMeta?.discountType === "percent" && pricingMeta.discount && pricingMeta.discount > 0) {
+    total = Math.round(total * (1 - pricingMeta.discount / 100));
+  } else if (pricingMeta?.discountType === "amount" && pricingMeta.discount && pricingMeta.discount > 0) {
+    total = Math.max(0, total - pricingMeta.discount);
+  }
+
+  return total;
+};
+
 const normalizeCartItem = (item: unknown): CartItem | null => {
   if (!item || typeof item !== "object") {
     return null;
@@ -287,28 +346,54 @@ const normalizeCartItem = (item: unknown): CartItem | null => {
       : undefined;
 
   const toppingTotal = sumToppingPrice(normalizedToppings);
-  const finalPrice =
-    source.item_type === "combo" || typeof variantBasePrice !== "number"
-      ? sourcePrice
-      : Math.max(sourcePrice, variantBasePrice + toppingTotal);
 
-  const normalizedCombo =
+  // ─── Normalize combo object với đầy đủ pricing metadata ───
+  const comboObj =
     source.combo && typeof source.combo === "object" && typeof (source.combo as Record<string, unknown>).name === "string"
-      ? {
-          _id: String((source.combo as Record<string, unknown>)._id || ""),
-          name: String((source.combo as Record<string, unknown>).name),
-          price:
-            typeof (source.combo as Record<string, unknown>).price === "number"
-              ? Number((source.combo as Record<string, unknown>).price)
-              : undefined,
-          image:
-            typeof (source.combo as Record<string, unknown>).image === "string"
-              ? String((source.combo as Record<string, unknown>).image)
-              : undefined,
-        }
-      : typeof source.combo === "string"
-        ? source.combo
-        : undefined;
+      ? (source.combo as Record<string, unknown>)
+      : null;
+  const normalizedCombo = comboObj
+    ? {
+        _id: String(comboObj._id || ""),
+        name: String(comboObj.name),
+        price: typeof comboObj.price === "number" ? Number(comboObj.price) : undefined,
+        image: typeof comboObj.image === "string" ? String(comboObj.image) : undefined,
+        pricingType:
+          comboObj.pricingType === "static" || comboObj.pricingType === "dynamic"
+            ? (comboObj.pricingType as "static" | "dynamic")
+            : undefined,
+        discountType:
+          comboObj.discountType === "percent" || comboObj.discountType === "amount"
+            ? (comboObj.discountType as "percent" | "amount")
+            : undefined,
+        discount: typeof comboObj.discount === "number" ? Number(comboObj.discount) : undefined,
+      }
+    : typeof source.combo === "string"
+      ? source.combo
+      : undefined;
+
+  // ─── Tính finalPrice cho combo item ───
+  let finalPrice: number;
+  if (source.item_type === "combo") {
+    // Nếu giá từ source > 0 thì dùng luôn
+    if (sourcePrice > 0) {
+      finalPrice = sourcePrice;
+    } else {
+      // Fallback: tính từ combo_selections nếu có đủ dữ liệu
+      const pricingMeta =
+        typeof normalizedCombo === "object" && normalizedCombo !== null
+          ? {
+              pricingType: (normalizedCombo as { pricingType?: "static" | "dynamic" }).pricingType,
+              discountType: (normalizedCombo as { discountType?: "percent" | "amount" }).discountType,
+              discount: (normalizedCombo as { discount?: number }).discount,
+            }
+          : undefined;
+      const computedPrice = comboSelections ? computeComboPriceFromSelections(comboSelections, pricingMeta) : null;
+      finalPrice = computedPrice ?? sourcePrice;
+    }
+  } else {
+    finalPrice = typeof variantBasePrice !== "number" ? sourcePrice : Math.max(sourcePrice, variantBasePrice + toppingTotal);
+  }
 
   return {
     item_type: source.item_type === "combo" ? "combo" : "product",
@@ -443,6 +528,36 @@ const mapComboSelectionsToPayload = (selections: ComboSelection[] | undefined): 
   return mappedSelections.length ? mappedSelections : undefined;
 };
 
+/**
+ * Merge combo items from a freshly-normalized cart with data from the previous cart state.
+ * Preserves combo metadata (pricingType, discountType, discount) and price for dynamic combos
+ * when the API returns incomplete data (price=0).
+ */
+const mergeComboDataFromPrevCart = (normalized: Cart, prevCart: Cart | null): Cart => {
+  if (!prevCart) return normalized;
+  return {
+    ...normalized,
+    items: normalized.items.map(item => {
+      if (item.item_type !== "combo") return item;
+      const itemComboId = resolveComboId(item.combo);
+      // Tìm item khớp trong prevCart theo combo ID + selections
+      const prevItem = prevCart.items.find(
+        p =>
+          p.item_type === "combo" &&
+          resolveComboId(p.combo) === itemComboId &&
+          areComboSelectionsEqual(p.combo_selections, item.combo_selections),
+      );
+      if (!prevItem) return item;
+      // Preserve combo info (including pricing metadata)
+      const comboMerged =
+        prevItem.combo && typeof prevItem.combo === "object" && prevItem.combo !== null ? prevItem.combo : item.combo;
+      // Preserve price if API returned 0 but we previously had a valid price
+      const priceMerged = item.price === 0 && prevItem.price > 0 ? prevItem.price : item.price;
+      return { ...item, combo: comboMerged, price: priceMerged };
+    }),
+  };
+};
+
 export function CartProvider({ children }: { children: ReactNode }) {
   const [cart, setCart] = useState<Cart | null>(null);
   const [showCart, setShowCart] = useState(false);
@@ -541,10 +656,26 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
         if (prevCart) {
           normalized.items = normalized.items.map(item => {
-            if (item.item_type === "combo" && !resolveComboId(item.combo)) {
-              const prevItem = prevCart.items.find(p => p.sku === item.sku && p.item_type === "combo");
-              if (prevItem && resolveComboId(prevItem.combo)) {
-                return { ...item, combo: prevItem.combo };
+            if (item.item_type === "combo") {
+              // Match by combo ID + selections for more reliable identification
+              const itemComboId = resolveComboId(item.combo);
+              const prevItem = prevCart.items.find(
+                p =>
+                  p.item_type === "combo" &&
+                  resolveComboId(p.combo) === itemComboId &&
+                  areComboSelectionsEqual(p.combo_selections, item.combo_selections),
+              );
+              if (prevItem) {
+                // Preserve combo info (including pricing metadata) from previous cart state
+                const comboFromPrev =
+                  prevItem.combo && typeof prevItem.combo === "object" && prevItem.combo !== null
+                    ? prevItem.combo
+                    : resolveComboId(item.combo)
+                      ? item.combo
+                      : prevItem.combo;
+                // Preserve price if API returned 0 but we previously had a valid price
+                const priceToKeep = item.price === 0 && prevItem.price > 0 ? prevItem.price : item.price;
+                return { ...item, combo: comboFromPrev, price: priceToKeep };
               }
             }
             return item;
@@ -598,11 +729,33 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
         if (updatedCart) {
           const normalized = normalizeCart(updatedCart);
-          // Ensure combo info is preserved if API doesn't return it fully
+          // Ensure combo info + price are preserved if API doesn't return them fully (dynamic pricing)
           if (item_type === "combo" && comboId) {
-            normalized.items = normalized.items.map(item =>
-              item.sku === sku && item.item_type === "combo" ? { ...item, combo: comboInfo ?? comboId } : item,
-            );
+            // Build the full combo object with pricing metadata once
+            const builtCombo =
+              comboInfo && typeof comboInfo === "object"
+                ? {
+                    _id: comboInfo._id,
+                    name: comboInfo.name,
+                    image: comboInfo.image,
+                    pricingType: comboInfo.pricingType,
+                    discountType: comboInfo.discountType,
+                    discount: comboInfo.discount,
+                  }
+                : undefined;
+            normalized.items = normalized.items.map(item => {
+              if (item.item_type !== "combo") return item;
+              const itemComboId = resolveComboId(item.combo);
+              // Match by combo ID + selections (more reliable than sku since API may generate its own sku)
+              if (itemComboId !== comboId) return item;
+              if (!areComboSelectionsEqual(item.combo_selections, combo_selections)) return item;
+              // Preserve combo pricing metadata
+              const preservedCombo =
+                builtCombo ?? (typeof item.combo === "object" && item.combo !== null ? { ...item.combo } : comboId);
+              // Preserve price if API returned 0 but we have a valid computed price
+              const preservedPrice = typeof price === "number" && price > 0 && item.price === 0 ? price : item.price;
+              return { ...item, combo: preservedCombo, price: preservedPrice };
+            });
           }
           cartRef.current = normalized;
           setCart(normalized);
@@ -688,7 +841,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
               size,
               combo_selections: comboSelectionsPayload,
             });
-            setCart(normalizeCart(updatedCart));
+            const normalized = normalizeCart(updatedCart);
+            setCart(mergeComboDataFromPrevCart(normalized, cartRef.current));
           } else {
             const updatedCart = await updateCartItemApi({
               userId,
@@ -700,7 +854,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
               quantity: newQuantity,
               combo_selections: comboSelectionsPayload,
             });
-            setCart(normalizeCart(updatedCart));
+            const normalized = normalizeCart(updatedCart);
+            setCart(mergeComboDataFromPrevCart(normalized, cartRef.current));
           }
           return;
         }
@@ -768,7 +923,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
             size,
             combo_selections: itemType === "combo" ? (mapComboSelectionsToPayload(combo_selections) ?? []) : undefined,
           });
-          cartRef.current = normalizeCart(updatedCart);
+          const normalized = normalizeCart(updatedCart);
+          cartRef.current = mergeComboDataFromPrevCart(normalized, cartRef.current);
           setCart(cartRef.current);
           return;
         }
