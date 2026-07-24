@@ -247,6 +247,28 @@ export default function IndexPage() {
   const scrollPrev = useCallback(() => emblaApi?.scrollPrev(), [emblaApi]);
   const scrollNext = useCallback(() => emblaApi?.scrollNext(), [emblaApi]);
 
+  // Embla carousel cho combo section
+  const [comboEmblaRef, comboEmblaApi] = useEmblaCarousel({ align: "start", skipSnaps: true, duration: 30 });
+  const scrollPrevCombo = useCallback(() => comboEmblaApi?.scrollPrev(), [comboEmblaApi]);
+  const scrollNextCombo = useCallback(() => comboEmblaApi?.scrollNext(), [comboEmblaApi]);
+  const [comboCanScrollPrev, setComboCanScrollPrev] = useState(false);
+  const [comboCanScrollNext, setComboCanScrollNext] = useState(false);
+
+  useEffect(() => {
+    if (!comboEmblaApi) return;
+    const onSelect = () => {
+      setComboCanScrollPrev(comboEmblaApi.canScrollPrev());
+      setComboCanScrollNext(comboEmblaApi.canScrollNext());
+    };
+    comboEmblaApi.on("select", onSelect);
+    comboEmblaApi.on("reInit", onSelect);
+    onSelect();
+    return () => {
+      comboEmblaApi.off("select", onSelect);
+      comboEmblaApi.off("reInit", onSelect);
+    };
+  }, [comboEmblaApi]);
+
   // Skeleton loading khi mở modal sản phẩm
   const [modalLoading, setModalLoading] = useState(false);
   const prevProductIdRef = useRef<string | null>(null);
@@ -1137,95 +1159,144 @@ export default function IndexPage() {
           )}
 
           {/* ---- Combo Section ---- */}
-          {(activeCategory === "all" || activeCategory === "combo") && menu?.combos && menu.combos.length > 0 && (
-            <div className="mt-8 space-y-6">
-              <div className="border-l-4 border-orange-500 pl-4 py-1">
-                <h3 className="text-xl sm:text-2xl font-black text-foreground flex items-center gap-2">Combo Ưu Đãi</h3>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                {menu.combos.map(entry => {
-                  const combo = entry.combo;
-                  const savings = computeComboSavings(combo);
-                  const originalPrice = computeComboOriginalPrice(combo);
-                  const ruleItems = getComboRuleItems(combo);
-                  return (
-                    <div
-                      key={combo._id}
-                      className="bg-card rounded-2xl border border-border overflow-hidden hover:shadow-xl transition-all duration-300 group cursor-pointer flex flex-col"
-                      onClick={() => handleOpenCombo(combo)}
-                    >
-                      <div className="relative aspect-[4/3] overflow-hidden">
-                        {/* Skeleton placeholder shown until image loads */}
-                        {!loadedImages.has(combo.image || "") && <Skeleton className="absolute inset-0 z-10 rounded-none" />}
-                        <Image
-                          src={combo.image || ""}
-                          alt={combo.name}
-                          fill
-                          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
-                          className="object-cover group-hover:scale-105 transition-transform duration-500"
-                          onLoad={() => handleImageLoaded(combo.image || "")}
-                        />
-                        {/* Savings badge */}
-                        {savings > 0 && (
-                          <span className="absolute top-3 left-3 px-2.5 py-1 bg-orange-500 text-white text-[11px] font-semibold rounded-full">
-                            Tiết kiệm {formatVND(savings)}
+          {(activeCategory === "all" || activeCategory === "combo") &&
+            menu?.combos &&
+            menu.combos.length > 0 &&
+            (() => {
+              const comboCount = menu.combos.length;
+              const useCarousel = comboCount > 1;
+
+              const comboCard = (combo: Combo) => {
+                const savings = computeComboSavings(combo);
+                const originalPrice = computeComboOriginalPrice(combo);
+                const ruleItems = getComboRuleItems(combo);
+                return (
+                  <div
+                    key={combo._id}
+                    className="bg-card rounded-2xl border border-border overflow-hidden hover:shadow-xl transition-all duration-300 group cursor-pointer flex flex-col h-full"
+                    onClick={() => handleOpenCombo(combo)}
+                  >
+                    <div className="relative aspect-[4/3] sm:aspect-[4/3] overflow-hidden">
+                      {!loadedImages.has(combo.image || "") && <Skeleton className="absolute inset-0 z-10 rounded-none" />}
+                      <Image
+                        src={combo.image || ""}
+                        alt={combo.name}
+                        fill
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
+                        className="object-cover group-hover:scale-105 transition-transform duration-500"
+                        onLoad={() => handleImageLoaded(combo.image || "")}
+                      />
+                      {savings > 0 && (
+                        <span className="absolute top-3 left-3 px-2.5 py-1 bg-orange-500 text-white text-[11px] font-semibold rounded-full">
+                          Tiết kiệm {formatVND(savings)}
+                        </span>
+                      )}
+                      {combo.pricingType === "dynamic" && (
+                        <span className="absolute top-3 left-3 px-2.5 py-1 bg-orange-500 text-white text-[11px] font-semibold rounded-full">
+                          Giảm {combo.discountType === "percent" ? `${combo.discount} %` : `${formatVND(combo.discount)}`}
+                        </span>
+                      )}
+                    </div>
+                    <div className="p-3 sm:p-4 flex-1 flex flex-col">
+                      <h4 className="text-foreground font-semibold mb-1 sm:mb-1.5 text-sm">{combo.name}</h4>
+                      <div className="text-[11px] sm:text-xs text-muted-foreground mb-1.5 sm:mb-2 space-y-0.5">
+                        {ruleItems.map((item, idx) => (
+                          <span key={idx} className="block">
+                            {item}
                           </span>
-                        )}
-                        {combo.pricingType === "dynamic" && (
-                          <span className="absolute top-3 left-3 px-2.5 py-1 bg-orange-500 text-white text-[11px] font-semibold rounded-full">
-                            Giảm {combo.discountType === "percent" ? `${combo.discount} %` : `${formatVND(combo.discount)}`}
-                          </span>
-                        )}
+                        ))}
                       </div>
-                      <div className="p-4 flex-1 flex flex-col">
-                        <h4 className="text-foreground font-semibold mb-1.5">{combo.name}</h4>
-                        <div className="text-xs text-muted-foreground mb-2 space-y-0.5">
-                          {ruleItems.map((item, idx) => (
-                            <span key={idx} className="block">
-                              {item}
-                            </span>
-                          ))}
+                      <div className="flex items-center justify-between mt-auto pt-2 sm:pt-3">
+                        <div className="flex items-baseline gap-1.5 sm:gap-2">
+                          {combo.pricingType === "dynamic" ? (
+                            <>
+                              {combo.discountType === "percent" ? (
+                                <>
+                                  <span className="text-xs sm:text-sm text-muted-foreground">Giảm </span>
+                                  <span className="text-base sm:text-lg font-bold text-primary">{combo.discount} %</span>
+                                </>
+                              ) : (
+                                <>
+                                  <span className="text-xs sm:text-sm text-muted-foreground">Giảm </span>
+                                  <span className="text-base sm:text-lg font-bold text-primary">{formatVND(combo.discount)}</span>
+                                </>
+                              )}
+                            </>
+                          ) : (
+                            <>
+                              <span className="text-xs sm:text-sm text-muted-foreground line-through">
+                                {formatVND(originalPrice)}
+                              </span>
+                              <span className="text-base sm:text-lg font-bold text-primary">{formatVND(combo.price)}</span>
+                            </>
+                          )}
                         </div>
-                        <div className="flex items-center justify-between mt-auto pt-3">
-                          <div className="flex items-baseline gap-2">
-                            {combo.pricingType === "dynamic" ? (
-                              <>
-                                {combo.discountType === "percent" ? (
-                                  <>
-                                    <span className="text-sm text-muted-foreground ">Giảm </span>
-                                    <span className="text-lg font-bold text-primary">{combo.discount} %</span>
-                                  </>
-                                ) : (
-                                  <>
-                                    <span className="text-sm text-muted-foreground ">Giảm </span>
-                                    <span className="text-lg font-bold text-primary">{formatVND(combo.discount)}</span>
-                                  </>
-                                )}
-                              </>
-                            ) : (
-                              <>
-                                <span className="text-sm text-muted-foreground line-through">{formatVND(originalPrice)}</span>
-                                <span className="text-lg font-bold text-primary">{formatVND(combo.price)}</span>
-                              </>
-                            )}
-                          </div>
-                          <button
-                            onClick={e => {
-                              e.stopPropagation();
-                              handleOpenCombo(combo);
-                            }}
-                            className="px-3.5 py-1.5 bg-orange-500 text-white rounded-lg text-sm hover:bg-orange-600 transition-colors cursor-pointer"
-                          >
-                            + Chọn
-                          </button>
-                        </div>
+                        <button
+                          onClick={e => {
+                            e.stopPropagation();
+                            handleOpenCombo(combo);
+                          }}
+                          className="px-2.5 py-1 sm:px-3.5 sm:py-1.5 bg-orange-500 text-white rounded-lg text-xs sm:text-sm hover:bg-orange-600 transition-colors cursor-pointer"
+                        >
+                          + Chọn
+                        </button>
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
+                  </div>
+                );
+              };
+
+              return (
+                <div className="mt-8 space-y-6">
+                  <div className="border-l-4 border-orange-500 pl-4 py-1">
+                    <h3 className="text-xl sm:text-2xl font-black text-foreground flex items-center gap-2">Combo Ưu Đãi</h3>
+                  </div>
+
+                  {useCarousel ? (
+                    <div className="relative group/combo-carousel">
+                      <button
+                        onClick={scrollPrevCombo}
+                        disabled={!comboCanScrollPrev}
+                        className={`absolute -left-3 sm:-left-4 top-1/2 -translate-y-1/2 z-10 w-12 h-12 sm:w-11 sm:h-15 rounded-full bg-white shadow-lg border border-border flex items-center justify-center transition-all ${
+                          comboCanScrollPrev ? "hover:bg-muted hover:scale-110 cursor-pointer " : "opacity-30 cursor-not-allowed"
+                        }`}
+                        aria-label="Combo trước"
+                      >
+                        <ChevronLeft size={20} />
+                      </button>
+
+                      <div className="overflow-hidden -mx-3" ref={comboEmblaRef}>
+                        <div className="flex">
+                          {menu.combos.map(entry => (
+                            <div
+                              key={entry.combo._id}
+                              className="flex-[0_0_75%] min-w-0 sm:flex-[0_0_50%] md:flex-[0_0_33.333%] lg:flex-[0_0_25%] px-2 sm:px-3"
+                            >
+                              {comboCard(entry.combo)}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={scrollNextCombo}
+                        disabled={!comboCanScrollNext}
+                        className={`absolute -right-3 sm:-right-4 top-1/2 -translate-y-1/2 z-10 w-12 h-12 sm:w-11 sm:h-15 rounded-full bg-white shadow-lg border border-border flex items-center justify-center transition-all ${
+                          comboCanScrollNext ? "hover:bg-muted hover:scale-110 cursor-pointer " : "opacity-30 cursor-not-allowed"
+                        }`}
+                        aria-label="Combo tiếp theo"
+                      >
+                        <ChevronRight size={20} />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                      {menu.combos.map(entry => comboCard(entry.combo))}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
           {categories
             .filter(item => item.slug !== "all")
@@ -1253,7 +1324,6 @@ export default function IndexPage() {
                             className="bg-card rounded-2xl border border-border overflow-hidden hover:shadow-xl transition-all duration-300 group flex flex-col"
                           >
                             <div className="relative aspect-square overflow-hidden">
-                              {/* Skeleton placeholder shown until image loads */}
                               {!loadedImages.has(item.variants[0].image.url) && (
                                 <Skeleton className="absolute inset-0 z-10 rounded-none" />
                               )}

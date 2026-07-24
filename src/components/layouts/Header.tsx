@@ -485,6 +485,7 @@ export default function Header() {
                   localStorage.setItem("selected_store", selectedStore._id);
                   window.dispatchEvent(new CustomEvent("selected-store-changed", { detail: { storeId: selectedStore._id } }));
                   setShowInitialStoreModal(false);
+                  window.scrollTo({ top: 840, behavior: "smooth" });
                 }}
                 disabled={!selectedStore}
                 className="px-6 py-2.5 rounded-xl bg-primary text-white hover:bg-primary/95 text-xs font-extrabold shadow-md shadow-primary/25 hover:shadow-lg transition-all cursor-pointer flex items-center gap-1"

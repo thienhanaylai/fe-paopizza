@@ -12,9 +12,19 @@ const beVietnamPro = Be_Vietnam_Pro({
 export const metadata: Metadata = {
   title: "PaoPizza",
   description: "PaoPizza - Pizza ngon, giao nhanh",
+
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "PaoPizza",
+  },
+
   icons: {
     icon: "/logopao.svg",
+    apple: "/apple-touch-icon.png",
   },
+
+  manifest: "/manifest.json",
 };
 
 export default function RootLayout({
