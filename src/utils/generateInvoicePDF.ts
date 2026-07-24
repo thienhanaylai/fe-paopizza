@@ -5,11 +5,12 @@ import { formatVND } from "./formatVND";
 export interface InvoiceItem {
   name: string;
   size?: string;
+  crust?: string;
   quantity: number;
   price: number;
   note?: string;
   isCombo?: boolean;
-  comboSelections?: { name: string; size: string }[];
+  comboSelections?: { name: string; size: string; crust?: string }[];
 }
 
 export interface InvoiceData {
@@ -50,13 +51,16 @@ function buildInvoiceHTML(data: InvoiceData): string {
       const selectionsHTML =
         item.comboSelections && item.comboSelections.length > 0
           ? item.comboSelections
-              .map(sel => `<div style="color:#888;font-size:10px;padding-left:8px;">+ ${sel.name} - ${sel.size}</div>`)
+              .map(
+                sel =>
+                  `<div style="color:#888;font-size:10px;padding-left:8px;">+ ${sel.name} - ${sel.size}${sel.crust ? ` (${sel.crust})` : ""}</div>`,
+              )
               .join("")
           : "";
 
       const noteHTML = item.note ? `<div style="color:#888;font-size:10px;padding-left:8px;">Ghi chú: ${item.note}</div>` : "";
 
-      const itemName = `${item.name}${item.size ? ` - ${item.size}` : ""}`;
+      const itemName = `${item.name}${item.size ? ` - ${item.size}` : ""}${item.crust ? ` (${item.crust})` : ""}`;
 
       return `
         <div style="padding:3px 0;border-bottom:1px dotted #ddd;">

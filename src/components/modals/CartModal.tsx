@@ -5,6 +5,7 @@ import { useCart, resolveComboId } from "@/src/context/cartContext";
 import { useCustomerAuth } from "@/src/context/authCustomerContext";
 import Image from "next/image";
 import { formatVND } from "@/src/utils/formatVND";
+import { formatCrustLabel } from "@/src/utils/formatCrustLabel";
 import { useEffect, useMemo, useState, useCallback } from "react";
 import Link from "next/link";
 import { getMenuByStoreId, MenuData } from "@/src/services/menu.service";
@@ -218,7 +219,7 @@ export const CartModal = () => {
                                   <p key={i} className="text-xs text-muted-foreground flex items-center gap-1">
                                     <span className="w-1 h-1 rounded-full bg-orange-400 shrink-0" />
                                     {itemCombo.product_id?.name} - {itemCombo.size}{" "}
-                                    {itemCombo.crust ? `- ${itemCombo.crust}` : ``}
+                                    {itemCombo.crust ? `- ${formatCrustLabel(itemCombo.crust)}` : ``}
                                   </p>
                                 ))}
                               </div>
@@ -248,9 +249,7 @@ export const CartModal = () => {
                         {!isCombo && (
                           <p className="text-sm text-muted-foreground mt-0.5">
                             {item.size}
-                            {item.crust
-                              ? ` - ${item.crust.replace(/[_-]+/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase())}`
-                              : ""}
+                            {item.crust ? ` - ${formatCrustLabel(item.crust)}` : ""}
                           </p>
                         )}
                         {extraToppingText && <p className="text-xs text-muted-foreground mt-0.5">+ {extraToppingText}</p>}

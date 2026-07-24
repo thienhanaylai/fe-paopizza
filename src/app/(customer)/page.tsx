@@ -1,7 +1,8 @@
 "use client";
-import { ArrowRight, Award, ChefHat, Clock, MapPin, Phone, Plus, Star, Truck, X } from "lucide-react";
+import { ArrowRight, Award, ChefHat, ChevronLeft, ChevronRight, Clock, MapPin, Phone, Plus, Star, Truck, X } from "lucide-react";
 import Image from "next/image";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, useCallback } from "react";
+import useEmblaCarousel from "embla-carousel-react";
 import { getAllCategories } from "@/src/services/category.service";
 import { useCustomerAuth } from "@/src/context/authCustomerContext";
 import { useCart, resolveComboId, areComboSelectionsEqual } from "@/src/context/cartContext";
@@ -9,8 +10,10 @@ import type { ToppingRef, ProductPopulated } from "@/src/context/cartContext";
 import type { ComboSelectionPayload } from "@/src/services/cart.service";
 import { removeFromCartApi } from "@/src/services/cart.service";
 import { Textarea } from "@/src/components/ui/textarea";
+import { Skeleton } from "@/src/components/ui/skeleton";
 import { toast } from "sonner";
 import { formatVND } from "@/src/utils/formatVND";
+import { formatCrustLabel } from "@/src/utils/formatCrustLabel";
 import { getMenuByStoreId, MenuData, Product, Combo } from "@/src/services/menu.service";
 import { IngredientData, getAllIngredients } from "@/src/services/ingredient.service";
 
@@ -57,8 +60,6 @@ const parseCrustOptions = (value: string | string[] | undefined): string[] => {
 
   return [raw.toLowerCase()];
 };
-
-const formatCrustLabel = (value: string) => value.replace(/[_-]+/g, " ").replace(/\b\w/g, character => character.toUpperCase());
 
 const SlotCard = ({
   product,
@@ -232,6 +233,36 @@ export default function IndexPage() {
   const comboCounterRef = useRef(0);
   const ruleRefs = useRef<(HTMLDivElement | null)[]>([]);
 
+  //  các URL hình ảnh đã tải xong
+  const [loadedImages, setLoadedImages] = useState<Set<string>>(new Set());
+  const handleImageLoaded = (url: string) => {
+    if (!url || loadedImages.has(url)) return;
+    setLoadedImages(prev => new Set(prev).add(url));
+  };
+
+  // Embla carousel cho modal sản phẩm
+  const [emblaRef, emblaApi] = useEmblaCarousel({ skipSnaps: true, duration: 30 });
+
+  // Nút prev/next
+  const scrollPrev = useCallback(() => emblaApi?.scrollPrev(), [emblaApi]);
+  const scrollNext = useCallback(() => emblaApi?.scrollNext(), [emblaApi]);
+
+  // Skeleton loading khi mở modal sản phẩm
+  const [modalLoading, setModalLoading] = useState(false);
+  const prevProductIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (product?._id && product._id !== prevProductIdRef.current) {
+      prevProductIdRef.current = product._id;
+      setModalLoading(true);
+      const t = setTimeout(() => setModalLoading(false), 400);
+      return () => clearTimeout(t);
+    }
+    if (!product) {
+      prevProductIdRef.current = null;
+      setModalLoading(false);
+    }
+  }, [product?._id]);
+
   // scroll đến rule chưa hoàn thành tiếp theo khi rule hiện tại vừa được fill đầy
   useEffect(() => {
     if (!selectedCombo) return;
@@ -270,6 +301,11 @@ export default function IndexPage() {
       : activeCategory === "all"
         ? menu?.products
         : menu?.products.filter(m => m?.category.slug === activeCategory);
+
+  const currentProductIndex = useMemo(() => {
+    if (!product || !filteredMenu1) return -1;
+    return filteredMenu1.findIndex(p => p._id === product._id);
+  }, [product, filteredMenu1]);
 
   const availableSizes = useMemo(() => {
     if (!product) return [];
@@ -542,6 +578,29 @@ export default function IndexPage() {
     const productInCart = cart?.items.find(i => i.sku === firstVariant?.sku);
     setNote(productInCart ? productInCart?.note : "");
   };
+
+  // Đồng bộ Embla -> product khi vuốt
+  useEffect(() => {
+    if (!emblaApi) return;
+    const onSelect = () => {
+      const idx = emblaApi.selectedScrollSnap();
+      const list = filteredMenu1 ?? [];
+      if (list[idx] && list[idx]._id !== product?._id) {
+        hanldeProduct(list[idx]);
+      }
+    };
+    emblaApi.on("select", onSelect);
+    return () => {
+      emblaApi.off("select", onSelect);
+    };
+  }, [emblaApi, filteredMenu1, product]);
+
+  // Nhảy đến sản phẩm khi click từ grid hoặc đổi filter (không animation, không flicker)
+  useLayoutEffect(() => {
+    if (emblaApi && currentProductIndex >= 0) {
+      emblaApi.scrollTo(currentProductIndex, true);
+    }
+  }, [emblaApi, currentProductIndex]);
 
   const syncNoteBySku = (sku: string) => {
     const productInCart = cart?.items.find(item => item.sku === sku);
@@ -1096,13 +1155,15 @@ export default function IndexPage() {
                       onClick={() => handleOpenCombo(combo)}
                     >
                       <div className="relative aspect-[4/3] overflow-hidden">
+                        {/* Skeleton placeholder shown until image loads */}
+                        {!loadedImages.has(combo.image || "") && <Skeleton className="absolute inset-0 z-10 rounded-none" />}
                         <Image
                           src={combo.image || ""}
                           alt={combo.name}
                           fill
-                          loading="eager"
-                          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
+                          className="object-cover group-hover:scale-105 transition-transform duration-500"
+                          onLoad={() => handleImageLoaded(combo.image || "")}
                         />
                         {/* Savings badge */}
                         {savings > 0 && (
@@ -1192,13 +1253,17 @@ export default function IndexPage() {
                             className="bg-card rounded-2xl border border-border overflow-hidden hover:shadow-xl transition-all duration-300 group flex flex-col"
                           >
                             <div className="relative aspect-square overflow-hidden">
+                              {/* Skeleton placeholder shown until image loads */}
+                              {!loadedImages.has(item.variants[0].image.url) && (
+                                <Skeleton className="absolute inset-0 z-10 rounded-none" />
+                              )}
                               <Image
                                 src={item.variants[0].image.url}
                                 alt={item.name}
                                 fill
-                                loading="eager"
-                                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 20vw"
+                                className="object-cover group-hover:scale-105 transition-transform duration-500"
+                                onLoad={() => handleImageLoaded(item.variants[0].image.url)}
                               />
                               <span className="absolute bottom-3 left-3 px-2 py-1 bg-black/60 text-white text-[10px] rounded-full capitalize">
                                 {categories.find(c => c.slug === item.category.slug)?.name}
@@ -1299,159 +1364,271 @@ export default function IndexPage() {
 
       {product && selectedVariant && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-          onClick={() => {
-            setProduct(null);
-          }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-2 sm:p-4"
+          onClick={() => setProduct(null)}
         >
-          <div
-            className="bg-card rounded-3xl w-full max-w-3xl shadow-2xl overflow-hidden max-h-[92vh] flex flex-col md:flex-row"
-            onClick={e => e.stopPropagation()}
-          >
-            {/* Image side */}
-            <div className="md:w-2/5 bg-white border-b md:border-b-0 md:border-r border-border/60 flex items-center justify-center p-4 sm:p-6 shrink-0">
-              <div className="relative w-full max-w-[320px] aspect-square max-md:aspect-[3/2] max-md:max-h-[200px] max-md:max-w-[200px]">
-                <Image
-                  src={selectedVariant.image.url}
-                  alt={product.name}
-                  fill
-                  sizes="(max-width: 768px) 90vw, (max-width: 1024px) 60vw, 35vw"
-                  className="object-contain "
-                />
-              </div>
+          <div className="flex items-center gap-2 sm:gap-4 w-full max-w-[calc(100vw-0.5rem)] sm:max-w-[calc(100vw-7rem)] justify-center">
+            {/* Nút prev */}
+            <div className="hidden sm:block w-10 h-10 shrink-0">
+              {(filteredMenu1 ?? []).length > 1 && (
+                <button
+                  onClick={e => {
+                    e.stopPropagation();
+                    scrollPrev();
+                  }}
+                  className="flex items-center justify-center w-10 h-10 rounded-full bg-white/90 backdrop-blur-sm shadow-lg border border-border text-foreground hover:bg-white hover:scale-110 transition-all cursor-pointer"
+                  aria-label="Sản phẩm trước"
+                >
+                  <ChevronLeft size={22} />
+                </button>
+              )}
             </div>
 
-            {/* Config side */}
-            <div className="flex-1 flex flex-col min-h-0">
-              <div className="flex items-start justify-between p-4 sm:p-5 pb-2 sm:pb-3 shrink-0">
-                <div className="pr-3">
-                  <h3 className="text-lg sm:text-xl text-foreground">{product.name}</h3>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">
-                    {selectedVariant.size}
-                    {isPizzaProduct && selectedCrust ? ` - ${formatCrustLabel(selectedCrust)}` : ""}
-                  </p>
-                  <p className="text-xs sm:text-sm text-muted-foreground mt-1.5 sm:mt-2 leading-relaxed line-clamp-2 sm:line-clamp-none">
-                    {product.description}
-                  </p>
-                  <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 line-clamp-2 sm:line-clamp-none">
-                    Nguyên liệu: {selectedVariant.recipe.map(item => item.ingredient.name).join(", ")}
-                  </p>
-                </div>
-                <button
-                  onClick={() => {
-                    setProduct(null);
-                  }}
-                  className="p-2 rounded-lg hover:bg-muted text-muted-foreground shrink-0"
-                >
-                  <X size={18} />
-                </button>
-              </div>
+            {/* Embla carousel */}
+            <div
+              className="overflow-hidden rounded-3xl w-full md:w-[800px] lg:w-[896px] max-w-[calc(100vw-1rem)] sm:max-w-[calc(100vw-7rem)] shadow-2xl max-h-[90vh] max-md:max-h-[82vh] 2xl:max-h-[70vh] shrink-0"
+              ref={emblaRef}
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex">
+                {(filteredMenu1 ?? []).map(p => (
+                  <div key={p._id} className="flex-[0_0_100%] min-w-0">
+                    <div className="bg-card flex flex-col md:flex-row h-full max-h-[90vh] max-md:max-h-[82vh] 2xl:max-h-[70vh]">
+                      {/* Ảnh sản phẩm */}
+                      <div className="md:w-2/5 bg-white border-b md:border-b-0 md:border-r border-border/60 flex items-center justify-center p-4 sm:p-6 shrink-0">
+                        <div className="relative w-full max-w-[320px] aspect-square max-md:aspect-[3/2] max-md:max-h-[200px] max-md:max-w-[200px]">
+                          {p._id === product._id ? (
+                            <Image
+                              src={selectedVariant.image.url}
+                              alt={p.name}
+                              fill
+                              sizes="(max-width: 768px) 90vw, (max-width: 1024px) 60vw, 35vw"
+                              className="object-contain"
+                            />
+                          ) : (
+                            <Image
+                              src={p.variants[0]?.image?.url || ""}
+                              alt={p.name}
+                              fill
+                              sizes="(max-width: 768px) 90vw, (max-width: 1024px) 60vw, 35vw"
+                              className="object-contain opacity-40"
+                            />
+                          )}
+                        </div>
+                      </div>
 
-              <div className="flex-1 overflow-y-auto px-4 sm:px-5 space-y-4 sm:space-y-5">
-                <div className="space-y-3">
-                  <div>
-                    <p className="text-sm font-semibold text-foreground mb-2">Chọn kích thước</p>
-                    <div
-                      className="grid gap-2 bg-muted rounded-xl p-1"
-                      style={{ gridTemplateColumns: `repeat(${Math.max(availableSizes.length, 1)}, minmax(0, 1fr))` }}
-                    >
-                      {availableSizes.map(size => (
-                        <button
-                          key={size}
-                          onClick={() => handleSelectSize(size)}
-                          className={`py-2 rounded-lg text-center transition-all ${
-                            selectedSize === size
-                              ? "bg-card shadow text-foreground"
-                              : "text-muted-foreground hover:text-foreground"
-                          }`}
-                        >
-                          <p className="text-sm truncate">{size}</p>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+                      {/* Chi tiết sản phẩm - chỉ render đầy đủ cho sản phẩm hiện tại */}
+                      <div className="flex-1 flex flex-col min-h-0">
+                        {p._id === product._id ? (
+                          modalLoading ? (
+                            /* Skeleton loading */
+                            <div className="flex-1 p-4 sm:p-5 space-y-4 animate-pulse">
+                              <div className="flex justify-between">
+                                <div className="space-y-2 flex-1">
+                                  <div className="h-6 w-48 bg-muted rounded-lg" />
+                                  <div className="h-4 w-24 bg-muted rounded-lg" />
+                                  <div className="h-4 w-full bg-muted rounded-lg" />
+                                  <div className="h-4 w-3/4 bg-muted rounded-lg" />
+                                </div>
+                                <div className="w-8 h-8 bg-muted rounded-lg shrink-0" />
+                              </div>
+                              <div className="space-y-2">
+                                <div className="h-4 w-28 bg-muted rounded-lg" />
+                                <div className="flex gap-2">
+                                  {[1, 2, 3].map(i => (
+                                    <div key={i} className="h-10 flex-1 bg-muted rounded-xl" />
+                                  ))}
+                                </div>
+                              </div>
+                              <div className="space-y-2">
+                                <div className="h-4 w-28 bg-muted rounded-lg" />
+                                <div className="grid grid-cols-2 gap-2">
+                                  {[1, 2, 3, 4].map(i => (
+                                    <div key={i} className="h-14 bg-muted rounded-lg" />
+                                  ))}
+                                </div>
+                              </div>
+                              <div className="space-y-2">
+                                <div className="h-4 w-20 bg-muted rounded-lg" />
+                                <div className="h-14 bg-muted rounded-lg" />
+                              </div>
+                            </div>
+                          ) : (
+                            <>
+                              <div className="flex items-start justify-between p-4 sm:p-5 pb-2 sm:pb-3 shrink-0">
+                                <div className="pr-3">
+                                  <h3 className="text-lg sm:text-xl text-foreground">{product.name}</h3>
+                                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                                    {selectedVariant.size}
+                                    {isPizzaProduct && selectedCrust ? ` - ${formatCrustLabel(selectedCrust)}` : ""}
+                                  </p>
+                                  <p className="text-xs sm:text-sm text-muted-foreground mt-1.5 sm:mt-2 leading-relaxed line-clamp-2 sm:line-clamp-none">
+                                    {product.description}
+                                  </p>
+                                  <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 line-clamp-2 sm:line-clamp-none">
+                                    Nguyên liệu: {selectedVariant.recipe.map(item => item.ingredient.name).join(", ")}
+                                  </p>
+                                </div>
+                                <button
+                                  onClick={() => setProduct(null)}
+                                  className="p-2 rounded-lg hover:bg-muted text-muted-foreground shrink-0"
+                                >
+                                  <X size={18} />
+                                </button>
+                              </div>
 
-                  {isPizzaProduct && availableCrusts.length > 0 && (
-                    <div>
-                      <p className="text-sm font-semibold text-foreground mb-2">Chọn loại đế</p>
-                      <div
-                        className="grid gap-2 bg-muted rounded-xl p-1"
-                        style={{ gridTemplateColumns: `repeat(${Math.max(availableCrusts.length, 1)}, minmax(0, 1fr))` }}
-                      >
-                        {availableCrusts.map(crust => (
-                          <button
-                            key={crust}
-                            onClick={() => handleSelectCrust(crust)}
-                            className={`py-2 rounded-lg text-center transition-all ${
-                              selectedCrust === crust
-                                ? "bg-card shadow text-foreground"
-                                : "text-muted-foreground hover:text-foreground"
-                            }`}
-                          >
-                            <p className="text-sm truncate">{formatCrustLabel(crust)}</p>
-                          </button>
-                        ))}
+                              <div className="flex-1 overflow-y-auto px-4 sm:px-5 space-y-4 sm:space-y-5 max-md:pb-5">
+                                <div className="space-y-3">
+                                  <div>
+                                    <p className="text-sm font-semibold text-foreground mb-2">Chọn kích thước</p>
+                                    <div
+                                      className="grid gap-2 bg-muted rounded-xl p-1"
+                                      style={{
+                                        gridTemplateColumns: `repeat(${Math.max(availableSizes.length, 1)}, minmax(0, 1fr))`,
+                                      }}
+                                    >
+                                      {availableSizes.map(size => (
+                                        <button
+                                          key={size}
+                                          onClick={() => handleSelectSize(size)}
+                                          className={`py-2 rounded-lg text-center transition-all ${selectedSize === size ? "bg-card shadow text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                                        >
+                                          <p className="text-sm truncate">{size}</p>
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </div>
+                                  {isPizzaProduct && availableCrusts.length > 0 && (
+                                    <div>
+                                      <p className="text-sm font-semibold text-foreground mb-2">Chọn loại đế</p>
+                                      <div
+                                        className="grid gap-2 bg-muted rounded-xl p-1"
+                                        style={{
+                                          gridTemplateColumns: `repeat(${Math.max(availableCrusts.length, 1)}, minmax(0, 1fr))`,
+                                        }}
+                                      >
+                                        {availableCrusts.map(crust => (
+                                          <button
+                                            key={crust}
+                                            onClick={() => handleSelectCrust(crust)}
+                                            className={`py-2 rounded-lg text-center transition-all ${selectedCrust === crust ? "bg-card shadow text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                                          >
+                                            <p className="text-sm truncate">{formatCrustLabel(crust)}</p>
+                                          </button>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+
+                                {showExtraTopping && extraToppingOptions.length > 0 && (
+                                  <div>
+                                    <p className="text-sm font-semibold text-foreground mb-2">Chọn extra topping</p>
+                                    <div className="grid grid-cols-2 gap-2">
+                                      {extraToppingOptions.map(item => {
+                                        const active = selectedExtraToppingIds.includes(item._id);
+                                        return (
+                                          <button
+                                            key={item._id}
+                                            onClick={() => handleToggleExtraTopping(item._id)}
+                                            className={`px-3 py-2 rounded-lg border text-left transition-all ${active ? "border-primary bg-primary/10 text-primary" : "border-border bg-muted/50 text-muted-foreground hover:border-primary/40"}`}
+                                          >
+                                            <p className="text-sm truncate">{item.name}</p>
+                                            <p className="text-xs">+ {formatVND(item.price)}</p>
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                )}
+
+                                <div className="pb-2">
+                                  <p className="text-sm font-semibold text-foreground mb-2">Ghi chú</p>
+                                  <Textarea
+                                    placeholder="Thêm ghi chú cho món này"
+                                    className="min-h-[52px]"
+                                    value={note}
+                                    onChange={e => setNote(e.target.value)}
+                                  />
+                                </div>
+                              </div>
+
+                              <div className="p-4 sm:p-5 border-t border-border shrink-0">
+                                <button
+                                  onClick={() => {
+                                    const toppingNote = selectedExtraToppings.map(item => item.name).join(", ");
+                                    const finalNote = [note.trim(), toppingNote ? `Extra topping: ${toppingNote}` : ""]
+                                      .filter(Boolean)
+                                      .join(" | ");
+                                    handleCart(product._id, selectedVariant.size, 1, selectedVariant.sku, finalNote);
+                                  }}
+                                  className="w-full flex items-center justify-between gap-2 bg-primary text-white pl-5 pr-4 py-3 rounded-xl hover:bg-primary/90 transition-colors shadow-lg shadow-primary/25"
+                                >
+                                  <span className="flex items-center gap-2">
+                                    <Plus size={18} /> {isEditMode ? "Cập nhật giỏ hàng" : "Thêm vào giỏ"}
+                                  </span>
+                                  <span>{formatVND(unitPrice)}</span>
+                                </button>
+                              </div>
+                            </>
+                          )
+                        ) : (
+                          <div className="flex-1 flex items-center justify-center p-6">
+                            <p className="text-muted-foreground text-sm">{p.name}</p>
+                          </div>
+                        )}
                       </div>
                     </div>
-                  )}
-                </div>
-
-                {showExtraTopping && extraToppingOptions.length > 0 && (
-                  <div>
-                    <p className="text-sm font-semibold text-foreground mb-2">Chọn extra topping</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      {extraToppingOptions.map(item => {
-                        const isActive = selectedExtraToppingIds.includes(item._id);
-                        return (
-                          <button
-                            key={item._id}
-                            onClick={() => handleToggleExtraTopping(item._id)}
-                            className={`px-3 py-2 rounded-lg border text-left transition-all ${
-                              isActive
-                                ? "border-primary bg-primary/10 text-primary"
-                                : "border-border bg-muted/50 text-muted-foreground hover:border-primary/40"
-                            }`}
-                          >
-                            <p className="text-sm truncate">{item.name}</p>
-                            <p className="text-xs">+ {formatVND(item.price)}</p>
-                          </button>
-                        );
-                      })}
-                    </div>
                   </div>
-                )}
-
-                <div className="pb-2">
-                  <p className="text-sm font-semibold text-foreground mb-2">Ghi chú</p>
-                  <Textarea
-                    placeholder="Thêm ghi chú cho món này"
-                    className="min-h-[52px]"
-                    value={note}
-                    onChange={e => setNote(e.target.value)}
-                  />
-                </div>
-              </div>
-
-              <div className="p-4 sm:p-5 border-t border-border shrink-0">
-                <button
-                  onClick={() => {
-                    const extraToppingNote = selectedExtraToppings.map(item => item.name).join(", ");
-                    const finalNote = [note.trim(), extraToppingNote ? `Extra topping: ${extraToppingNote}` : ""]
-                      .filter(Boolean)
-                      .join(" | ");
-
-                    handleCart(product._id, selectedVariant.size, 1, selectedVariant.sku, finalNote);
-                  }}
-                  className="w-full flex items-center justify-between gap-2 bg-primary text-white pl-5 pr-4 py-3 rounded-xl hover:bg-primary/90 transition-colors shadow-lg shadow-primary/25"
-                >
-                  <span className="flex items-center gap-2">
-                    <Plus size={18} /> {isEditMode ? "Cập nhật giỏ hàng" : "Thêm vào giỏ"}
-                  </span>
-                  <span>{formatVND(unitPrice)}</span>
-                </button>
+                ))}
               </div>
             </div>
+
+            {/* Nút next */}
+            <div className="hidden sm:block w-10 h-10 shrink-0">
+              {(filteredMenu1 ?? []).length > 1 && (
+                <button
+                  onClick={e => {
+                    e.stopPropagation();
+                    scrollNext();
+                  }}
+                  className="flex items-center justify-center w-10 h-10 rounded-full bg-white/90 backdrop-blur-sm shadow-lg border border-border text-foreground hover:bg-white hover:scale-110 transition-all cursor-pointer"
+                  aria-label="Sản phẩm tiếp theo"
+                >
+                  <ChevronRight size={22} />
+                </button>
+              )}
+            </div>
           </div>
+
+          {/* Mobile nav */}
+          {(filteredMenu1 ?? []).length > 1 && (
+            <div className="sm:hidden fixed bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-3 z-[60]">
+              <button
+                onClick={e => {
+                  e.stopPropagation();
+                  scrollPrev();
+                }}
+                className="flex items-center justify-center w-12 h-12 rounded-full bg-white/90 backdrop-blur-sm shadow-xl border border-border text-foreground active:scale-95 transition-all cursor-pointer"
+                aria-label="Sản phẩm trước"
+              >
+                <ChevronLeft size={22} />
+              </button>
+              <span className="text-xs text-white/70 font-medium bg-black/40 px-3 py-1.5 rounded-full backdrop-blur-sm">
+                {currentProductIndex + 1} / {(filteredMenu1 ?? []).length}
+              </span>
+              <button
+                onClick={e => {
+                  e.stopPropagation();
+                  scrollNext();
+                }}
+                className="flex items-center justify-center w-12 h-12 rounded-full bg-white/90 backdrop-blur-sm shadow-xl border border-border text-foreground active:scale-95 transition-all cursor-pointer"
+                aria-label="Sản phẩm tiếp theo"
+              >
+                <ChevronRight size={22} />
+              </button>
+            </div>
+          )}
         </div>
       )}
 

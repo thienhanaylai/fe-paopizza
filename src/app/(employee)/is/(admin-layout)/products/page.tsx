@@ -114,7 +114,6 @@ export default function Products() {
   const isAdmin = user?.role === "admin";
   const [activeTab, setActiveTab] = useState<"products" | "combo">("products");
 
-  // ─────────── Product States ───────────
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [showModal, setShowModal] = useState(false);
@@ -127,7 +126,6 @@ export default function Products() {
   const [confirmModal, setCongirmModal] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
-  // ─────────── Combo States ───────────
   const [comboSearch, setComboSearch] = useState("");
   const [combos, setCombos] = useState<any[]>([]);
   const [comboCategories, setComboCategories] = useState<any[]>([]);
@@ -177,6 +175,7 @@ export default function Products() {
             name: payload.name,
             category: payload.category,
             description: payload.description,
+            launchDate: payload.launchDate,
             variants: payload.variants.map(v => ({
               sku: v.sku,
               size: v.size,
@@ -193,6 +192,7 @@ export default function Products() {
             name: payload.name,
             category: payload.category,
             description: payload.description,
+            launchDate: payload.launchDate,
             variants: payload.variants,
           });
 

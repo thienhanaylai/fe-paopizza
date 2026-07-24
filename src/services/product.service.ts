@@ -36,6 +36,7 @@ export interface AddProductPayload {
   name: string;
   category: string;
   description: string;
+  launchDate?: string;
   variants: VariantPayload[];
 }
 
@@ -44,6 +45,7 @@ export interface UpdateProductPayload {
   name?: string;
   category?: string;
   description?: string;
+  launchDate?: string;
   variants?: UpdateVariantPayload[];
 }
 
@@ -78,6 +80,9 @@ export const addProduct = async (payload: AddProductPayload) => {
   formData.append("category", payload.category);
   if (payload.description) {
     formData.append("description", payload.description);
+  }
+  if (payload.launchDate) {
+    formData.append("launchDate", payload.launchDate);
   }
 
   const variantsTextData = payload.variants.map(v => ({
@@ -122,6 +127,9 @@ export const updateProduct = async (payload: UpdateProductPayload) => {
   }
   if (payload.description !== undefined) {
     formData.append("description", payload.description);
+  }
+  if (payload.launchDate !== undefined) {
+    formData.append("launchDate", payload.launchDate);
   }
 
   if (payload.variants && payload.variants.length > 0) {

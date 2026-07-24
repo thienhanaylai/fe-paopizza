@@ -94,6 +94,7 @@ interface CartItem {
   name: string;
   price: number;
   size?: string;
+  crust?: string;
   sku: string;
   quantity: number;
   note: string;
@@ -204,6 +205,8 @@ export default function POS() {
   const [contactModal, setContactModal] = useState(false);
   const [categories, setCategories] = useState<MenuCategoryUI[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
+  // Track selected crust per product-size key: "productId-size"
+  const [selectedCrustMap, setSelectedCrustMap] = useState<Record<string, string>>({});
   const [hideTable, setHideTable] = useState(true);
   const [tableNumber, setTableNumber] = useState("");
   const [customerName, setCustomerName] = useState("");
@@ -543,6 +546,7 @@ export default function POS() {
           sku: item.sku,
           price: item.price,
           size: item.size ?? "",
+          crust: item.crust,
           quantity: item.quantity,
           note: item.note,
         };
@@ -618,6 +622,7 @@ export default function POS() {
       const invoiceItems: InvoiceItem[] = cart.map(item => ({
         name: item.name,
         size: item.size,
+        crust: item.crust,
         quantity: item.quantity,
         price: item.price,
         note: item.note || undefined,
@@ -627,6 +632,7 @@ export default function POS() {
           return {
             name: selProduct?.name || sel.productId,
             size: sel.size,
+            crust: sel.crust,
           };
         }),
       }));
@@ -753,7 +759,8 @@ export default function POS() {
                       <div className="flex items-start justify-between gap-1">
                         <div className="min-w-0">
                           <p className="text-xs text-foreground truncate flex items-center gap-1">
-                            {item.name} {item.item_type === "product" ? ` - ${item.size}` : ``}
+                            {item.name}{" "}
+                            {item.item_type === "product" ? `- ${item.size}${item.crust ? ` (${item.crust})` : ""}` : ""}
                             {item.item_type === "combo" && (
                               <span className="px-1 py-0.5 bg-orange-500 text-white text-[9px] font-semibold rounded-full shrink-0">
                                 COMBO
@@ -1128,33 +1135,48 @@ export default function POS() {
               {activeTab !== "combos" && (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 mb-4">
                   {filteredMenu.map(item => {
-                    return item.variants.map(prd => {
+                    // Is this a pizza product?
+                    const isPizza = item.category?.slug?.toLowerCase().includes("pizza");
+                    // Group variants by size – for each size, pick the first variant as display representative
+                    const sizeGroups = new Map<string, ProductVariant[]>();
+                    item.variants.forEach(v => {
+                      const list = sizeGroups.get(v.size) || [];
+                      list.push(v);
+                      sizeGroups.set(v.size, list);
+                    });
+
+                    return Array.from(sizeGroups.entries()).map(([size, variants]) => {
+                      const displayVariant = variants[0];
+                      const sizeKey = `${item._id}-${size}`;
+                      // Collect all unique crust options for this size (for pizza products)
+                      const allCrusts = isPizza
+                        ? Array.from(new Set(variants.flatMap(v => parseCrustOptions(v.crust)).filter(Boolean)))
+                        : [];
+                      const selectedCrust = selectedCrustMap[sizeKey] || allCrusts[0] || "";
+
+                      // Find the variant matching selected crust
+                      const matchedVariant =
+                        isPizza && selectedCrust
+                          ? variants.find(v => parseCrustOptions(v.crust).includes(selectedCrust)) || displayVariant
+                          : displayVariant;
+
+                      // Format crust label helper
+                      const formatCrustLabelPos = (value: string) =>
+                        value.replace(/[_-]+/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase());
+
                       return (
-                        <button
-                          key={prd.sku}
-                          onClick={() => {
-                            const itemCart: CartItem = {
-                              item_type: "product",
-                              product_id: item._id,
-                              name: item.name,
-                              note: "",
-                              price: prd.price,
-                              quantity: 1,
-                              size: prd.size,
-                              sku: prd.sku,
-                              image: prd.image.url,
-                            };
-                            addToCart(itemCart);
-                          }}
-                          className={`bg-card rounded-xl border overflow-hidden hover:shadow-lg transition-all text-left group relative `}
+                        <div
+                          key={`${item._id}-${size}`}
+                          className="bg-card rounded-xl border overflow-hidden hover:shadow-lg transition-all text-left group relative"
                         >
+                          {/* Image */}
                           <div className="aspect-[4/3] bg-white relative overflow-hidden">
-                            {prd.image.url ? (
+                            {displayVariant.image.url ? (
                               <Image
                                 fill
                                 loading="eager"
                                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                                src={prd?.image.url}
+                                src={displayVariant.image.url}
                                 alt={item.name}
                                 className="object-contain"
                               />
@@ -1164,15 +1186,63 @@ export default function POS() {
                               </div>
                             )}
                           </div>
+                          {/* Info */}
                           <div className="p-2.5">
                             <p className="text-xs text-foreground truncate">
-                              {item.name} - {prd.size}
+                              {item.name} - {size}
+                              {isPizza && selectedCrust ? ` (${formatCrustLabelPos(selectedCrust)})` : ""}
                             </p>
                             <div className="flex items-center gap-1.5 mt-1">
-                              <span className="text-xs text-primary">{formatVND(prd?.price)}</span>
+                              <span className="text-xs text-primary">{formatVND(matchedVariant.price)}</span>
                             </div>
+
+                            {/* Crust selector for pizza */}
+                            {isPizza && allCrusts.length > 1 && (
+                              <div className="flex flex-wrap gap-1 mt-2" onClick={e => e.stopPropagation()}>
+                                {allCrusts.map(crust => {
+                                  const isActive = crust === selectedCrust;
+                                  return (
+                                    <button
+                                      key={crust}
+                                      type="button"
+                                      onClick={() => setSelectedCrustMap(prev => ({ ...prev, [sizeKey]: crust }))}
+                                      className={`px-1.5 py-0.5 rounded text-[10px] font-medium transition-all ${
+                                        isActive
+                                          ? "bg-gray-800 text-white shadow-sm"
+                                          : "bg-muted text-muted-foreground hover:bg-gray-200"
+                                      }`}
+                                    >
+                                      {formatCrustLabelPos(crust)}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            )}
                           </div>
-                        </button>
+
+                          {/* Add to cart button */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const itemCart: CartItem = {
+                                item_type: "product",
+                                product_id: item._id,
+                                name: item.name,
+                                note: "",
+                                price: matchedVariant.price,
+                                quantity: 1,
+                                size: size,
+                                crust: isPizza ? selectedCrust : undefined,
+                                sku: matchedVariant.sku,
+                                image: displayVariant.image.url,
+                              };
+                              addToCart(itemCart);
+                            }}
+                            className="absolute bottom-2 right-2 w-7 h-7 rounded-lg bg-primary text-white flex items-center justify-center hover:bg-primary/90 transition-all opacity-0 group-hover:opacity-100 shadow-md"
+                          >
+                            <Plus size={14} />
+                          </button>
+                        </div>
                       );
                     });
                   })}

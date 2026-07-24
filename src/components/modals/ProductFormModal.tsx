@@ -39,6 +39,7 @@ export interface ProductFormSubmitPayload {
   name: string;
   category: string;
   description: string;
+  launchDate?: string;
   variants: VariantSubmitPayload[];
 }
 
@@ -76,8 +77,32 @@ interface Product {
   category: { _id: string; name: string; slug: string };
   name: string;
   description: string;
+  launchDate?: string;
   variants: ProductVariant[];
 }
+
+const UNIT_CONVERSIONS: Record<string, { display: string; factor: number }> = {
+  kg: { display: "g", factor: 1000 },
+  lit: { display: "ml", factor: 1000 },
+};
+
+const getDisplayUnit = (nativeUnit: string): string => UNIT_CONVERSIONS[nativeUnit]?.display ?? nativeUnit;
+
+const toDisplayQuantity = (nativeUnit: string, recipeUnit: string, quantity: number): { quantity: number; unit: string } => {
+  const conv = UNIT_CONVERSIONS[nativeUnit];
+  if (conv && recipeUnit === nativeUnit) {
+    return { quantity: quantity * conv.factor, unit: conv.display };
+  }
+  return { quantity, unit: recipeUnit };
+};
+
+const toStorageQuantity = (nativeUnit: string, recipeUnit: string, quantity: number): { quantity: number; unit: string } => {
+  const conv = UNIT_CONVERSIONS[nativeUnit];
+  if (conv && recipeUnit === conv.display) {
+    return { quantity: quantity / conv.factor, unit: nativeUnit };
+  }
+  return { quantity, unit: recipeUnit };
+};
 
 const SIZE_OPTIONS = ["S", "M", "L", "3XL", "1L", "1.5L", "330ml"] as const;
 
@@ -144,7 +169,7 @@ export default function ProductFormModal({
   isLoading,
   onSubmit,
 }: ProductFormModalProps) {
-  const [basicInfo, setBasicInfo] = useState({ name: "", category: "", description: "" });
+  const [basicInfo, setBasicInfo] = useState({ name: "", category: "", description: "", launchDate: "" });
   const [variantsFrom, setVariantsFrom] = useState<VariantPayload[]>([createEmptyVariant()]);
   const [isMount, setIsMount] = useState(false);
   // Initialize form when modal opens or editItem changes
@@ -158,11 +183,22 @@ export default function ProductFormModal({
         name: editItem.name || "",
         category: editItem.category?._id || "",
         description: editItem.description || "",
+        launchDate: editItem.launchDate ? editItem.launchDate.split("T")[0] : "",
       });
-      setVariantsFrom(mapProductToVariants(editItem));
+      const rawVariants = mapProductToVariants(editItem);
+      const displayVariants = rawVariants.map(v => ({
+        ...v,
+        recipe: v.recipe.map(r => {
+          const ing = ingredients?.find(i => i._id === r.ingredient_id);
+          if (!ing) return r;
+          const converted = toDisplayQuantity(ing.unit, r.unit, r.quantity);
+          return { ...r, ...converted };
+        }),
+      }));
+      setVariantsFrom(displayVariants);
     } else {
       const firstCategoryId = categories.find(item => item.slug !== "all")?._id || "";
-      setBasicInfo({ name: "", category: firstCategoryId, description: "" });
+      setBasicInfo({ name: "", category: firstCategoryId, description: "", launchDate: "" });
       setVariantsFrom([createEmptyVariant()]);
     }
     setIsMount(true);
@@ -193,7 +229,11 @@ export default function ProductFormModal({
                 ...v,
                 recipe: [
                   ...v.recipe,
-                  { ingredient_id: ingredients?.[0]?._id || "", quantity: 0, unit: ingredients?.[0]?.unit || "" },
+                  {
+                    ingredient_id: ingredients?.[0]?._id || "",
+                    quantity: 0,
+                    unit: getDisplayUnit(ingredients?.[0]?.unit || ""),
+                  },
                 ],
               }
             : v,
@@ -246,7 +286,12 @@ export default function ProductFormModal({
         disscountType: variant.disscountType,
         discount: variant.discount,
         crust: variant.crust || [],
-        recipe: variant.recipe,
+        recipe: variant.recipe.map(item => {
+          const ing = ingredients?.find(i => i._id === item.ingredient_id);
+          if (!ing) return item;
+          const converted = toStorageQuantity(ing.unit, item.unit, item.quantity);
+          return { ...item, ...converted };
+        }),
         imageFile: variant.imageFile as File,
         image: editItem?.variants?.[index]?.image,
       }));
@@ -255,10 +300,11 @@ export default function ProductFormModal({
         name: basicInfo.name,
         category: basicInfo.category,
         description: basicInfo.description,
+        launchDate: basicInfo.launchDate ? new Date(basicInfo.launchDate).toISOString() : undefined,
         variants: normalizedVariants,
       });
     },
-    [basicInfo, variantsFrom, categories, editItem, onSubmit],
+    [basicInfo, variantsFrom, categories, editItem, onSubmit, ingredients],
   );
 
   if (!open) return null;
@@ -309,6 +355,16 @@ export default function ProductFormModal({
               rows={2}
               placeholder="Mô tả sản phẩm..."
               className="w-full px-4 py-2.5 rounded-xl border border-border bg-background focus:border-primary outline-none resize-none"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm mb-1">Ngày ra mắt</label>
+            <input
+              type="date"
+              value={basicInfo.launchDate}
+              onChange={e => setBasicInfo({ ...basicInfo, launchDate: e.target.value })}
+              className="w-full px-4 py-2.5 rounded-xl border border-border bg-background focus:border-primary outline-none"
             />
           </div>
 
@@ -444,7 +500,7 @@ export default function ProductFormModal({
                               const newIngredientId = e.target.value;
                               const selectedIngredient = ingredients?.find(item => item._id === newIngredientId);
                               handleRecipeChange(i, ingredientIndex, "ingredient_id", selectedIngredient?._id || "");
-                              handleRecipeChange(i, ingredientIndex, "unit", selectedIngredient?.unit || "");
+                              handleRecipeChange(i, ingredientIndex, "unit", getDisplayUnit(selectedIngredient?.unit || ""));
                             }}
                             className="flex-1 px-3 py-2 rounded-lg border border-border bg-background outline-none text-sm mx-1"
                           >
