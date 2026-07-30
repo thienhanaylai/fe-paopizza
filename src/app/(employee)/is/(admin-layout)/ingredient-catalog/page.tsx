@@ -44,6 +44,7 @@ interface Ingredient {
   unit: string;
   category: string;
   costPerUnit: number;
+  price: number;
   isActive: boolean;
   isDeleted: boolean;
 }
@@ -59,6 +60,7 @@ export default function IngredientCatalog() {
   const [fromName, setFromName] = useState("");
   const [fromUnit, setFromUnit] = useState("");
   const [fromCostPerUnit, setCostPerUnit] = useState(0);
+  const [fromPrice, setFromPrice] = useState(0);
   const [fromCategory, setFromCategory] = useState("");
   const [fromIsActive, setFromIsActive] = useState("");
   const [confirmModal, setCongirmModal] = useState(false);
@@ -130,6 +132,7 @@ export default function IngredientCatalog() {
           unit: fromUnit,
           category: fromCategory,
           costPerUnit: fromCostPerUnit,
+          price: fromPrice,
           isActive: fromIsActive === "true",
         });
         toast.success("Cập nhật thành công !");
@@ -142,6 +145,7 @@ export default function IngredientCatalog() {
         await addIngredient({
           name: fromName,
           costPerUnit: fromCostPerUnit,
+          price: fromPrice,
           unit: fromUnit,
           category: fromCategory,
         });
@@ -316,6 +320,13 @@ export default function IngredientCatalog() {
                   className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70"
                 />
                 <SortableHeader
+                  label="Giá bán"
+                  sortKey="price"
+                  sortConfig={ingSortConfig}
+                  onSort={toggleIngSort}
+                  className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70"
+                />
+                <SortableHeader
                   label="Trạng thái"
                   sortKey="isActive"
                   sortConfig={ingSortConfig}
@@ -384,6 +395,11 @@ export default function IngredientCatalog() {
                           </span>
                         </span>
                       </td>
+                      <td className="px-5 py-3.5">
+                        <span className={`text-sm font-semibold ${item.price > 0 ? "text-foreground" : "text-muted-foreground"}`}>
+                          {item.price > 0 ? formatVND(item.price) : "—"}
+                        </span>
+                      </td>
                       <td className="px-5 py-3.5 text-center">
                         <span
                           className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${item.isActive ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-500"}`}
@@ -407,6 +423,7 @@ export default function IngredientCatalog() {
                               setFromCategory(item.category);
                               setFromUnit(item.unit);
                               setCostPerUnit(item.costPerUnit);
+                              setFromPrice(item.price || 0);
                               setFromIsActive(item.isActive.toString());
                             }}
                             className="p-2 rounded-lg hover:bg-blue-50 text-muted-foreground hover:text-blue-500 transition-colors"
@@ -499,7 +516,7 @@ export default function IngredientCatalog() {
                 </div>
               </div>
               <div>
-                <label className="block text-sm text-foreground mb-1.5">Giá nhập</label>
+                <label className="block text-sm text-foreground mb-1.5">Giá nhập (VNĐ)</label>
                 <input
                   defaultValue={editItem?.costPerUnit}
                   type="number"
@@ -510,6 +527,20 @@ export default function IngredientCatalog() {
                   placeholder="VD: 2500000"
                   className="w-full px-4 py-2.5 rounded-xl border border-border bg-background focus:border-primary outline-none text-sm"
                 />
+              </div>
+              <div>
+                <label className="block text-sm text-foreground mb-1.5">Giá bán extra topping (VNĐ)</label>
+                <input
+                  defaultValue={editItem?.price || 0}
+                  type="number"
+                  onChange={e => {
+                    const value = e.target.valueAsNumber;
+                    setFromPrice(isNaN(value) ? 0 : value);
+                  }}
+                  placeholder="VD: 15000"
+                  className="w-full px-4 py-2.5 rounded-xl border border-border bg-background focus:border-primary outline-none text-sm"
+                />
+                <p className="text-xs text-muted-foreground mt-1">Để 0 nếu không bán làm extra topping</p>
               </div>
               <div>
                 <label className="block text-sm text-foreground mb-1.5">Trạng thái</label>

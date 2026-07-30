@@ -153,7 +153,7 @@ export const createOrder = async (payload: Order, typeUser: string) => {
       },
       typeUser,
     );
-    console.log(payload);
+
     return response;
   } catch (error) {
     console.error("Lỗi fetch :", error);

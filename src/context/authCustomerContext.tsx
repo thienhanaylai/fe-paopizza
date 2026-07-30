@@ -113,7 +113,7 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       const status = (error as { status?: number; data?: { message?: string; error?: string } })?.status;
       const errData = (error as { data?: { message?: string; error?: string } })?.data;
-      console.log(errData);
+
       if (status === 500) {
         return {
           success: false,

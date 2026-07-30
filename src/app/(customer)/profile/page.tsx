@@ -78,7 +78,7 @@ function formatVND(n: number) {
 
 export default function Profile() {
   const { user, getInfo } = useCustomerAuth();
-  console.log(user);
+
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(user?.name || "");
   const [phone, setPhone] = useState(user?.phone || "");
@@ -316,7 +316,7 @@ export default function Profile() {
                             address,
                             birthday: birthday || undefined,
                           });
-                          console.log(res);
+
                           showSaved("Đã lưu thông tin");
                           await getInfo();
                         } catch {

@@ -162,8 +162,6 @@ export default function ComboFormModal({
     };
   }, [formImage.preview]);
 
-  console.log(formPricing);
-
   const comboAddRule = useCallback(() => {
     setComboFormRules(prev => [...prev, createEmptyRule()]);
   }, []);

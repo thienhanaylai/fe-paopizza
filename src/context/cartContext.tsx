@@ -637,7 +637,6 @@ export function CartProvider({ children }: { children: ReactNode }) {
       if (!userId) {
         const guestCart = readGuestCart();
         setCart(guestCart);
-        console.log(guestCart);
         return guestCart;
       }
 
@@ -645,7 +644,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         const prevCart = cartRef.current;
         await syncGuestCartToServer(userId);
         const data = await getCart(userId);
-        console.log(data);
+
         const normalized = data
           ? normalizeCart(data)
           : {

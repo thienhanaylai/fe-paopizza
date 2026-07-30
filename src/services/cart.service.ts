@@ -90,7 +90,6 @@ export const removeFromCartApi = async (payload: RemoveFromCartPayload) => {
 
 // Cập nhật số lượng / ghi chú
 export const updateCartItemApi = async (payload: UpdateCartItemPayload) => {
-  console.log(payload);
   const response = await http(
     "/api/v1/cart/update",
     {

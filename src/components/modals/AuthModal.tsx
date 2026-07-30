@@ -68,7 +68,6 @@ export const AuthModal = () => {
       if (result.success) {
         handleClose();
       } else {
-        console.log(result);
         setError(result.message === "ACCOUNT_NOT_FOUND" ? "Không tìm thấy tài khoản!" : "Đăng nhập thất bại");
       }
     }
