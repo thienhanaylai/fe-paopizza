@@ -15,10 +15,11 @@ import { formatVND } from "@/src/utils/formatVND";
 type CheckoutStep = "info" | "payment" | "success" | "failed";
 type OrderMethod = "carry_out" | "delivery" | "dine_in";
 
-export function CountdownTimer({ expiresAt, onExpire }) {
-  const [timeLeft, setTimeLeft] = useState(null);
+export function CountdownTimer({ expiresAt, onExpire }: { expiresAt?: Date; onExpire: () => void }) {
+  const [timeLeft, setTimeLeft] = useState<number | null>(null);
 
   useEffect(() => {
+    if (!expiresAt) return;
     const target = new Date(expiresAt).getTime();
 
     const interval = setInterval(() => {
@@ -44,8 +45,8 @@ export function CountdownTimer({ expiresAt, onExpire }) {
 
   return (
     <div>
-      <p>Thời gian thanh toán còn lại: </p>
-      <p className="text-red-500 text-center">
+      <p className="text-xs text-muted-foreground text-center">Thời gian thanh toán còn lại: </p>
+      <p className="text-red-500 text-center font-bold">
         {minutes}:{seconds < 10 ? `0${seconds}` : seconds}
       </p>
     </div>
@@ -68,6 +69,7 @@ export const CheckoutModal = () => {
   const [custAddress, setCustAddress] = useState("");
   const [custNote, setCustNote] = useState("");
   const [imgQr, setImgQr] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Promotion/Discount
   const [promoCode, setPromoCode] = useState("");
@@ -76,10 +78,9 @@ export const CheckoutModal = () => {
   const [isApplyingPromo, setIsApplyingPromo] = useState(false);
 
   const discountAmount = appliedPromo?.valid ? appliedPromo.discountAmount : 0;
-
   const [testtime, setTestime] = useState<Date>();
 
-  const pollingRef = useRef(null);
+  const pollingRef = useRef<NodeJS.Timeout | null>(null);
 
   const stopPolling = () => {
     if (pollingRef.current) {
@@ -87,6 +88,7 @@ export const CheckoutModal = () => {
       pollingRef.current = null;
     }
   };
+
   const startPolling = (orderId: string) => {
     stopPolling();
 
@@ -103,11 +105,12 @@ export const CheckoutModal = () => {
       }
     }, 3000);
   };
+
   useEffect(() => {
     const fecthData = async () => {
       try {
         const stores = await getAllStore();
-        const finalList = stores.filter(item => item.status == "active");
+        const finalList = stores.filter(item => item.status === "active");
         setListStore(finalList);
 
         const selectedStoreId = localStorage.getItem("selected_store");
@@ -119,7 +122,7 @@ export const CheckoutModal = () => {
       }
     };
     fecthData();
-    stopPolling();
+    return () => stopPolling();
   }, []);
 
   const clearData = async () => {
@@ -134,6 +137,7 @@ export const CheckoutModal = () => {
     setAppliedPromo(null);
     setOrderMethod("carry_out");
     setPaymentMethod("cash");
+    setIsPayment(false);
     await clearCart(user?.id);
   };
 
@@ -162,104 +166,110 @@ export const CheckoutModal = () => {
   };
 
   const hanldeSubmit = async () => {
-    let customer;
-    if (user) {
-      customer = user?.id ? await getInfo() : null;
-    } else {
-      customer = null;
-    }
-
-    // Always read latest store from localStorage to avoid stale storeId
-    const currentStoreId = localStorage.getItem("selected_store") || storeId;
-
-    const order: Order = {
-      orderType: orderMethod,
-      paymentMethod: paymentMethod,
-      contact_info: {
-        full_name: custName,
-        phone: custPhone,
-        address: custAddress,
-      },
-      store_id: currentStoreId,
-      items: cart
-        ? cart?.items?.map(cartItem => ({
-            ...cartItem,
-            product_id: typeof cartItem.product_id === "string" ? cartItem.product_id : cartItem.product_id?._id,
-            added_topping: Array.isArray(cartItem.added_topping)
-              ? cartItem.added_topping.map(topping => ({
-                  ingredient: typeof topping === "string" ? topping : topping._id,
-                  quantity: 1,
-                }))
-              : [],
-            combo_selections: Array.isArray(cartItem.combo_selections)
-              ? cartItem.combo_selections.map(selection => ({
-                  ...selection,
-                  product_id: typeof selection.product_id === "string" ? selection.product_id : selection.product_id?._id,
-                  crust: selection.crust,
-                  added_topping: Array.isArray(selection.added_topping)
-                    ? selection.added_topping.map(topping => ({
-                        ingredient: typeof topping === "string" ? topping : topping._id,
-                        quantity: 1,
-                      }))
-                    : [],
-                }))
-              : [],
-          }))
-        : [],
-      note: custNote,
-      promotion_code: appliedPromo?.valid ? appliedPromo.code : undefined,
-      discount_amount: appliedPromo?.valid ? discountAmount : 0,
-      customer_id: customer?.ref_id?._id || null,
-    };
-    if (custName === "" || custPhone === "" || !currentStoreId) {
-      toast.warning("Vui lòng nhập đầy đủ thông tin!");
-      return;
-    }
-
-    if (orderMethod === "delivery" && custAddress === "") {
-      toast.warning("Vui lòng nhập địa chỉ giao hàng!");
-      return;
-    }
+    if (isSubmitting) return;
+    setIsSubmitting(true);
 
     try {
+      let customer = null;
+      if (user) {
+        customer = user?.id ? await getInfo() : null;
+      }
+
+      const currentStoreId = localStorage.getItem("selected_store") || storeId;
+
+      const order: Order = {
+        orderType: orderMethod,
+        paymentMethod: paymentMethod,
+        contact_info: {
+          full_name: custName,
+          phone: custPhone,
+          address: custAddress,
+        },
+        store_id: currentStoreId,
+        items: cart
+          ? cart?.items?.map(cartItem => ({
+              ...cartItem,
+              product_id: typeof cartItem.product_id === "string" ? cartItem.product_id : cartItem.product_id?._id,
+              added_topping: Array.isArray(cartItem.added_topping)
+                ? cartItem.added_topping.map(topping => ({
+                    ingredient: typeof topping === "string" ? topping : topping._id,
+                    quantity: 1,
+                  }))
+                : [],
+              combo_selections: Array.isArray(cartItem.combo_selections)
+                ? cartItem.combo_selections.map(selection => ({
+                    ...selection,
+                    product_id: typeof selection.product_id === "string" ? selection.product_id : selection.product_id?._id,
+                    crust: selection.crust,
+                    added_topping: Array.isArray(selection.added_topping)
+                      ? selection.added_topping.map(topping => ({
+                          ingredient: typeof topping === "string" ? topping : topping._id,
+                          quantity: 1,
+                        }))
+                      : [],
+                  }))
+                : [],
+            }))
+          : [],
+        note: custNote,
+        promotion_code: appliedPromo?.valid ? appliedPromo.code : undefined,
+        discount_amount: appliedPromo?.valid ? discountAmount : 0,
+        customer_id: customer?.ref_id?._id || null,
+      };
+
+      if (!custName || !custPhone || !currentStoreId) {
+        toast.warning("Vui lòng nhập đầy đủ thông tin!");
+        setIsSubmitting(false);
+        return;
+      }
+
+      if (orderMethod === "delivery" && !custAddress) {
+        toast.warning("Vui lòng nhập địa chỉ giao hàng!");
+        setIsSubmitting(false);
+        return;
+      }
+
       const result = await createOrder(order, "customer");
       const res = result.data;
       const payment = result.payment;
 
+      //nếu là tiềm mặt thanh toán sau thì sẽ thành công luôn
       if (res.paymentMethod === "cash") {
         setCheckoutStep("success");
         setIdOrder(res._id);
         return;
       }
 
-      // QR code / chuyển khoản
-      setCheckoutStep("payment");
-      setIsPayment(true);
+      // chuyển step sang bước thanh toán
       setIdOrder(res._id);
       setTestime(new Date(Date.now() + 3 * 60 * 1000));
+      setCheckoutStep("payment");
+      setIsPayment(true);
 
       if (payment?.qrUrl) {
         setImgQr(payment.qrUrl);
         startPolling(payment.orderId || res._id);
       } else {
-        // Fallback: nếu không có QR, vẫn hiển thị bước chờ thanh toán với mã đơn
         setImgQr("");
         startPolling(res._id);
       }
     } catch (err: unknown) {
       const error = err as { data?: { message?: string } };
       toast.error(error?.data?.message || "Lỗi khi tạo đơn hàng, vui lòng thử lại!");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleCheckConfirm = async () => {
     try {
       const res = await checkPaymentStatus(idOrder);
-
       if (res.data.paymentStatus === "success") {
         stopPolling();
         setCheckoutStep("success");
         clearData();
+      } else {
+        toast.info("Chưa nhận được thanh toán. Vui lòng kiểm tra lại sau ít phút!");
       }
     } catch (err) {
       console.error("Lỗi khi check status:", err);
@@ -273,17 +283,18 @@ export const CheckoutModal = () => {
     { key: "cash", label: "Tiền mặt", icon: <Banknote size={20} />, desc: "Thanh toán khi nhận hàng" },
     { key: "qrCode", label: "Chuyển khoản", icon: <QrCode size={20} />, desc: "Quét mã QR ngân hàng" },
   ];
+
   if (!listStore || listStore.length === 0) {
     return (
-      <div>
-        <LoaderCircle className="animate-spin" size={18} />
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+        <LoaderCircle className="animate-spin text-white" size={32} />
       </div>
     );
   }
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 m-0 "
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 m-0"
       onClick={() => {
         if (checkoutStep !== "success") setCheckout(false);
       }}
@@ -292,6 +303,7 @@ export const CheckoutModal = () => {
         className="bg-card rounded-2xl w-full max-w-xl shadow-2xl max-h-[92vh] overflow-y-auto scrollbar-hide animate-fade-up animate-duration-300"
         onClick={e => e.stopPropagation()}
       >
+        {/* SUCCESS STEP */}
         {checkoutStep === "success" && (
           <div className="p-8 text-center">
             <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
@@ -299,7 +311,7 @@ export const CheckoutModal = () => {
             </div>
             <h3 className="text-xl text-foreground mb-2">Đặt hàng thành công!</h3>
             <p className="text-muted-foreground mb-1">
-              Mã đơn hàng: <span className="text-primary"> {idOrder}</span>
+              Mã đơn hàng: <span className="text-primary font-semibold"> {idOrder}</span>
             </p>
             <p className="text-sm text-muted-foreground mb-6">
               {orderMethod === "carry_out"
@@ -317,10 +329,11 @@ export const CheckoutModal = () => {
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Tổng tiền:</span>
-                <span className="text-primary">{formatVND(grandTotal)}</span>
+                <span className="text-primary font-bold">{formatVND(grandTotal)}</span>
               </div>
             </div>
             <button
+              type="button"
               onClick={() => {
                 setCheckout(false);
                 clearData();
@@ -330,30 +343,46 @@ export const CheckoutModal = () => {
               Quay lại trang chủ
             </button>
           </div>
-        )}{" "}
-        {checkoutStep != "success" && checkoutStep != "failed" && (
+        )}
+
+        {/* INFO & PAYMENT STEPS */}
+        {checkoutStep !== "success" && checkoutStep !== "failed" && (
           <>
             <div className="flex items-center gap-3 p-5 border-b border-border">
-              {checkoutStep === "payment" && isPayment === false ? (
-                <button onClick={() => setCheckoutStep("info")} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground">
-                  <ArrowLeft size={18} />
-                </button>
-              ) : (
-                <button
-                  onClick={() => {
-                    setCheckoutStep("payment");
-                    setIsPayment(false);
-                  }}
-                  className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground"
-                >
-                  <ArrowLeft size={18} />
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={() => {
+                  if (checkoutStep === "payment") {
+                    if (isPayment) {
+                      setIsPayment(false);
+                      stopPolling();
+                    } else {
+                      setCheckoutStep("info");
+                    }
+                  } else {
+                    setCheckout(false);
+                  }
+                }}
+                className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground"
+              >
+                <ArrowLeft size={18} />
+              </button>
+
               <div className="flex-1">
-                <h3 className="text-foreground">{checkoutStep === "info" ? "Thông tin đặt hàng" : "Phương thức thanh toán"}</h3>
+                <h3 className="text-foreground font-medium">
+                  {checkoutStep === "info" ? "Thông tin đặt hàng" : isPayment ? "Thanh toán QR" : "Phương thức thanh toán"}
+                </h3>
                 <p className="text-xs text-muted-foreground">Bước {checkoutStep === "info" ? "1" : "2"} / 2</p>
               </div>
-              <button onClick={() => setCheckout(false)} className="p-2 rounded-lg hover:bg-muted text-muted-foreground">
+
+              <button
+                type="button"
+                onClick={() => {
+                  stopPolling();
+                  setCheckout(false);
+                }}
+                className="p-2 rounded-lg hover:bg-muted text-muted-foreground"
+              >
                 <X size={18} />
               </button>
             </div>
@@ -366,12 +395,14 @@ export const CheckoutModal = () => {
             </div>
 
             <div className="p-5 space-y-5">
+              {/* BƯỚC 1: THÔNG TIN ĐẶT HÀNG */}
               {checkoutStep === "info" && (
                 <>
                   <div>
                     <label className="block text-sm mb-2">Hình thức nhận hàng</label>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <button
+                        type="button"
                         onClick={() => setOrderMethod("carry_out")}
                         className={`flex items-center gap-3 p-4 rounded-xl border-2 transition-all ${orderMethod === "carry_out" ? "border-primary bg-primary/5" : "border-border hover:border-primary/30"}`}
                       >
@@ -381,11 +412,13 @@ export const CheckoutModal = () => {
                           <ShoppingBag size={20} />
                         </div>
                         <div className="text-left">
-                          <p className="text-sm text-foreground">Đến lấy</p>
+                          <p className="text-sm text-foreground font-medium">Đến lấy</p>
                           <p className="text-[11px] text-muted-foreground">20-30 phút</p>
                         </div>
                       </button>
+
                       <button
+                        type="button"
                         onClick={() => setOrderMethod("delivery")}
                         className={`flex items-center gap-3 p-4 rounded-xl border-2 transition-all ${orderMethod === "delivery" ? "border-primary bg-primary/5" : "border-border hover:border-primary/30"}`}
                       >
@@ -395,7 +428,7 @@ export const CheckoutModal = () => {
                           <Truck size={20} />
                         </div>
                         <div className="text-left">
-                          <p className="text-sm text-foreground">Giao hàng</p>
+                          <p className="text-sm text-foreground font-medium">Giao hàng</p>
                           <p className="text-[11px] text-muted-foreground">30-45 phút</p>
                         </div>
                       </button>
@@ -437,6 +470,7 @@ export const CheckoutModal = () => {
                       />
                     </div>
                   )}
+
                   <div>
                     <label className="block text-sm mb-1">Ghi chú</label>
                     <textarea
@@ -464,6 +498,7 @@ export const CheckoutModal = () => {
                       />
                       {appliedPromo?.valid ? (
                         <button
+                          type="button"
                           onClick={() => {
                             setAppliedPromo(null);
                             setPromoCode("");
@@ -475,6 +510,7 @@ export const CheckoutModal = () => {
                         </button>
                       ) : (
                         <button
+                          type="button"
                           onClick={handleApplyPromo}
                           disabled={!promoCode.trim() || isApplyingPromo}
                           className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-primary text-white text-sm hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shrink-0 flex items-center justify-center gap-1.5"
@@ -498,19 +534,7 @@ export const CheckoutModal = () => {
                   </div>
 
                   <div className="bg-muted/50 rounded-xl p-4 space-y-2">
-                    <p className="text-sm text-foreground mb-2">Tóm tắt đơn hàng</p>
-                    {/* {Object.entries(cart).map(([id, qty]) => {
-                      const item = menuItems.find(m => m.id === Number(id));
-                      if (!item) return null;
-                      return (
-                        <div key={id} className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">
-                            {item.name} x{qty}
-                          </span>
-                          <span className="text-foreground">{formatVND(item.price * qty)}</span>
-                        </div>
-                      );
-                    })} */}
+                    <p className="text-sm text-foreground mb-2 font-medium">Tóm tắt đơn hàng</p>
                     {deliveryFee > 0 && (
                       <div className="flex justify-between text-sm pt-1 border-t border-border">
                         <span className="text-muted-foreground">Phí giao hàng</span>
@@ -532,12 +556,13 @@ export const CheckoutModal = () => {
                       </div>
                     )}
                     <div className="flex justify-between pt-2 border-t border-border">
-                      <span className="text-foreground">Tổng cộng</span>
-                      <span className="text-primary text-lg">{formatVND(grandTotal)}</span>
+                      <span className="text-foreground font-medium">Tổng cộng</span>
+                      <span className="text-primary text-lg font-bold">{formatVND(grandTotal)}</span>
                     </div>
                   </div>
 
                   <button
+                    type="button"
                     onClick={() => {
                       const phoneRegex = /^(0|84|\+84)[35789]\d{8}$/;
                       if (!phoneRegex.test(custPhone)) {
@@ -547,23 +572,24 @@ export const CheckoutModal = () => {
                       setCheckoutStep("payment");
                     }}
                     disabled={!custName || !custPhone || (orderMethod === "delivery" && !custAddress)}
-                    className="w-full bg-primary text-white py-3 rounded-xl hover:bg-primary/90 transition-colors shadow-lg shadow-primary/25 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full bg-primary text-white py-3 rounded-xl hover:bg-primary/90 transition-colors shadow-lg shadow-primary/25 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
                   >
                     Tiếp tục thanh toán
                   </button>
                 </>
               )}
-              {checkoutStep === "payment" && isPayment === false && (
+
+              {/* BƯỚC 2A: CHỌN PHƯƠNG THỨC THANH TOÁN */}
+              {checkoutStep === "payment" && !isPayment && (
                 <>
                   <div>
                     <label className="block text-sm mb-3">Chọn phương thức thanh toán</label>
                     <div className="space-y-3">
                       {paymentOptions.map(opt => (
                         <button
+                          type="button"
                           key={opt.key}
-                          onClick={() => {
-                            setPaymentMethod(opt.key);
-                          }}
+                          onClick={() => setPaymentMethod(opt.key)}
                           className={`w-full flex items-center gap-4 p-4 rounded-xl border-2 transition-all text-left ${paymentMethod === opt.key ? "border-primary bg-primary/5" : "border-border hover:border-primary/30"}`}
                         >
                           <div
@@ -572,7 +598,7 @@ export const CheckoutModal = () => {
                             {opt.icon}
                           </div>
                           <div>
-                            <p className="text-sm text-foreground">{opt.label}</p>
+                            <p className="text-sm text-foreground font-medium">{opt.label}</p>
                             <p className="text-xs text-muted-foreground">{opt.desc}</p>
                           </div>
                           <div className="ml-auto">
@@ -607,36 +633,48 @@ export const CheckoutModal = () => {
                       </div>
                     )}
                     <div className="flex justify-between pt-2 border-t border-border">
-                      <span className="text-foreground">Tổng thanh toán:</span>
-                      <span className="text-primary text-lg">{formatVND(grandTotal)}</span>
+                      <span className="text-foreground font-medium">Tổng thanh toán:</span>
+                      <span className="text-primary text-lg font-bold">{formatVND(grandTotal)}</span>
                     </div>
                   </div>
 
                   <button
-                    onClick={() => {
-                      hanldeSubmit();
-                    }}
-                    className="w-full bg-primary text-white py-3 rounded-xl hover:bg-primary/90 transition-colors shadow-lg shadow-primary/25"
+                    type="button"
+                    onClick={hanldeSubmit}
+                    disabled={isSubmitting}
+                    className="w-full bg-primary text-white py-3 rounded-xl hover:bg-primary/90 transition-colors shadow-lg shadow-primary/25 font-medium flex items-center justify-center gap-2"
                   >
-                    {paymentMethod != "cash" ? "Thanh toán" : "Xác nhận đặt hàng"}
+                    {isSubmitting && <LoaderCircle size={18} className="animate-spin" />}
+                    {paymentMethod !== "cash" ? "Thanh toán" : "Xác nhận đặt hàng"}
                   </button>
                 </>
               )}
-              {checkoutStep === "payment" && isPayment === true && (
+
+              {/* BƯỚC 2B: HIỂN THỊ MÃ QR DÀNH CHO CỬA HÀNG/CHUYỂN KHỎAN */}
+              {checkoutStep === "payment" && isPayment && (
                 <>
                   <div>
-                    <label className="block text-sm mb-3">
-                      {imgQr ? "Quét mã QR bên dưới để thanh toán" : "Vui lòng chờ xử lý thanh toán"}
+                    <label className="block text-sm mb-3 text-center font-medium">
+                      {imgQr ? "Quét mã QR bên dưới để thanh toán" : "Vui lòng chờ xử lý thanh toán..."}
                     </label>
-                    <div className="space-y-3 flex flex-col items-center">
+                    <div className="space-y-4 flex flex-col items-center">
                       {imgQr ? (
-                        <Image src={imgQr} alt="QR Code" width={250} height={250} className="rounded-xl" />
+                        <Image
+                          src={imgQr}
+                          alt="QR Code"
+                          width={250}
+                          height={250}
+                          className="rounded-xl border border-border shadow-sm"
+                          unoptimized
+                        />
                       ) : (
                         <div className="w-[250px] h-[250px] rounded-xl bg-muted flex items-center justify-center">
                           <LoaderCircle size={40} className="animate-spin text-muted-foreground" />
                         </div>
                       )}
-                      <p>Mã đơn hàng: {idOrder}</p>
+                      <p className="text-sm">
+                        Mã đơn hàng: <span className="font-semibold text-primary">{idOrder}</span>
+                      </p>
                       <CountdownTimer
                         expiresAt={testtime}
                         onExpire={() => {
@@ -668,16 +706,15 @@ export const CheckoutModal = () => {
                       </div>
                     )}
                     <div className="flex justify-between pt-2 border-t border-border">
-                      <span className="text-foreground">Tổng thanh toán:</span>
-                      <span className="text-primary text-lg">{formatVND(grandTotal)}</span>
+                      <span className="text-foreground font-medium">Tổng thanh toán:</span>
+                      <span className="text-primary text-lg font-bold">{formatVND(grandTotal)}</span>
                     </div>
                   </div>
 
                   <button
-                    onClick={() => {
-                      handleCheckConfirm();
-                    }}
-                    className="w-full bg-primary text-white py-3 rounded-xl hover:bg-primary/90 transition-colors shadow-lg shadow-primary/25"
+                    type="button"
+                    onClick={handleCheckConfirm}
+                    className="w-full bg-primary text-white py-3 rounded-xl hover:bg-primary/90 transition-colors shadow-lg shadow-primary/25 font-medium"
                   >
                     Đã thanh toán
                   </button>
@@ -686,16 +723,17 @@ export const CheckoutModal = () => {
             </div>
           </>
         )}
-        {checkoutStep === "failed" && isPayment === true && (
-          <div className="p-5 space-y-5">
+
+        {/* FAILED STEP */}
+        {checkoutStep === "failed" && (
+          <div className="p-5 space-y-5 text-center">
             <div>
-              <h3 className="block  mb-3">Hết thời gian thanh toán</h3>
-              <div className="space-y-3 flex flex-col items-center">
-                <p>Đã hết thời gian thanh toán vui lòng đặt hàng lại!</p>
-              </div>
+              <h3 className="text-lg font-semibold text-red-500 mb-2">Hết thời gian thanh toán</h3>
+              <p className="text-sm text-muted-foreground">Đã hết thời gian thanh toán, vui lòng thực hiện lại đơn hàng!</p>
             </div>
 
             <button
+              type="button"
               onClick={() => {
                 stopPolling();
                 setIdOrder("");
@@ -706,10 +744,11 @@ export const CheckoutModal = () => {
                 setCustNote("");
                 setOrderMethod("carry_out");
                 setPaymentMethod("cash");
+                setIsPayment(false);
                 setCheckout(false);
                 fetchCart(user?.id || "");
               }}
-              className="w-full bg-white text-primary border-primary border-2 py-3 rounded-xl hover:text-white hover:bg-primary/90 transition-colors shadow-lg shadow-primary/25"
+              className="w-full bg-white text-primary border-primary border-2 py-3 rounded-xl hover:text-white hover:bg-primary transition-colors font-medium"
             >
               Đóng
             </button>
