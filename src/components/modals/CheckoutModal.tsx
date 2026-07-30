@@ -221,20 +221,34 @@ export const CheckoutModal = () => {
       return;
     }
 
-    const result = await createOrder(order, "customer");
-    const res = result.data;
-    const payment = result.payment;
+    try {
+      const result = await createOrder(order, "customer");
+      const res = result.data;
+      const payment = result.payment;
 
-    if (res.paymentMethod != "cash" && res.paymentStatus != "success") {
+      if (res.paymentMethod === "cash") {
+        setCheckoutStep("success");
+        setIdOrder(res._id);
+        return;
+      }
+
+      // QR code / chuyển khoản
+      setCheckoutStep("payment");
       setIsPayment(true);
+      setIdOrder(res._id);
       setTestime(new Date(Date.now() + 3 * 60 * 1000));
-      startPolling(payment.orderId);
-      setImgQr(payment.qrUrl);
-      setIdOrder(res._id);
-    }
-    if (res.paymentMethod === "cash") {
-      setCheckoutStep("success");
-      setIdOrder(res._id);
+
+      if (payment?.qrUrl) {
+        setImgQr(payment.qrUrl);
+        startPolling(payment.orderId || res._id);
+      } else {
+        // Fallback: nếu không có QR, vẫn hiển thị bước chờ thanh toán với mã đơn
+        setImgQr("");
+        startPolling(res._id);
+      }
+    } catch (err: unknown) {
+      const error = err as { data?: { message?: string } };
+      toast.error(error?.data?.message || "Lỗi khi tạo đơn hàng, vui lòng thử lại!");
     }
   };
 
@@ -608,12 +622,20 @@ export const CheckoutModal = () => {
                   </button>
                 </>
               )}
-              {checkoutStep === "payment" && isPayment === true && imgQr && (
+              {checkoutStep === "payment" && isPayment === true && (
                 <>
                   <div>
-                    <label className="block text-sm mb-3">Quét mã qr bên dưới để thanh toán</label>
+                    <label className="block text-sm mb-3">
+                      {imgQr ? "Quét mã QR bên dưới để thanh toán" : "Vui lòng chờ xử lý thanh toán"}
+                    </label>
                     <div className="space-y-3 flex flex-col items-center">
-                      <Image src={imgQr || ""} fill alt="qr" className="relative! w-[50%]!" />
+                      {imgQr ? (
+                        <Image src={imgQr} alt="QR Code" width={250} height={250} className="rounded-xl" />
+                      ) : (
+                        <div className="w-[250px] h-[250px] rounded-xl bg-muted flex items-center justify-center">
+                          <LoaderCircle size={40} className="animate-spin text-muted-foreground" />
+                        </div>
+                      )}
                       <p>Mã đơn hàng: {idOrder}</p>
                       <CountdownTimer
                         expiresAt={testtime}
