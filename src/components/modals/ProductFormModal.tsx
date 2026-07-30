@@ -5,23 +5,9 @@ import Image from "next/image";
 import { Plus, X } from "lucide-react";
 import { ImageInput } from "@/src/components/ui/input";
 import CurrencyInput from "@/src/components/ui/currencyInput";
+import type { RecipeItemPayload, VariantPayload } from "@/src/services/product.service";
 
-export interface RecipeItemPayload {
-  ingredient_id: string;
-  quantity: number;
-  unit: string;
-}
-
-export interface VariantPayload {
-  sku: string;
-  size: string;
-  price: number;
-  disscountType?: "percent" | "amount";
-  discount?: number;
-  crust: string[];
-  recipe: RecipeItemPayload[];
-  imageFile?: File | null;
-}
+export type { RecipeItemPayload, VariantPayload };
 
 export interface VariantSubmitPayload {
   sku: string;
@@ -204,7 +190,7 @@ export default function ProductFormModal({
     setIsMount(true);
   }, [open, editItem, categories]);
 
-  // ─── Variant handlers ───
+  // Xử lý variant
   const addSize = useCallback(() => {
     setVariantsFrom(prev => [...prev, createEmptyVariant()]);
   }, []);
@@ -265,7 +251,7 @@ export default function ProductFormModal({
     [],
   );
 
-  // ─── Submit ───
+  // Submit
   const handleInternalSubmit = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault();

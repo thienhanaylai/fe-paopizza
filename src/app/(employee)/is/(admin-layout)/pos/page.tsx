@@ -34,7 +34,15 @@ import { formatVND } from "@/src/utils/formatVND";
 import { generateInvoicePDF, type InvoiceData, type InvoiceItem } from "@/src/utils/generateInvoicePDF";
 import { getAllStore, type StoreData } from "@/src/services/store.service";
 import { http } from "@/src/utils/config.api";
-import type { ComboRule } from "@/src/services/menu.service";
+import type {
+  ComboRule,
+  ProductCategory,
+  ProductImage,
+  Ingredient,
+  RecipeIngredient,
+  ProductVariant,
+  Product,
+} from "@/src/services/menu.service";
 
 type OrderType = "dine_in" | "carry_out" | "delivery";
 
@@ -45,47 +53,9 @@ type MenuCategoryUI = {
 };
 
 type MenuTab = "all" | "products" | "combos";
-export type ProductCategory = {
-  _id: string;
-  name: string;
-  slug: string;
-};
 
-export type ProductImage = {
-  _id: string;
-  url: string;
-  public_id: string;
-};
-
-export type Ingredient = {
-  _id: string;
-  name: string;
-};
-
-export type RecipeIngredient = {
-  ingredient: Ingredient;
-  quantity: number;
-  unit: string;
-};
-
-export type ProductVariant = {
-  sku: string;
-  price: number;
-  size: string;
-  crust: string[];
-  image: ProductImage;
-  recipe: RecipeIngredient[];
-};
-
-interface Product {
-  _id: string;
-  category: ProductCategory;
-  name: string;
-  description: string;
-  isActive: boolean;
-  variants: ProductVariant[];
-  isDeleted: boolean;
-}
+export type { ProductCategory, ProductImage, Ingredient, RecipeIngredient, ProductVariant };
+export type { Product };
 
 interface CartItem {
   item_type: "product" | "combo";
@@ -362,7 +332,7 @@ export default function POS() {
     });
   };
 
-  // ─── Combo selection helpers ───
+  // Helper chọn combo
   const areComboSelectionsEqualPos = (a?: ComboSlotSelection[], b?: ComboSlotSelection[]): boolean => {
     if (!a && !b) return true;
     if (!a || !b) return false;
@@ -1116,7 +1086,7 @@ export default function POS() {
         </div>
 
         <div className="flex-1 overflow-y-auto p-4">
-          {/* ─── Loading Skeleton ─── */}
+          {/* Loading Skeleton */}
           {isLoading && products.length === 0 ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
               {Array.from({ length: 12 }).map((_, i) => (
@@ -1131,7 +1101,7 @@ export default function POS() {
             </div>
           ) : (
             <>
-              {/* ─── Products ─── */}
+              {/* Sản phẩm */}
               {activeTab !== "combos" && (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 mb-4">
                   {filteredMenu.map(item => {
@@ -1249,7 +1219,7 @@ export default function POS() {
                 </div>
               )}
 
-              {/* ─── Combos ─── */}
+              {/* Combos */}
               {activeTab !== "products" && filteredCombos.length > 0 && (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 mb-4">
                   {filteredCombos.map(combo => (
@@ -1308,7 +1278,7 @@ export default function POS() {
       {contactModal && (
         <>
           <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 m-0"
             onClick={() => setContactModal(false)}
           >
             <div className="bg-card rounded-2xl p-6 w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
@@ -1411,10 +1381,10 @@ export default function POS() {
           </div>
         </>
       )}
-      {/* ─── Combo Selection Modal ─── */}
+      {/* Modal chọn combo */}
       {selectedCombo && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 m-0"
           onClick={() => {
             setSelectedCombo(null);
             setComboSelections({});

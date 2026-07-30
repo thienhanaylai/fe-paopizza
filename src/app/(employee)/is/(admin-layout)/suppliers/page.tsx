@@ -16,6 +16,8 @@ import {
   AlertCircle,
   LoaderCircle,
 } from "lucide-react";
+import { useSort } from "@/src/hooks/useSort";
+import { SortableHeader } from "@/src/components/ui/SortableHeader";
 import { toast, Toaster } from "sonner";
 import {
   createSupplier,
@@ -152,24 +154,27 @@ export default function Suppliers() {
     }
   };
 
-  const filtered = listSuppliers
-    .sort((a, b) => a.name.localeCompare(b.name))
-    .filter(
-      s =>
-        s.name.toLowerCase().includes(search.toLowerCase()) ||
-        supplierCategoryLabels[s.supplier_category].toLowerCase().includes(search.toLowerCase()) ||
-        s.email.toLowerCase().includes(search.toLowerCase()) ||
-        s.phone.toLowerCase().includes(search.toLowerCase()),
-    );
+  const rawFiltered = listSuppliers.filter(
+    s =>
+      s.name.toLowerCase().includes(search.toLowerCase()) ||
+      supplierCategoryLabels[s.supplier_category].toLowerCase().includes(search.toLowerCase()) ||
+      s.email.toLowerCase().includes(search.toLowerCase()) ||
+      s.phone.toLowerCase().includes(search.toLowerCase()),
+  );
+  const {
+    sortedData: sortedSuppliers,
+    sortConfig: supplierSortConfig,
+    toggleSort: toggleSupplierSort,
+  } = useSort(rawFiltered, "name", "asc");
 
-  const isAllSelected = filtered.length > 0 && filtered.every(s => selectedIds.has(s._id || s.id || ""));
+  const isAllSelected = sortedSuppliers.length > 0 && sortedSuppliers.every(s => selectedIds.has(s._id || s.id || ""));
   const isIndeterminate = selectedIds.size > 0 && !isAllSelected;
 
   const toggleSelectAll = () => {
     if (isAllSelected) {
       setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(filtered.map(s => s._id || s.id || "")));
+      setSelectedIds(new Set(sortedSuppliers.map(s => s._id || s.id || "")));
     }
   };
 
@@ -305,18 +310,46 @@ export default function Suppliers() {
                       )}
                     </button>
                   </th>
-                  <th className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70">Nhà cung cấp</th>
-                  <th className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70 hidden md:table-cell">
-                    Danh mục
-                  </th>
-                  <th className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70 hidden lg:table-cell">SĐT</th>
-                  <th className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70 hidden lg:table-cell">Email</th>
-                  <th className="text-center px-5 py-3.5 text-sm font-semibold text-foreground/70">Trạng thái</th>
+                  <SortableHeader
+                    label="Nhà cung cấp"
+                    sortKey="name"
+                    sortConfig={supplierSortConfig}
+                    onSort={toggleSupplierSort}
+                    className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70"
+                  />
+                  <SortableHeader
+                    label="Danh mục"
+                    sortKey="supplier_category"
+                    sortConfig={supplierSortConfig}
+                    onSort={toggleSupplierSort}
+                    className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70 hidden md:table-cell"
+                  />
+                  <SortableHeader
+                    label="SĐT"
+                    sortKey="phone"
+                    sortConfig={supplierSortConfig}
+                    onSort={toggleSupplierSort}
+                    className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70 hidden lg:table-cell"
+                  />
+                  <SortableHeader
+                    label="Email"
+                    sortKey="email"
+                    sortConfig={supplierSortConfig}
+                    onSort={toggleSupplierSort}
+                    className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70 hidden lg:table-cell"
+                  />
+                  <SortableHeader
+                    label="Trạng thái"
+                    sortKey="isActive"
+                    sortConfig={supplierSortConfig}
+                    onSort={toggleSupplierSort}
+                    className="text-center px-5 py-3.5 text-sm font-semibold text-foreground/70"
+                  />
                   <th className="text-center px-5 py-3.5 text-sm font-semibold text-foreground/70">Thao tác</th>
                 </tr>
               </thead>
               <tbody>
-                {filtered.length === 0 ? (
+                {sortedSuppliers.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="px-5 py-16 text-center text-muted-foreground">
                       <Truck size={40} className="mx-auto mb-3 text-muted-foreground/20" />
@@ -324,7 +357,7 @@ export default function Suppliers() {
                     </td>
                   </tr>
                 ) : (
-                  filtered.map(sup => {
+                  sortedSuppliers.map(sup => {
                     const supplierId = sup._id || sup.id || "";
                     const isSelected = selectedIds.has(supplierId);
                     return (
@@ -407,7 +440,7 @@ export default function Suppliers() {
 
       {/* Modal */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={closeModal}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 m-0" onClick={closeModal}>
           <div
             className="bg-card rounded-2xl p-6 w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto"
             onClick={e => e.stopPropagation()}

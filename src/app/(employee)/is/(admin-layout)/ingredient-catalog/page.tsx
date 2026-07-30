@@ -23,6 +23,8 @@ import {
   AlertCircle,
   LoaderCircle,
 } from "lucide-react";
+import { useSort } from "@/src/hooks/useSort";
+import { SortableHeader } from "@/src/components/ui/SortableHeader";
 import { toast, Toaster } from "sonner";
 import { formatVND } from "@/src/utils/formatVND";
 
@@ -86,20 +88,25 @@ export default function IngredientCatalog() {
     fectData();
   }, []);
 
-  const filtered = ingredients?.filter(
+  const rawFiltered = (ingredients || []).filter(
     i =>
       (categoryFilter === "all" || i.category === categoryFilter) &&
       (i.name.toLowerCase().includes(search.toLowerCase()) || i.category.toLowerCase().includes(search.toLowerCase())),
   );
+  const {
+    sortedData: sortedIngredients,
+    sortConfig: ingSortConfig,
+    toggleSort: toggleIngSort,
+  } = useSort(rawFiltered, "name", "asc");
 
-  const isAllSelected = (filtered?.length ?? 0) > 0 && filtered!.every(i => selectedIds.has(i._id));
+  const isAllSelected = sortedIngredients.length > 0 && sortedIngredients.every(i => selectedIds.has(i._id));
   const isIndeterminate = selectedIds.size > 0 && !isAllSelected;
 
   const toggleSelectAll = () => {
     if (isAllSelected) {
       setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(filtered?.map(i => i._id) ?? []));
+      setSelectedIds(new Set(sortedIngredients.map(i => i._id)));
     }
   };
 
@@ -273,17 +280,53 @@ export default function IngredientCatalog() {
                     )}
                   </button>
                 </th>
-                <th className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70">Mã</th>
-                <th className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70">Tên nguyên liệu</th>
-                <th className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70 hidden md:table-cell">Danh mục</th>
-                <th className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70">Đơn vị tính</th>
-                <th className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70">Giá nhập</th>
-                <th className="text-center px-5 py-3.5 text-sm font-semibold text-foreground/70">Trạng thái</th>
+                <SortableHeader
+                  label="Mã"
+                  sortKey="_id"
+                  sortConfig={ingSortConfig}
+                  onSort={toggleIngSort}
+                  className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70"
+                />
+                <SortableHeader
+                  label="Tên nguyên liệu"
+                  sortKey="name"
+                  sortConfig={ingSortConfig}
+                  onSort={toggleIngSort}
+                  className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70"
+                />
+                <SortableHeader
+                  label="Danh mục"
+                  sortKey="category"
+                  sortConfig={ingSortConfig}
+                  onSort={toggleIngSort}
+                  className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70 hidden md:table-cell"
+                />
+                <SortableHeader
+                  label="Đơn vị tính"
+                  sortKey="unit"
+                  sortConfig={ingSortConfig}
+                  onSort={toggleIngSort}
+                  className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70"
+                />
+                <SortableHeader
+                  label="Giá nhập"
+                  sortKey="costPerUnit"
+                  sortConfig={ingSortConfig}
+                  onSort={toggleIngSort}
+                  className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70"
+                />
+                <SortableHeader
+                  label="Trạng thái"
+                  sortKey="isActive"
+                  sortConfig={ingSortConfig}
+                  onSort={toggleIngSort}
+                  className="text-center px-5 py-3.5 text-sm font-semibold text-foreground/70"
+                />
                 <th className="text-center px-5 py-3.5 text-sm font-semibold text-foreground/70">Thao tác</th>
               </tr>
             </thead>
             <tbody>
-              {!filtered || filtered.length === 0 ? (
+              {sortedIngredients.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="px-5 py-16 text-center text-muted-foreground">
                     <Package size={40} className="mx-auto mb-3 text-muted-foreground/20" />
@@ -291,7 +334,7 @@ export default function IngredientCatalog() {
                   </td>
                 </tr>
               ) : (
-                filtered.map(item => {
+                sortedIngredients.map(item => {
                   const isSelected = selectedIds.has(item._id);
                   return (
                     <tr
@@ -394,7 +437,7 @@ export default function IngredientCatalog() {
 
       {showForm && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 mb-0"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 m-0 mb-0"
           onClick={() => {
             setEditItem(null);
             setShowForm(false);

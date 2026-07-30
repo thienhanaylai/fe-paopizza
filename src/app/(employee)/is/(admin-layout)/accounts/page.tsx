@@ -15,17 +15,12 @@ import {
   Unlock,
 } from "lucide-react";
 import { getRoleLabel, getRoleColor, getStationLabel, getStationColor } from "@/src/context/authEmployeeContext";
-import {
-  createUser,
-  deleteUser,
-  getAllUser,
-  updateCustomer,
-  updateEmployee,
-  updateUser,
-  updateUserStatus,
-  User,
-} from "@/src/services/user.service";
+import { createUser, deleteUser, getAllUser, updateUser, updateUserStatus, User } from "@/src/services/user.service";
+import { updateEmployee } from "@/src/services/employee.service";
+import { updateCustomer } from "@/src/services/customer.service";
 import { getAllStore } from "@/src/services/store.service";
+import { useSort } from "@/src/hooks/useSort";
+import { SortableHeader } from "@/src/components/ui/SortableHeader";
 import { toast, Toaster } from "sonner";
 type UserRole = "admin" | "manager" | "staff";
 
@@ -190,6 +185,8 @@ export default function Accounts() {
         a.ref_id.email?.toLowerCase().includes(search.toLowerCase())),
   );
 
+  const { sortedData, sortConfig, toggleSort } = useSort(filtered || [], "ref_id.name", "asc");
+
   const counts = {
     total: listUser?.length,
     admin: listUser?.filter(a => a.role === "admin").length,
@@ -337,17 +334,46 @@ export default function Accounts() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-muted/50 text-muted-foreground text-left">
-                  <th className="px-4 py-3">Người dùng</th>
-                  <th className="px-4 py-3">Vai trò</th>
-                  <th className="px-4 py-3 hidden md:table-cell">Level / Station</th>
-                  <th className="px-4 py-3 hidden lg:table-cell">Liên hệ</th>
-                  <th className="px-4 py-3">Trạng thái</th>
-                  {/* <th className="px-4 py-3 hidden lg:table-cell">Lần đăng nhập cuối</th> */}
+                  <SortableHeader
+                    label="Người dùng"
+                    sortKey="ref_id.name"
+                    sortConfig={sortConfig}
+                    onSort={toggleSort}
+                    className="px-4 py-3"
+                  />
+                  <SortableHeader
+                    label="Vai trò"
+                    sortKey="role"
+                    sortConfig={sortConfig}
+                    onSort={toggleSort}
+                    className="px-4 py-3"
+                  />
+                  <SortableHeader
+                    label="Level / Station"
+                    sortKey="ref_id.station"
+                    sortConfig={sortConfig}
+                    onSort={toggleSort}
+                    className="px-4 py-3 hidden md:table-cell"
+                  />
+                  <SortableHeader
+                    label="Liên hệ"
+                    sortKey="ref_id.phone"
+                    sortConfig={sortConfig}
+                    onSort={toggleSort}
+                    className="px-4 py-3 hidden lg:table-cell"
+                  />
+                  <SortableHeader
+                    label="Trạng thái"
+                    sortKey="status"
+                    sortConfig={sortConfig}
+                    onSort={toggleSort}
+                    className="px-4 py-3"
+                  />
                   <th className="px-4 py-3 text-right">Thao tác</th>
                 </tr>
               </thead>
               <tbody>
-                {filtered?.map((account, i) => {
+                {sortedData?.map((account, i) => {
                   const st = statusConfig[account.status];
                   return (
                     <tr key={account._id} className="border-t border-border/50 hover:bg-muted/30">

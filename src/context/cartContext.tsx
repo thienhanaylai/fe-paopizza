@@ -347,7 +347,7 @@ const normalizeCartItem = (item: unknown): CartItem | null => {
 
   const toppingTotal = sumToppingPrice(normalizedToppings);
 
-  // ─── Normalize combo object với đầy đủ pricing metadata ───
+  // Chuẩn hóa combo object với đầy đủ pricing metadata
   const comboObj =
     source.combo && typeof source.combo === "object" && typeof (source.combo as Record<string, unknown>).name === "string"
       ? (source.combo as Record<string, unknown>)
@@ -372,7 +372,7 @@ const normalizeCartItem = (item: unknown): CartItem | null => {
       ? source.combo
       : undefined;
 
-  // ─── Tính finalPrice cho combo item ───
+  // Tính finalPrice cho combo item
   let finalPrice: number;
   if (source.item_type === "combo") {
     // Nếu giá từ source > 0 thì dùng luôn

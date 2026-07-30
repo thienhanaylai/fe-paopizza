@@ -1,7 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
 import {
-  Pizza,
   ArrowLeft,
   History,
   ArrowRight,
@@ -25,11 +24,13 @@ import { toast, Toaster } from "sonner";
 import {
   addCustomerAddress,
   AddCustomerAddressPayload,
+  changePassword,
   CustomerAddress,
   deleteCustomerAddress,
   DeleteCustomerAddressPayload,
   getCustomerAddresses,
   setDefaultAddress,
+  updateCustomer,
   updateCustomerAddress,
   UpdateCustomerAddressPayload,
 } from "@/src/services/customer.service";
@@ -77,12 +78,25 @@ function formatVND(n: number) {
 
 export default function Profile() {
   const { user, getInfo } = useCustomerAuth();
-
+  console.log(user);
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(user?.name || "");
   const [phone, setPhone] = useState(user?.phone || "");
+  const [email, setEmail] = useState(user?.email || "");
   const [address, setAddress] = useState(user?.address || "");
+  const [birthday, setBirthday] = useState(user?.birthday || "");
   const [savedToast, setSavedToast] = useState<string | null>(null);
+
+  // Đồng bộ local state khi user thay đổi (sau khi getInfo cập nhật context)
+  useEffect(() => {
+    if (user) {
+      setName(user.name || "");
+      setPhone(user.phone || "");
+      setEmail(user.email || "");
+      setAddress(user.address || "");
+      setBirthday(user.birthday || "");
+    }
+  }, [user]);
 
   const [showAddressesModal, setShowAddressesModal] = useState(false);
   const [addressFormState, setAddressFormState] = useState<"list" | "add" | "edit">("list");
@@ -198,7 +212,7 @@ export default function Profile() {
     }
   };
 
-  const handleChangePwd = (e: React.FormEvent) => {
+  const handleChangePwd = async (e: React.FormEvent) => {
     e.preventDefault();
     setPwdError("");
     if (!oldPwd || !newPwd || !confirmPwd) {
@@ -213,10 +227,18 @@ export default function Profile() {
       setPwdError("Mật khẩu xác nhận không khớp");
       return;
     }
-    setOldPwd("");
-    setNewPwd("");
-    setConfirmPwd("");
-    showSaved("Đã đổi mật khẩu thành công!");
+    try {
+      const res = await changePassword(oldPwd, newPwd, "customer");
+      if (res) {
+        setOldPwd("");
+        setNewPwd("");
+        setConfirmPwd("");
+        showSaved(res.message || "Đã đổi mật khẩu thành công!");
+      }
+    } catch (err: unknown) {
+      const error = err as { data?: { message?: string } };
+      setPwdError(error?.data?.message || "Lỗi khi đổi mật khẩu");
+    }
   };
 
   const totalSpent = ordersHistory?.filter(o => o.status === "completed").reduce((a, o) => a + o.total, 0);
@@ -283,9 +305,23 @@ export default function Profile() {
                     </button>
                   ) : (
                     <button
-                      onClick={() => {
+                      onClick={async () => {
                         setEditing(false);
-                        showSaved("Đã lưu thông tin");
+                        try {
+                          const res = await updateCustomer({
+                            user_id: user.id,
+                            name,
+                            phone,
+                            email,
+                            address,
+                            birthday: birthday || undefined,
+                          });
+                          console.log(res);
+                          showSaved("Đã lưu thông tin");
+                          await getInfo();
+                        } catch {
+                          toast.error("Lỗi khi cập nhật thông tin");
+                        }
                       }}
                       className="flex items-center gap-1.5 text-sm bg-primary text-white px-3 py-1.5 rounded-lg hover:bg-primary/90"
                     >
@@ -307,15 +343,16 @@ export default function Profile() {
                     <div>
                       <label className="block text-xs text-muted-foreground mb-1.5">Email</label>
                       <input
-                        value={user.email}
-                        disabled
+                        value={email || ""}
+                        onChange={e => setEmail(e.target.value)}
+                        disabled={!editing}
                         className="w-full px-3 py-2.5 rounded-xl border border-border bg-muted/40 text-muted-foreground outline-none text-sm"
                       />
                     </div>
                     <div>
                       <label className="block text-xs text-muted-foreground mb-1.5">Số điện thoại</label>
                       <input
-                        value={phone}
+                        value={phone || ""}
                         onChange={e => setPhone(e.target.value)}
                         disabled={!editing}
                         className="w-full px-3 py-2.5 rounded-xl border border-border bg-background outline-none text-sm focus:border-primary disabled:bg-muted/40 disabled:text-muted-foreground"
@@ -325,6 +362,8 @@ export default function Profile() {
                       <label className="block text-xs text-muted-foreground mb-1.5">Ngày sinh</label>
                       <input
                         type="date"
+                        value={birthday ? new Date(birthday).toISOString().split("T")[0] : ""}
+                        onChange={e => setBirthday(e.target.value)}
                         disabled={!editing}
                         className="w-full px-3 py-2.5 rounded-xl border border-border bg-background outline-none text-sm focus:border-primary disabled:bg-muted/40 disabled:text-muted-foreground"
                       />
@@ -402,7 +441,7 @@ export default function Profile() {
 
             {showAddressesModal && (
               <div
-                className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 animate-in fade-in duration-200"
+                className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 m-0 animate-in fade-in duration-200"
                 onClick={() => setShowAddressesModal(false)}
               >
                 <div

@@ -21,14 +21,14 @@ export interface CreateEmployeePayload {
 
 export interface UpdateEmployeePayload {
   employee_id: string;
-  store_id?: string;
+  store_id?: string | null;
   name?: string;
   birthday?: string;
   email?: string;
   phone?: string;
-  station?: EmployeeStation;
-  salaryType?: SalaryType;
-  role?: EmployeeRole;
+  station?: string;
+  salaryType?: string;
+  role?: string;
   address?: string;
   salary?: number;
   status?: boolean;

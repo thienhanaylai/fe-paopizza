@@ -4,6 +4,7 @@ export type CategoryData = {
   _id: string;
   name: string;
   slug: string;
+  order: number;
   icon: string;
   isActive: boolean;
   isDeleted: boolean;
@@ -69,4 +70,12 @@ export const updateCategoryFormData = async (formData: FormData) => {
     body: formData,
   });
   return response.data;
+};
+
+export const reorderCategories = async (orders: { category_id: string; order: number }[]) => {
+  const response = await http("/api/v1/categories/reorder", {
+    method: "PATCH",
+    body: JSON.stringify({ orders }),
+  });
+  return response;
 };

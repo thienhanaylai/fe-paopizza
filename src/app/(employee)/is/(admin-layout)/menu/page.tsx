@@ -17,59 +17,65 @@ import {
 import { useEmployeeAuth } from "@/src/context/authEmployeeContext";
 import Image from "next/image";
 import { toast, Toaster } from "sonner";
-import { getMenuByStoreId, updateMenu, createMenu, getAllCombos, applyMenuToStores } from "@/src/services/menu.service";
+import {
+  getMenuByStoreId,
+  updateMenu,
+  createMenu,
+  getAllCombos,
+  applyMenuToStores,
+  type MenuData,
+  type Product,
+  type Combo,
+} from "@/src/services/menu.service";
 import { getAllProductsActive } from "@/src/services/product.service";
-import { getAllStore } from "@/src/services/store.service";
+import { getAllStore, type StoreData } from "@/src/services/store.service";
+import { useSort } from "@/src/hooks/useSort";
+import { SortableHeader } from "@/src/components/ui/SortableHeader";
 
-// ─── Helpers ───────────────────────────────────────────
-const normalizeMenuProducts = menu => {
+const normalizeMenuProducts = (menu: MenuData | null): string[] => {
   if (!menu?.products?.length) return [];
   return menu.products.map(p => (typeof p === "string" ? p : p._id));
 };
 
-const normalizeMenuCombos = menu => {
+const normalizeMenuCombos = (menu: MenuData | null): string[] => {
   if (!menu?.combos?.length) return [];
   return menu.combos.map(entry => (typeof entry === "string" ? entry : entry.combo?._id || entry._id));
 };
 
-// ─── Page ──────────────────────────────────────────────
 export default function MenuManagement() {
   const { user } = useEmployeeAuth();
   const isAdmin = user?.role === "admin";
 
-  const [stores, setStores] = useState([]);
+  const [stores, setStores] = useState<StoreData[]>([]);
   const [selectedStoreId, setSelectedStoreId] = useState("");
-  const [menu, setMenu] = useState(null);
-  const [products, setProducts] = useState([]);
-  const [combos, setCombos] = useState([]);
+  const [menu, setMenu] = useState<MenuData | null>(null);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [combos, setCombos] = useState<Combo[]>([]);
 
   // IDs được chọn (các product/combo sẽ có trong menu)
-  const [selectedProductIds, setSelectedProductIds] = useState(new Set());
-  const [selectedComboIds, setSelectedComboIds] = useState(new Set());
+  const [selectedProductIds, setSelectedProductIds] = useState<Set<string>>(new Set());
+  const [selectedComboIds, setSelectedComboIds] = useState<Set<string>>(new Set());
 
   const [productSearch, setProductSearch] = useState("");
   const [comboSearch, setComboSearch] = useState("");
   const [productCategoryFilter, setProductCategoryFilter] = useState("all");
-  const [activeTab, setActiveTab] = useState("products"); // "products" | "combos"
+  const [activeTab, setActiveTab] = useState<"products" | "combos">("products");
 
-  // ─── Combo filter & sort ─────────────────────────────
-  const [comboSortBy, setComboSortBy] = useState("name"); // "name" | "price" | "date" | "status"
-  const [comboSortDir, setComboSortDir] = useState("asc"); // "asc" | "desc"
-  const [comboStatusFilter, setComboStatusFilter] = useState("all"); // "all" | "active" | "inactive"
+  const [comboStatusFilter, setComboStatusFilter] = useState<"all" | "active" | "inactive">("all");
 
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
-  // ─── Multi-store mode ──────────────────────────────────
+  // Chế độ nhiều cửa hàng
   const [multiStoreMode, setMultiStoreMode] = useState(false);
-  const [selectedStoreIds, setSelectedStoreIds] = useState(new Set());
+  const [selectedStoreIds, setSelectedStoreIds] = useState<Set<string>>(new Set());
   const [storeSearch, setStoreSearch] = useState("");
 
-  // ─── Fetch initial data ──────────────────────────────
+  // Lấy dữ liệu ban đầu
   const fetchStores = useCallback(async () => {
     try {
       const data = await getAllStore();
-      const activeStores = (data || []).filter(s => !s.isDeleted);
+      const activeStores = (data || []).filter((s: StoreData) => !s.isDeleted);
       setStores(activeStores);
       if (activeStores.length > 0 && !selectedStoreId) {
         setSelectedStoreId(activeStores[0]._id);
@@ -93,7 +99,6 @@ export default function MenuManagement() {
       const data = await getAllCombos();
       setCombos(data || []);
     } catch {
-      // Combos endpoint might not exist yet
       setCombos([]);
     }
   }, []);
@@ -104,8 +109,8 @@ export default function MenuManagement() {
     fetchCombos();
   }, [fetchStores, fetchProducts, fetchCombos]);
 
-  // ─── Load menu khi chọn store ────────────────────────
-  const loadMenu = useCallback(async storeId => {
+  // Load menu khi chọn store
+  const loadMenu = useCallback(async (storeId: string) => {
     if (!storeId) {
       setMenu(null);
       setSelectedProductIds(new Set());
@@ -129,8 +134,8 @@ export default function MenuManagement() {
     loadMenu(selectedStoreId);
   }, [selectedStoreId, loadMenu]);
 
-  // ─── Multi-store helpers ─────────────────────────────
-  const toggleStoreSelection = storeId => {
+  // Helper chọn nhiều cửa hàng
+  const toggleStoreSelection = (storeId: string) => {
     setSelectedStoreIds(prev => {
       const next = new Set(prev);
       if (next.has(storeId)) {
@@ -167,7 +172,7 @@ export default function MenuManagement() {
     }
   };
 
-  const toggleProduct = productId => {
+  const toggleProduct = (productId: string) => {
     setSelectedProductIds(prev => {
       const next = new Set(prev);
       if (next.has(productId)) {
@@ -179,7 +184,7 @@ export default function MenuManagement() {
     });
   };
 
-  const toggleCombo = comboId => {
+  const toggleCombo = (comboId: string) => {
     setSelectedComboIds(prev => {
       const next = new Set(prev);
       if (next.has(comboId)) {
@@ -192,8 +197,8 @@ export default function MenuManagement() {
   };
 
   const toggleAllProducts = () => {
-    const filteredIds = new Set(filteredProducts.map(p => p._id));
-    const allSelected = filteredProducts.every(p => selectedProductIds.has(p._id));
+    const filteredIds = new Set(sortedProducts.map(p => p._id));
+    const allSelected = sortedProducts.every(p => selectedProductIds.has(p._id));
     setSelectedProductIds(prev => {
       const next = new Set(prev);
       if (allSelected) {
@@ -206,8 +211,8 @@ export default function MenuManagement() {
   };
 
   const toggleAllCombos = () => {
-    const filteredIds = new Set(filteredCombos.map(c => c._id));
-    const allSelected = filteredCombos.every(c => selectedComboIds.has(c._id));
+    const filteredIds = new Set(sortedCombos.map(c => c._id));
+    const allSelected = sortedCombos.every(c => selectedComboIds.has(c._id));
     setSelectedComboIds(prev => {
       const next = new Set(prev);
       if (allSelected) {
@@ -248,8 +253,9 @@ export default function MenuManagement() {
               console.error(`Store ${r.storeId} failed:`, r.error);
             });
         }
-      } catch (e) {
-        toast.error(`Lỗi khi áp dụng menu: ${e.message || e}`);
+      } catch (e: unknown) {
+        const err = e as Error;
+        toast.error(`Lỗi khi áp dụng menu: ${err.message || e}`);
       } finally {
         setIsSaving(false);
       }
@@ -277,70 +283,45 @@ export default function MenuManagement() {
       }
       toast.success("Lưu menu thành công!");
       loadMenu(selectedStoreId);
-    } catch (e) {
-      toast.error(`Lỗi khi lưu menu: ${e.message || e}`);
+    } catch (e: unknown) {
+      const err = e as Error;
+      toast.error(`Lỗi khi lưu menu: ${err.message || e}`);
     } finally {
       setIsSaving(false);
     }
   };
 
-  const filteredProducts = products
-    .filter(p => {
-      const matchSearch = p.name.toLowerCase().includes(productSearch.toLowerCase());
-      const matchCategory = productCategoryFilter === "all" || p.category?.slug === productCategoryFilter;
-      return matchSearch && matchCategory;
-    })
-    .sort((a, b) => (a.category?.name || "").localeCompare(b.category?.name || ""));
+  const rawFilteredProducts = products.filter(p => {
+    const matchSearch = p.name.toLowerCase().includes(productSearch.toLowerCase());
+    const matchCategory = productCategoryFilter === "all" || p.category?.slug === productCategoryFilter;
+    return matchSearch && matchCategory;
+  });
+  const {
+    sortedData: sortedProducts,
+    sortConfig: productSortConfig,
+    toggleSort: toggleProductSort,
+  } = useSort(rawFilteredProducts, "name", "asc");
 
-  const filteredCombos = combos
+  const rawFilteredCombos = combos
     .filter(c => c.name?.toLowerCase().includes(comboSearch.toLowerCase()))
     .filter(c => {
       if (comboStatusFilter === "active") return c.isActive;
       if (comboStatusFilter === "inactive") return !c.isActive;
       return true;
-    })
-    .sort((a, b) => {
-      let cmp = 0;
-      switch (comboSortBy) {
-        case "name":
-          cmp = (a.name || "").localeCompare(b.name || "");
-          break;
-        case "price":
-          cmp = (a.price ?? 0) - (b.price ?? 0);
-          break;
-        case "date":
-          cmp = new Date(a.dateStart || 0).getTime() - new Date(b.dateStart || 0).getTime();
-          break;
-        case "status":
-          cmp = (a.isActive ? 1 : 0) - (b.isActive ? 1 : 0);
-          break;
-        default:
-          cmp = (a.name || "").localeCompare(b.name || "");
-      }
-      return comboSortDir === "desc" ? -cmp : cmp;
     });
-
-  const handleComboSort = field => {
-    if (comboSortBy === field) {
-      setComboSortDir(prev => (prev === "asc" ? "desc" : "asc"));
-    } else {
-      setComboSortBy(field);
-      setComboSortDir("asc");
-    }
-  };
-
-  const SortIndicator = ({ field }) => {
-    if (comboSortBy !== field) return <span className="text-muted-foreground/30 ml-1">▼</span>;
-    return <span className="text-primary ml-1 transition-transform">{comboSortDir === "asc" ? "▲" : "▼"}</span>;
-  };
+  const {
+    sortedData: sortedCombos,
+    sortConfig: comboSortedConfig,
+    toggleSort: toggleComboSortFn,
+  } = useSort(rawFilteredCombos, "name", "asc");
 
   const productCategories = [
     { _id: "all", slug: "all", name: "Tất cả" },
     ...Array.from(new Map(products.filter(p => p.category).map(p => [p.category.slug, p.category])).values()),
   ];
 
-  const isAllProductsSelected = filteredProducts.length > 0 && filteredProducts.every(p => selectedProductIds.has(p._id));
-  const isAllCombosSelected = filteredCombos.length > 0 && filteredCombos.every(c => selectedComboIds.has(c._id));
+  const isAllProductsSelected = sortedProducts.length > 0 && sortedProducts.every(p => selectedProductIds.has(p._id));
+  const isAllCombosSelected = sortedCombos.length > 0 && sortedCombos.every(c => selectedComboIds.has(c._id));
 
   return (
     <div className="space-y-6">
@@ -478,7 +459,7 @@ export default function MenuManagement() {
             </div>
           </div>
         ) : (
-          /* === Single-store mode (original) === */
+          /* === Single-store mode === */
           <>
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-2 bg-primary/10 text-primary px-3 py-2 rounded-xl">
@@ -597,13 +578,31 @@ export default function MenuManagement() {
                           {isAllProductsSelected ? <SquareCheckBig size={18} className="text-primary" /> : <Square size={18} />}
                         </button>
                       </th>
-                      <th className="text-left px-4 py-3 text-sm font-semibold text-foreground/70">Sản phẩm</th>
-                      <th className="text-left px-4 py-3 text-sm font-semibold text-foreground/70">Danh mục</th>
-                      <th className="text-left px-4 py-3 text-sm font-semibold text-foreground/70">Giá</th>
+                      <SortableHeader
+                        label="Sản phẩm"
+                        sortKey="name"
+                        sortConfig={productSortConfig}
+                        onSort={toggleProductSort}
+                        className="text-left px-4 py-3 text-sm font-semibold text-foreground/70"
+                      />
+                      <SortableHeader
+                        label="Danh mục"
+                        sortKey="category.name"
+                        sortConfig={productSortConfig}
+                        onSort={toggleProductSort}
+                        className="text-left px-4 py-3 text-sm font-semibold text-foreground/70"
+                      />
+                      <SortableHeader
+                        label="Giá"
+                        sortKey="variants.0.price"
+                        sortConfig={productSortConfig}
+                        onSort={toggleProductSort}
+                        className="text-left px-4 py-3 text-sm font-semibold text-foreground/70"
+                      />
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredProducts.length === 0 ? (
+                    {sortedProducts.length === 0 ? (
                       <tr>
                         <td colSpan={4} className="px-5 py-16 text-center text-muted-foreground">
                           <Pizza size={40} className="mx-auto mb-3 text-muted-foreground/20" />
@@ -611,7 +610,7 @@ export default function MenuManagement() {
                         </td>
                       </tr>
                     ) : (
-                      filteredProducts.map(product => {
+                      sortedProducts.map(product => {
                         const isSelected = selectedProductIds.has(product._id);
                         return (
                           <tr
@@ -697,7 +696,7 @@ export default function MenuManagement() {
                   <Filter size={16} className="text-muted-foreground" />
                   <select
                     value={comboStatusFilter}
-                    onChange={e => setComboStatusFilter(e.target.value)}
+                    onChange={e => setComboStatusFilter(e.target.value as "all" | "active" | "inactive")}
                     className="bg-transparent py-2.5 text-sm outline-none text-foreground"
                   >
                     <option value="all">Tất cả trạng thái</option>
@@ -720,42 +719,38 @@ export default function MenuManagement() {
                           {isAllCombosSelected ? <SquareCheckBig size={18} className="text-primary" /> : <Square size={18} />}
                         </button>
                       </th>
-                      <th className="text-left px-4 py-3 text-sm font-semibold text-foreground/70">
-                        <button
-                          onClick={() => handleComboSort("name")}
-                          className="inline-flex items-center gap-1 hover:text-primary transition-colors cursor-pointer"
-                        >
-                          Combo <SortIndicator field="name" />
-                        </button>
-                      </th>
-                      <th className="text-left px-4 py-3 text-sm font-semibold text-foreground/70">
-                        <button
-                          onClick={() => handleComboSort("price")}
-                          className="inline-flex items-center gap-1 hover:text-primary transition-colors cursor-pointer"
-                        >
-                          Giá <SortIndicator field="price" />
-                        </button>
-                      </th>
-                      <th className="text-left px-4 py-3 text-sm font-semibold text-foreground/70">
-                        <button
-                          onClick={() => handleComboSort("date")}
-                          className="inline-flex items-center gap-1 hover:text-primary transition-colors cursor-pointer"
-                        >
-                          Thời gian <SortIndicator field="date" />
-                        </button>
-                      </th>
-                      <th className="text-center px-4 py-3 text-sm font-semibold text-foreground/70">
-                        <button
-                          onClick={() => handleComboSort("status")}
-                          className="inline-flex items-center gap-1 hover:text-primary transition-colors cursor-pointer"
-                        >
-                          Trạng thái <SortIndicator field="status" />
-                        </button>
-                      </th>
+                      <SortableHeader
+                        label="Combo"
+                        sortKey="name"
+                        sortConfig={comboSortedConfig}
+                        onSort={toggleComboSortFn}
+                        className="text-left px-4 py-3 text-sm font-semibold text-foreground/70"
+                      />
+                      <SortableHeader
+                        label="Giá"
+                        sortKey="price"
+                        sortConfig={comboSortedConfig}
+                        onSort={toggleComboSortFn}
+                        className="text-left px-4 py-3 text-sm font-semibold text-foreground/70"
+                      />
+                      <SortableHeader
+                        label="Thời gian"
+                        sortKey="dateStart"
+                        sortConfig={comboSortedConfig}
+                        onSort={toggleComboSortFn}
+                        className="text-left px-4 py-3 text-sm font-semibold text-foreground/70"
+                      />
+                      <SortableHeader
+                        label="Trạng thái"
+                        sortKey="isActive"
+                        sortConfig={comboSortedConfig}
+                        onSort={toggleComboSortFn}
+                        className="text-center px-4 py-3 text-sm font-semibold text-foreground/70"
+                      />
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredCombos.length === 0 ? (
+                    {sortedCombos.length === 0 ? (
                       <tr>
                         <td colSpan={5} className="px-5 py-16 text-center text-muted-foreground">
                           <Gift size={40} className="mx-auto mb-3 text-muted-foreground/20" />
@@ -763,7 +758,7 @@ export default function MenuManagement() {
                         </td>
                       </tr>
                     ) : (
-                      filteredCombos.map(combo => {
+                      sortedCombos.map(combo => {
                         const isSelected = selectedComboIds.has(combo._id);
                         return (
                           <tr

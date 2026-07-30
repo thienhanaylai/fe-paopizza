@@ -13,7 +13,7 @@ import {
   UpdatePromotionPayload,
 } from "@/src/services/promotion.service";
 
-// ─── Props ─────────────────────────────────────────────
+// Props
 interface PromotionFormModalProps {
   open: boolean;
   onClose: () => void;
@@ -22,7 +22,7 @@ interface PromotionFormModalProps {
   onSuccess: () => void;
 }
 
-// ─── Component ─────────────────────────────────────────
+// Component
 export default function PromotionFormModal({ open, onClose, editingPromo, storesList, onSuccess }: PromotionFormModalProps) {
   const [formCode, setFormCode] = useState("");
   const [formType, setFormType] = useState<PromotionType>("percentage");
@@ -35,7 +35,7 @@ export default function PromotionFormModal({ open, onClose, editingPromo, stores
 
   const isEditing = editingPromo !== null;
 
-  // ─── Sync form when editingPromo / open changes ─────
+  // Đồng bộ form khi editingPromo / open thay đổi
   useEffect(() => {
     if (!open) return;
     if (editingPromo) {
@@ -58,12 +58,12 @@ export default function PromotionFormModal({ open, onClose, editingPromo, stores
     setIsSubmitting(false);
   }, [open, editingPromo]);
 
-  // ─── Store checkbox toggle ───────────────────────────
+  // Toggle chọn cửa hàng
   const toggleStoreCheckbox = (storeId: string) => {
     setFormStoreIds(prev => (prev.includes(storeId) ? prev.filter(id => id !== storeId) : [...prev, storeId]));
   };
 
-  // ─── Submit ──────────────────────────────────────────
+  // Submit
   const handleSubmit = async () => {
     if (!formCode.trim() || !formValue || !formStartDate || !formEndDate) {
       toast.warning("Vui lòng nhập đầy đủ thông tin!");
@@ -120,7 +120,7 @@ export default function PromotionFormModal({ open, onClose, editingPromo, stores
     }
   };
 
-  // ─── Close handler ───────────────────────────────────
+  // Đóng modal
   const handleClose = () => {
     if (isSubmitting) return;
     onClose();
@@ -128,7 +128,7 @@ export default function PromotionFormModal({ open, onClose, editingPromo, stores
 
   if (!open) return null;
 
-  // ─── Render ──────────────────────────────────────────
+  // Render
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center pt-[10vh] bg-black/50 overflow-y-auto">
       <div className="bg-card rounded-2xl p-6 max-w-2xl w-full mx-4 shadow-xl border border-border my-8">

@@ -1,6 +1,6 @@
 import { http } from "@/src/utils/config.api";
 
-// ─── Types ─────────────────────────────────────────────
+// Types
 export type PromotionType = "percentage" | "fixed_amount";
 export type PromotionStatus = "draft" | "active" | "inactive" | "expired";
 
@@ -48,7 +48,7 @@ export interface PromoCodeResult {
   message?: string;
 }
 
-// ─── CRUD API calls ────────────────────────────────────
+// CRUD API calls
 export const getAllPromotions = async (): Promise<Promotion[]> => {
   try {
     const response = await http("/api/v1/promotions", {
@@ -125,7 +125,7 @@ export const deletePromotion = async (promotion_id: string): Promise<Promotion> 
   }
 };
 
-// ─── Apply promo code (customer-facing) ────────────────
+// Áp dụng mã khuyến mãi (phía khách hàng)
 export const applyPromoCode = async (code: string, orderTotal: number, storeId: string): Promise<PromoCodeResult> => {
   try {
     const response = await http(

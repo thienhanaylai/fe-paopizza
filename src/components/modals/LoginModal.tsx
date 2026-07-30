@@ -64,11 +64,12 @@ export const AuthModal = () => {
       setIsSubmitting(true);
       const result = await customerLogin(phone, password);
       setIsSubmitting(false);
- 
+
       if (result.success) {
         handleClose();
       } else {
-        setError(result.message || "Đăng nhập thất bại");
+        console.log(result);
+        setError(result.message === "ACCOUNT_NOT_FOUND" ? "Không tìm thấy tài khoản!" : "Đăng nhập thất bại");
       }
     }
   };
@@ -76,7 +77,7 @@ export const AuthModal = () => {
   if (!authMode) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={handleClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 m-0" onClick={handleClose}>
       <div className="bg-card rounded-2xl p-6 w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-6">
           <div>

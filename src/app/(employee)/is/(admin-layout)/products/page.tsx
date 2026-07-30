@@ -18,10 +18,22 @@ import {
 } from "lucide-react";
 import { useEmployeeAuth } from "@/src/context/authEmployeeContext";
 import Image from "next/image";
-import { addProduct, deletedProduct, getAllProducts, updateProduct, updateStatusProduct } from "@/src/services/product.service";
+import {
+  addProduct,
+  deletedProduct,
+  getAllProducts,
+  updateProduct,
+  updateStatusProduct,
+  type RecipeItemPayload,
+  type VariantPayload,
+  type AddProductPayload,
+} from "@/src/services/product.service";
 import { getAllCategories } from "@/src/services/category.service";
 import { getAllIngredients } from "@/src/services/ingredient.service";
 import { addCombo, deletedCombo, getAllCombos, updateCombo, updateComboStatus } from "@/src/services/combo.service";
+import type { ProductCategory, ProductImage, Ingredient, RecipeIngredient } from "@/src/services/menu.service";
+import { useSort } from "@/src/hooks/useSort";
+import { SortableHeader } from "@/src/components/ui/SortableHeader";
 import { toast, Toaster } from "sonner";
 import ProductFormModal, { ProductFormSubmitPayload } from "@/src/components/modals/ProductFormModal";
 import ComboFormModal, { ComboFormSubmitPayload } from "@/src/components/modals/ComboFormModal";
@@ -34,58 +46,15 @@ interface IngredientList {
   isActive: boolean;
   isDeleted: boolean;
 }
-export interface RecipeItemPayload {
-  ingredient_id: string;
-  quantity: number;
-  unit: string;
-}
 
-export interface VariantPayload {
-  sku: string;
-  size: string;
-  price: number;
-  disscountType?: "percent" | "amount";
-  discount?: number;
-  crust: string[];
-  recipe: RecipeItemPayload[];
-  imageFile?: File | null;
-}
-
-export interface AddProductPayload {
-  name: string;
-  category: string;
-  description: string;
-  variants: VariantPayload[];
-}
+export type { RecipeItemPayload, VariantPayload, AddProductPayload };
+export type { ProductCategory, ProductImage, Ingredient, RecipeIngredient };
 
 type MenuCategoryUI = {
   _id: string;
   slug: string;
   name: string;
   icon: string;
-};
-
-export type ProductCategory = {
-  _id: string;
-  name: string;
-  slug: string;
-};
-
-export type ProductImage = {
-  _id: string;
-  url: string;
-  public_id: string;
-};
-
-export type Ingredient = {
-  _id: string;
-  name: string;
-};
-
-export type RecipeIngredient = {
-  ingredient: Ingredient;
-  quantity: number;
-  unit: string;
 };
 
 export type ProductVariant = {
@@ -250,15 +219,20 @@ export default function Products() {
   const filtered = products.filter(
     p => (categoryFilter === "all" || p.category.slug === categoryFilter) && p.name.toLowerCase().includes(search.toLowerCase()),
   );
+  const {
+    sortedData: sortedProducts,
+    sortConfig: productSortConfig,
+    toggleSort: toggleProductSort,
+  } = useSort(filtered, "name", "asc");
 
-  const isAllSelected = filtered.length > 0 && filtered.every(p => selectedIds.has(p._id));
+  const isAllSelected = sortedProducts.length > 0 && sortedProducts.every(p => selectedIds.has(p._id));
   const isIndeterminate = selectedIds.size > 0 && !isAllSelected;
 
   const toggleSelectAll = () => {
     if (isAllSelected) {
       setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(filtered.map(p => p._id)));
+      setSelectedIds(new Set(sortedProducts.map(p => p._id)));
     }
   };
 
@@ -380,6 +354,11 @@ export default function Products() {
   }, [comboIsLoading]);
 
   const comboFiltered = combos.filter((c: any) => c.name.toLowerCase().includes(comboSearch.toLowerCase()));
+  const {
+    sortedData: sortedCombos,
+    sortConfig: comboSortConfig,
+    toggleSort: toggleComboSort,
+  } = useSort(comboFiltered, "name", "asc");
 
   // Compute set of category IDs that have at least one active, non-deleted product
   const categoriesWithProducts = useMemo(() => {
@@ -392,7 +371,7 @@ export default function Products() {
     return catIds;
   }, [comboProducts]);
 
-  const comboIsAllSelected = comboFiltered.length > 0 && comboFiltered.every((c: any) => comboSelectedIds.has(c._id));
+  const comboIsAllSelected = sortedCombos.length > 0 && sortedCombos.every((c: any) => comboSelectedIds.has(c._id));
   const comboClearSelection = () => setComboSelectedIds(new Set());
 
   const comboOpenCreate = () => {
@@ -411,7 +390,7 @@ export default function Products() {
     } else {
       setComboSelectedIds(
         new Set(
-          comboFiltered.map((c: any) => {
+          sortedCombos.map((c: any) => {
             if (c.isActive) return c._id;
           }),
         ),
@@ -730,15 +709,39 @@ export default function Products() {
                           )}
                         </button>
                       </th>
-                      <th className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70">Sản phẩm</th>
-                      <th className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70">Danh mục</th>
-                      <th className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70">Giá</th>
-                      <th className="text-center px-5 py-3.5 text-sm font-semibold text-foreground/70">Trạng thái</th>
+                      <SortableHeader
+                        label="Sản phẩm"
+                        sortKey="name"
+                        sortConfig={productSortConfig}
+                        onSort={toggleProductSort}
+                        className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70"
+                      />
+                      <SortableHeader
+                        label="Danh mục"
+                        sortKey="category.name"
+                        sortConfig={productSortConfig}
+                        onSort={toggleProductSort}
+                        className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70"
+                      />
+                      <SortableHeader
+                        label="Giá"
+                        sortKey="variants.0.price"
+                        sortConfig={productSortConfig}
+                        onSort={toggleProductSort}
+                        className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70"
+                      />
+                      <SortableHeader
+                        label="Trạng thái"
+                        sortKey="isActive"
+                        sortConfig={productSortConfig}
+                        onSort={toggleProductSort}
+                        className="text-center px-5 py-3.5 text-sm font-semibold text-foreground/70"
+                      />
                       <th className="text-center px-5 py-3.5 text-sm font-semibold text-foreground/70">Thao tác</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {filtered.length === 0 ? (
+                    {sortedProducts.length === 0 ? (
                       <tr>
                         <td colSpan={6} className="px-5 py-16 text-center text-muted-foreground">
                           <Pizza size={40} className="mx-auto mb-3 text-muted-foreground/20" />
@@ -746,7 +749,7 @@ export default function Products() {
                         </td>
                       </tr>
                     ) : (
-                      filtered.map(product => {
+                      sortedProducts.map(product => {
                         const isSelected = selectedIds.has(product._id);
                         return (
                           <tr
@@ -1006,16 +1009,46 @@ export default function Products() {
                         {comboIsAllSelected ? <SquareCheckBig size={18} className="text-primary" /> : <Square size={18} />}
                       </button>
                     </th>
-                    <th className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70">Combo</th>
-                    <th className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70">Giá</th>
-                    <th className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70">Giảm giá</th>
-                    <th className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70">Thời gian</th>
-                    <th className="text-center px-5 py-3.5 text-sm font-semibold text-foreground/70">Trạng thái</th>
+                    <SortableHeader
+                      label="Combo"
+                      sortKey="name"
+                      sortConfig={comboSortConfig}
+                      onSort={toggleComboSort}
+                      className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70"
+                    />
+                    <SortableHeader
+                      label="Giá"
+                      sortKey="totalPrice"
+                      sortConfig={comboSortConfig}
+                      onSort={toggleComboSort}
+                      className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70"
+                    />
+                    <SortableHeader
+                      label="Giảm giá"
+                      sortKey="discountPercentage"
+                      sortConfig={comboSortConfig}
+                      onSort={toggleComboSort}
+                      className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70"
+                    />
+                    <SortableHeader
+                      label="Thời gian"
+                      sortKey="createdAt"
+                      sortConfig={comboSortConfig}
+                      onSort={toggleComboSort}
+                      className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70"
+                    />
+                    <SortableHeader
+                      label="Trạng thái"
+                      sortKey="isActive"
+                      sortConfig={comboSortConfig}
+                      onSort={toggleComboSort}
+                      className="text-center px-5 py-3.5 text-sm font-semibold text-foreground/70"
+                    />
                     <th className="text-center px-5 py-3.5 text-sm font-semibold text-foreground/70">Thao tác</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {comboFiltered.length === 0 ? (
+                  {sortedCombos.length === 0 ? (
                     <tr>
                       <td colSpan={7} className="px-5 py-16 text-center text-muted-foreground">
                         <Gift size={40} className="mx-auto mb-3 text-muted-foreground/20" />
@@ -1023,7 +1056,7 @@ export default function Products() {
                       </td>
                     </tr>
                   ) : (
-                    comboFiltered.map((combo: any) => {
+                    sortedCombos.map((combo: any) => {
                       const isSelected = comboSelectedIds.has(combo._id);
                       return (
                         <tr

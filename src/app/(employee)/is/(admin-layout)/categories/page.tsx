@@ -16,6 +16,8 @@ import {
   Tag,
   Eye,
   EyeOff,
+  GripVertical,
+  Save,
 } from "lucide-react";
 import { toast, Toaster } from "sonner";
 import {
@@ -24,6 +26,7 @@ import {
   updateCategoryFormData,
   updateCategoryActive,
   deleteCategory,
+  reorderCategories,
   type CategoryData,
 } from "@/src/services/category.service";
 
@@ -44,6 +47,12 @@ export default function CategoriesManagement() {
   const iconFileRef = useRef<HTMLInputElement>(null);
   const [formIsActive, setFormIsActive] = useState("true");
 
+  // Drag & drop reorder
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const [hasOrderChanged, setHasOrderChanged] = useState(false);
+  const [isSavingOrder, setIsSavingOrder] = useState(false);
+
   // Confirm delete modal
   const [confirmModal, setConfirmModal] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -56,7 +65,9 @@ export default function CategoriesManagement() {
     try {
       setIsLoading(true);
       const data = await getAllCategories();
-      setCategories(data || []);
+      // Sắp xếp theo order tăng dần
+      const sorted = (data || []).sort((a: CategoryData, b: CategoryData) => (a.order ?? 0) - (b.order ?? 0));
+      setCategories(sorted);
     } catch (error) {
       toast.error("Không thể tải danh sách danh mục");
     } finally {
@@ -103,6 +114,61 @@ export default function CategoriesManagement() {
     setFormIconPreview("");
     if (iconFileRef.current) {
       iconFileRef.current.value = "";
+    }
+  };
+
+  // Xử lý kéo thả sắp xếp
+  const handleDragStart = (index: number) => {
+    setDragIndex(index);
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    setDragOverIndex(index);
+  };
+
+  const handleDragLeave = () => {
+    setDragOverIndex(null);
+  };
+
+  const handleDrop = (index: number) => {
+    if (dragIndex === null || dragIndex === index) {
+      setDragIndex(null);
+      setDragOverIndex(null);
+      return;
+    }
+
+    const reordered = [...categories];
+    const [movedItem] = reordered.splice(dragIndex, 1);
+    reordered.splice(index, 0, movedItem);
+
+    // Cập nhật lại order cho từng item
+    const updated = reordered.map((item, i) => ({ ...item, order: i }));
+    setCategories(updated);
+    setHasOrderChanged(true);
+    setDragIndex(null);
+    setDragOverIndex(null);
+  };
+
+  const handleDragEnd = () => {
+    setDragIndex(null);
+    setDragOverIndex(null);
+  };
+
+  const handleSaveOrder = async () => {
+    try {
+      setIsSavingOrder(true);
+      const orders = categories.map((c, i) => ({
+        category_id: c._id,
+        order: i,
+      }));
+      await reorderCategories(orders);
+      setHasOrderChanged(false);
+      toast.success("Đã lưu thứ tự danh mục!");
+    } catch {
+      toast.error("Lỗi khi lưu thứ tự");
+    } finally {
+      setIsSavingOrder(false);
     }
   };
 
@@ -299,6 +365,24 @@ export default function CategoriesManagement() {
         </div>
       </div>
 
+      {/* Save order banner */}
+      {hasOrderChanged && (
+        <div className="flex items-center justify-between gap-3 bg-yellow-50 border border-yellow-200 rounded-2xl px-5 py-3">
+          <div className="flex items-center gap-3">
+            <AlertCircle size={18} className="text-yellow-600 shrink-0" />
+            <span className="text-sm font-medium text-yellow-700">Thứ tự danh mục đã thay đổi. Nhấn Lưu để áp dụng.</span>
+          </div>
+          <button
+            onClick={handleSaveOrder}
+            disabled={isSavingOrder}
+            className="flex items-center gap-1.5 bg-yellow-600 text-white px-4 py-2 rounded-xl hover:bg-yellow-700 transition-colors text-sm font-semibold shrink-0"
+          >
+            {isSavingOrder ? <LoaderCircle size={16} className="animate-spin" /> : <Save size={16} />}
+            Lưu thứ tự
+          </button>
+        </div>
+      )}
+
       {/* Selection banner */}
       {selectedIds.size > 0 && (
         <div className="flex items-center justify-between gap-3 bg-primary/10 border border-primary/20 rounded-2xl px-5 py-3">
@@ -363,6 +447,7 @@ export default function CategoriesManagement() {
                       )}
                     </button>
                   </th>
+                  <th className="w-10 px-2 py-3.5 text-sm font-semibold text-foreground/70">#</th>
                   <th className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70">Mã</th>
                   <th className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70">Tên danh mục</th>
                   <th className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70">Slug</th>
@@ -380,15 +465,30 @@ export default function CategoriesManagement() {
                     </td>
                   </tr>
                 ) : (
-                  filtered.map(item => {
+                  filtered.map((item, idx) => {
                     const isSelected = selectedIds.has(item._id);
+                    const isDragging = dragIndex === idx;
+                    const isDragOver = dragOverIndex === idx;
                     return (
                       <tr
                         key={item._id}
-                        className={`border-b border-border last:border-b-0 hover:bg-muted/20 transition-colors ${
+                        draggable
+                        onDragStart={() => handleDragStart(idx)}
+                        onDragOver={e => handleDragOver(e, idx)}
+                        onDragLeave={handleDragLeave}
+                        onDrop={() => handleDrop(idx)}
+                        onDragEnd={handleDragEnd}
+                        className={`border-b border-border last:border-b-0 hover:bg-muted/20 transition-colors cursor-grab active:cursor-grabbing ${
                           isSelected ? "bg-primary/5" : ""
-                        } ${!item.isActive ? "opacity-50" : ""}`}
+                        } ${!item.isActive ? "opacity-50" : ""} ${
+                          isDragging ? "opacity-30 bg-muted/50" : ""
+                        } ${isDragOver ? "border-t-2 border-primary" : ""}`}
                       >
+                        <td className="px-2 py-3.5">
+                          <div className="flex items-center justify-center">
+                            <GripVertical size={16} className="text-muted-foreground/50" />
+                          </div>
+                        </td>
                         <td className="px-4 py-3.5">
                           <button
                             onClick={() => toggleSelectOne(item._id)}
@@ -501,7 +601,7 @@ export default function CategoriesManagement() {
       {/* Form Modal */}
       {showForm && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 m-0"
           onClick={() => {
             setEditItem(null);
             setShowForm(false);

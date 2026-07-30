@@ -1,6 +1,6 @@
 import { http } from "@/src/utils/config.api";
 
-// ─── Types ─────────────────────────────────────────────
+// Types
 export interface ComboRulePayload {
   groupName: string;
   applicableCategories: string[];
@@ -38,7 +38,7 @@ export interface UpdateComboPayload {
   isActive?: boolean;
 }
 
-// ─── API calls ─────────────────────────────────────────
+// API calls
 export const getAllCombos = async () => {
   try {
     const data = await http("/api/v1/combos", {

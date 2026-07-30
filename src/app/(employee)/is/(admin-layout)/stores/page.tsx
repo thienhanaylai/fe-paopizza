@@ -25,6 +25,8 @@ import {
 } from "lucide-react";
 import { createStore, getAllStore, StoreAddress, StoreData, updateStore } from "@/src/services/store.service";
 import { getEmployeeByRole } from "@/src/services/employee.service";
+import { useSort } from "@/src/hooks/useSort";
+import { SortableHeader } from "@/src/components/ui/SortableHeader";
 import { toast, Toaster } from "sonner";
 import { getRevenue } from "@/src/services/revenue.service";
 import { formatVND } from "@/src/utils/formatVND";
@@ -226,24 +228,27 @@ export default function Stores() {
     }
   };
 
-  const filtered = listStore
-    ?.sort((a, b) => a.name.localeCompare(b.name))
-    .filter(s => {
-      const matchSearch =
-        s.name.toLowerCase().includes(search.toLowerCase()) ||
-        formatAddress(s.address).toLowerCase().includes(search.toLowerCase());
-      const matchStatus = filterStatus === "all" || s.status === filterStatus;
-      return matchSearch && matchStatus;
-    });
+  const rawFiltered = (listStore || []).filter(s => {
+    const matchSearch =
+      s.name.toLowerCase().includes(search.toLowerCase()) ||
+      formatAddress(s.address).toLowerCase().includes(search.toLowerCase());
+    const matchStatus = filterStatus === "all" || s.status === filterStatus;
+    return matchSearch && matchStatus;
+  });
+  const {
+    sortedData: sortedStores,
+    sortConfig: storeSortConfig,
+    toggleSort: toggleStoreSort,
+  } = useSort(rawFiltered, "name", "asc");
 
-  const isAllSelected = (filtered?.length ?? 0) > 0 && filtered!.every(s => selectedIds.has(s._id));
+  const isAllSelected = sortedStores.length > 0 && sortedStores.every(s => selectedIds.has(s._id));
   const isIndeterminate = selectedIds.size > 0 && !isAllSelected;
 
   const toggleSelectAll = () => {
     if (isAllSelected) {
       setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(filtered?.map(s => s._id) ?? []));
+      setSelectedIds(new Set(sortedStores.map(s => s._id)));
     }
   };
 
@@ -409,16 +414,46 @@ export default function Stores() {
                       )}
                     </button>
                   </th>
-                  <th className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70">Tên cửa hàng</th>
-                  <th className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70 hidden md:table-cell">Địa chỉ</th>
-                  <th className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70 hidden lg:table-cell">SĐT</th>
-                  <th className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70 hidden lg:table-cell">Quản lý</th>
-                  <th className="text-center px-5 py-3.5 text-sm font-semibold text-foreground/70">Trạng thái</th>
+                  <SortableHeader
+                    label="Tên cửa hàng"
+                    sortKey="name"
+                    sortConfig={storeSortConfig}
+                    onSort={toggleStoreSort}
+                    className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70"
+                  />
+                  <SortableHeader
+                    label="Địa chỉ"
+                    sortKey="address.city"
+                    sortConfig={storeSortConfig}
+                    onSort={toggleStoreSort}
+                    className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70 hidden md:table-cell"
+                  />
+                  <SortableHeader
+                    label="SĐT"
+                    sortKey="phone"
+                    sortConfig={storeSortConfig}
+                    onSort={toggleStoreSort}
+                    className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70 hidden lg:table-cell"
+                  />
+                  <SortableHeader
+                    label="Quản lý"
+                    sortKey="manager_by.name"
+                    sortConfig={storeSortConfig}
+                    onSort={toggleStoreSort}
+                    className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70 hidden lg:table-cell"
+                  />
+                  <SortableHeader
+                    label="Trạng thái"
+                    sortKey="status"
+                    sortConfig={storeSortConfig}
+                    onSort={toggleStoreSort}
+                    className="text-center px-5 py-3.5 text-sm font-semibold text-foreground/70"
+                  />
                   <th className="text-center px-5 py-3.5 text-sm font-semibold text-foreground/70">Thao tác</th>
                 </tr>
               </thead>
               <tbody>
-                {!filtered || filtered.length === 0 ? (
+                {!sortedStores || sortedStores.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="px-5 py-16 text-center text-muted-foreground">
                       <Store size={40} className="mx-auto mb-3 text-muted-foreground/20" />
@@ -426,7 +461,7 @@ export default function Stores() {
                     </td>
                   </tr>
                 ) : (
-                  filtered.map(store => {
+                  sortedStores.map(store => {
                     const st = statusConfig[store.status];
                     const isSelected = selectedIds.has(store._id);
                     return (

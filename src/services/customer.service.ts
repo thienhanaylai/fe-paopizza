@@ -12,8 +12,10 @@ export interface UpdateCustomerInfo {
   user_id: string;
   name?: string;
   phone?: string;
+  address?: string;
   listAddress?: CustomerAddress[];
   email?: string;
+  birthday?: string;
 }
 
 export interface AddCustomerAddressPayload {
@@ -133,6 +135,36 @@ export const setDefaultAddress = async (payload: UpdateCustomerAddressPayload, t
     return response;
   } catch (error) {
     console.error("Lõi khi đặt địa chỉ làm mặc định:", error);
+    throw error;
+  }
+};
+
+export const updateCustomer = async (payload: UpdateCustomerInfo) => {
+  try {
+    const response = await http("/api/v1/customers/update", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Lỗi update customer:", error);
+    throw error;
+  }
+};
+
+export const changePassword = async (oldPass: string, newPass: string, typeUser: string | null = "customer") => {
+  try {
+    const response = await http(
+      "/api/v1/auth/changePassword",
+      {
+        method: "POST",
+        body: JSON.stringify({ oldPass, newPass }),
+      },
+      typeUser,
+    );
+    return response;
+  } catch (error) {
+    console.error("Lỗi đổi mật khẩu:", error);
     throw error;
   }
 };

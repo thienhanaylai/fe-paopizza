@@ -176,7 +176,7 @@ export default function ComboFormModal({
     setComboFormRules(prev => prev.map((r, i) => (i === ruleIdx ? { ...r, [field]: value } : r)));
   }, []);
 
-  // ─── Submit ───
+  // Submit
   const handleInternalSubmit = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault();

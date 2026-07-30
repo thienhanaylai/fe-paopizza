@@ -17,6 +17,7 @@ export interface Customer {
   tier?: string;
   address?: string;
   email?: string;
+  birthday?: string;
   createAt?: Date;
   role: null;
 }
@@ -165,15 +166,18 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
         { skipUnauthorized: true },
       );
 
+      const ref = dataCustomer.data.ref_id || {};
+      const defaultAddr = ref.listAddress?.find((a: { isDefault?: boolean; address?: string }) => a.isDefault);
       const dataCus: Customer = {
         id: dataCustomer.data._id,
-        name: dataCustomer.data.ref_id.name,
-        phone: dataCustomer.data.ref_id.phone,
-        tier: dataCustomer.data.ref_id.tier,
-        currentPoint: dataCustomer.data.ref_id.currentPoint,
-        totalPoint: dataCustomer.data.ref_id.totalPoint,
-        address: dataCustomer.data.ref_id.address,
-        email: dataCustomer.data.ref_id.email,
+        name: ref.name,
+        phone: ref.phone,
+        tier: ref.tier,
+        currentPoint: ref.currentPoint,
+        totalPoint: ref.totalPoint,
+        address: defaultAddr?.address || ref.listAddress?.[0]?.address || "",
+        email: ref.email,
+        birthday: ref.birthday || "",
         createAt: dataCustomer.data.createdAt,
         role: null,
       };
@@ -223,6 +227,23 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
         "customer",
       );
 
+      const ref = data.data.ref_id || {};
+      const defaultAddr = ref.listAddress?.find((a: { isDefault?: boolean; address?: string }) => a.isDefault);
+      const dataCus: Customer = {
+        id: data.data._id,
+        name: ref.name,
+        phone: ref.phone,
+        tier: ref.tier,
+        currentPoint: ref.currentPoint,
+        totalPoint: ref.totalPoint,
+        address: defaultAddr?.address || ref.listAddress?.[0]?.address || "",
+        email: ref.email,
+        birthday: ref.birthday || "",
+        createAt: data.data.createdAt,
+        role: null,
+      };
+
+      setUser(dataCus);
       return data.data;
     } catch (error) {
       const status = (error as { status?: number })?.status;

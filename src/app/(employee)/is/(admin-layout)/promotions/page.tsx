@@ -32,9 +32,11 @@ import {
 } from "@/src/services/promotion.service";
 import { getAllStore } from "@/src/services/store.service";
 import { formatVND } from "@/src/utils/formatVND";
+import { useSort } from "@/src/hooks/useSort";
+import { SortableHeader } from "@/src/components/ui/SortableHeader";
 import PromotionFormModal from "@/src/components/modals/PromotionFormModal";
 
-// ─── Constants ─────────────────────────────────────────
+// Constants
 const PROMOTION_TYPE_LABELS: Record<PromotionType, string> = {
   percentage: "Phần trăm (%)",
   fixed_amount: "Số tiền cố định",
@@ -47,7 +49,7 @@ const PROMOTION_STATUS_CONFIG: Record<PromotionStatus, { label: string; color: s
   expired: { label: "Hết hạn", color: "bg-yellow-100 text-yellow-700", icon: <Clock size={14} /> },
 };
 
-// ─── Helper: compute effective status based on dates ────
+// Helper: tính trạng thái hiệu lực dựa trên ngày
 function getEffectiveStatus(promo: Promotion): PromotionStatus {
   const now = new Date();
   const start = new Date(promo.startDate);
@@ -77,7 +79,7 @@ function formatDateRange(start: string, end: string): string {
   return `${fmt(start)} → ${fmt(end)}`;
 }
 
-// ─── Page Component ────────────────────────────────────
+// Page Component
 export default function PromotionsPage() {
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState<"all" | PromotionStatus>("all");
@@ -99,7 +101,7 @@ export default function PromotionsPage() {
   const [batchConfirmDelete, setBatchConfirmDelete] = useState(false);
   const [isBatchDeleting, setIsBatchDeleting] = useState(false);
 
-  // ─── Data fetching ───────────────────────────────────
+  // Data fetching
   const fetchData = async () => {
     try {
       const [promotions, stores] = await Promise.all([getAllPromotions(), getAllStore()]);
@@ -119,16 +121,19 @@ export default function PromotionsPage() {
     fetchData();
   }, []);
 
-  // ─── Filter & sort ───────────────────────────────────
-  const filtered = listPromotions
-    .filter(p => {
-      const matchesSearch = p.code.toLowerCase().includes(search.toLowerCase());
-      if (filterStatus === "all") return matchesSearch;
-      return matchesSearch && getEffectiveStatus(p) === filterStatus;
-    })
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  // Lọc & sắp xếp
+  const rawFiltered = listPromotions.filter(p => {
+    const matchesSearch = p.code.toLowerCase().includes(search.toLowerCase());
+    if (filterStatus === "all") return matchesSearch;
+    return matchesSearch && getEffectiveStatus(p) === filterStatus;
+  });
+  const {
+    sortedData: sortedPromotions,
+    sortConfig: promoSortConfig,
+    toggleSort: togglePromoSort,
+  } = useSort(rawFiltered, "code", "asc");
 
-  // ─── Stats ───────────────────────────────────────────
+  // Thống kê
   const stats = {
     total: listPromotions.length,
     active: listPromotions.filter(p => getEffectiveStatus(p) === "active").length,
@@ -136,15 +141,15 @@ export default function PromotionsPage() {
     expired: listPromotions.filter(p => getEffectiveStatus(p) === "expired").length,
   };
 
-  // ─── Selection ───────────────────────────────────────
-  const isAllSelected = filtered.length > 0 && filtered.every(p => selectedIds.has(p._id));
+  // Chọn nhiều
+  const isAllSelected = sortedPromotions.length > 0 && sortedPromotions.every(p => selectedIds.has(p._id));
   const isIndeterminate = selectedIds.size > 0 && !isAllSelected;
 
   const toggleSelectAll = () => {
     if (isAllSelected) {
       setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(filtered.map(p => p._id)));
+      setSelectedIds(new Set(sortedPromotions.map(p => p._id)));
     }
   };
 
@@ -159,7 +164,7 @@ export default function PromotionsPage() {
 
   const clearSelection = () => setSelectedIds(new Set());
 
-  // ─── Modal handlers ──────────────────────────────────
+  // Xử lý modal
   const openCreateModal = () => {
     setEditingPromo(null);
     setShowModal(true);
@@ -175,7 +180,7 @@ export default function PromotionsPage() {
     setEditingPromo(null);
   };
 
-  // ─── Status toggle ───────────────────────────────────
+  // Bật/tắt trạng thái
   const handleToggleStatus = async (promo: Promotion) => {
     const newStatus: PromotionStatus = promo.status === "active" ? "inactive" : "active";
     try {
@@ -188,7 +193,7 @@ export default function PromotionsPage() {
     }
   };
 
-  // ─── Delete ──────────────────────────────────────────
+  // Xóa
   const handleDeleteClick = (promo: Promotion) => {
     setDeleteTarget(promo);
     setConfirmDelete(true);
@@ -211,7 +216,7 @@ export default function PromotionsPage() {
     }
   };
 
-  // ─── Batch actions ───────────────────────────────────
+  // Thao tác hàng loạt
   const handleBatchDeactivate = async () => {
     const ids = Array.from(selectedIds);
     try {
@@ -249,7 +254,7 @@ export default function PromotionsPage() {
 
   const storesList = Array.from(storeMap.entries()).map(([id, name]) => ({ _id: id, name }));
 
-  // ─── Render ──────────────────────────────────────────
+  // Render
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -306,7 +311,7 @@ export default function PromotionsPage() {
         </div>
       </div>
 
-      {/* ─── Promotion list ────────────────────────────── */}
+      {/* Danh sách khuyến mãi */}
       {/* Search & filter bar */}
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1 max-w-md">
@@ -414,19 +419,53 @@ export default function PromotionsPage() {
                       )}
                     </button>
                   </th>
-                  <th className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70">Mã khuyến mãi</th>
-                  <th className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70 hidden md:table-cell">Loại</th>
-                  <th className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70">Giá trị</th>
-                  <th className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70 hidden lg:table-cell">
-                    Thời gian
-                  </th>
-                  <th className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70 hidden xl:table-cell">Áp dụng</th>
-                  <th className="text-center px-5 py-3.5 text-sm font-semibold text-foreground/70">Trạng thái</th>
+                  <SortableHeader
+                    label="Mã khuyến mãi"
+                    sortKey="code"
+                    sortConfig={promoSortConfig}
+                    onSort={togglePromoSort}
+                    className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70"
+                  />
+                  <SortableHeader
+                    label="Loại"
+                    sortKey="type"
+                    sortConfig={promoSortConfig}
+                    onSort={togglePromoSort}
+                    className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70 hidden md:table-cell"
+                  />
+                  <SortableHeader
+                    label="Giá trị"
+                    sortKey="value"
+                    sortConfig={promoSortConfig}
+                    onSort={togglePromoSort}
+                    className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70"
+                  />
+                  <SortableHeader
+                    label="Thời gian"
+                    sortKey="startDate"
+                    sortConfig={promoSortConfig}
+                    onSort={togglePromoSort}
+                    className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70 hidden lg:table-cell"
+                  />
+                  <SortableHeader
+                    label="Áp dụng"
+                    sortKey="minOrderValue"
+                    sortConfig={promoSortConfig}
+                    onSort={togglePromoSort}
+                    className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70 hidden xl:table-cell"
+                  />
+                  <SortableHeader
+                    label="Trạng thái"
+                    sortKey="status"
+                    sortConfig={promoSortConfig}
+                    onSort={togglePromoSort}
+                    className="text-center px-5 py-3.5 text-sm font-semibold text-foreground/70"
+                  />
                   <th className="text-center px-5 py-3.5 text-sm font-semibold text-foreground/70">Thao tác</th>
                 </tr>
               </thead>
               <tbody>
-                {filtered.length === 0 ? (
+                {sortedPromotions.length === 0 ? (
                   <tr>
                     <td colSpan={8} className="px-5 py-16 text-center text-muted-foreground">
                       <Gift size={40} className="mx-auto mb-3 text-muted-foreground/20" />
@@ -434,7 +473,7 @@ export default function PromotionsPage() {
                     </td>
                   </tr>
                 ) : (
-                  filtered.map(promo => {
+                  sortedPromotions.map(promo => {
                     const isSelected = selectedIds.has(promo._id);
                     const effectiveStatus = getEffectiveStatus(promo);
                     const statusConfig = PROMOTION_STATUS_CONFIG[effectiveStatus];
@@ -527,7 +566,7 @@ export default function PromotionsPage() {
         )}
       </div>
 
-      {/* ─── Promotion form modal ──────────────────────── */}
+      {/* Modal form khuyến mãi */}
       <PromotionFormModal
         open={showModal}
         onClose={closeModal}
@@ -536,7 +575,7 @@ export default function PromotionsPage() {
         onSuccess={fetchData}
       />
 
-      {/* ─── Delete confirmation modal ─────────────────── */}
+      {/* Modal xác nhận xóa */}
       {confirmDelete && deleteTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-card rounded-2xl p-6 max-w-sm w-full mx-4 shadow-xl border border-border">
@@ -577,7 +616,7 @@ export default function PromotionsPage() {
         </div>
       )}
 
-      {/* ─── Batch delete confirmation modal ──────────── */}
+      {/* Modal xác nhận xóa hàng loạt */}
       {batchConfirmDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-card rounded-2xl p-6 max-w-sm w-full mx-4 shadow-xl border border-border">
