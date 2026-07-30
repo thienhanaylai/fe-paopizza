@@ -113,6 +113,7 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       const status = (error as { status?: number; data?: { message?: string; error?: string } })?.status;
       const errData = (error as { data?: { message?: string; error?: string } })?.data;
+      console.log(errData);
       if (status === 500) {
         return {
           success: false,
@@ -122,7 +123,7 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
       if (status === 400) {
         return {
           success: false,
-          message: errData?.message || "Lỗi đăng ký!",
+          message: errData?.message === "ACCOUNT_ALREADY_EXISTS" ? "Tài khoản đã tồn tại" : "Lỗi đăng ký!",
         };
       }
       return {

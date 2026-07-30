@@ -388,7 +388,13 @@ export default function IndexPage() {
   }, [selectedVariant]);
 
   const extraToppingOptions = useMemo(() => {
-    return extraToppings.filter(item => item.isActive && !item.isDeleted && !baseIngredientIdSet.has(item._id));
+    return extraToppings.filter(
+      item =>
+        item.isActive &&
+        !item.isDeleted &&
+        !baseIngredientIdSet.has(item._id) &&
+        !["drink", "dough", "other"].includes(item.category), //ẩn đi các loại nguyên liệu là drink dough và other
+    );
   }, [baseIngredientIdSet, extraToppings]);
 
   const selectedExtraToppings = useMemo(() => {

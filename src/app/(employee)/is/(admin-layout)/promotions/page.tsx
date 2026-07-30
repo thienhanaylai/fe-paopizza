@@ -79,7 +79,6 @@ function formatDateRange(start: string, end: string): string {
   return `${fmt(start)} → ${fmt(end)}`;
 }
 
-// Page Component
 export default function PromotionsPage() {
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState<"all" | PromotionStatus>("all");

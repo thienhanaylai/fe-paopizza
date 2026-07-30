@@ -2,7 +2,7 @@
 
 import Header from "@/src/components/layouts/Header";
 import Footer from "@/src/components/layouts/Footer";
-import { AuthModal } from "@/src/components/modals/LoginModal";
+import { AuthModal } from "@/src/components/modals/AuthModal";
 import { useCart } from "@/src/context/cartContext";
 import { CartModal } from "@/src/components/modals/CartModal";
 import { useEffect } from "react";
