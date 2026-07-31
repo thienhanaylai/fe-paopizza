@@ -861,7 +861,7 @@ export default function Products() {
 
           {/* Product Confirm Delete Modal */}
           {confirmModal && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 m-0 ">
               <div className="bg-card rounded-2xl p-6 max-w-sm w-full mx-4 shadow-xl border border-border">
                 {selectedIds.size > 1 ? (
                   <>
@@ -1175,7 +1175,7 @@ export default function Products() {
 
           {/* Combo Confirm Delete Modal */}
           {comboConfirmModal && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 m-0 ">
               <div className="bg-card rounded-2xl p-6 max-w-sm w-full mx-4 shadow-xl border border-border">
                 {comboSelectedIds.size > 1 ? (
                   <>

@@ -286,7 +286,7 @@ export const CheckoutModal = () => {
 
   if (!listStore || listStore.length === 0) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 m-0 p-4">
         <LoaderCircle className="animate-spin text-white" size={32} />
       </div>
     );

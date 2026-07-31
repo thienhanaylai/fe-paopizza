@@ -1440,7 +1440,7 @@ export default function IndexPage() {
 
       {product && selectedVariant && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-2 sm:p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 m-0 p-2 sm:p-4"
           onClick={() => setProduct(null)}
         >
           <div className="flex items-center gap-2 sm:gap-4 w-full max-w-[calc(100vw-0.5rem)] sm:max-w-[calc(100vw-7rem)] justify-center">
