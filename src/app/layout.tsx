@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Be_Vietnam_Pro } from "next/font/google";
 import "@/src/app/styles/index.css";
-import { Providers } from "./providers";
 
 const beVietnamPro = Be_Vietnam_Pro({
   subsets: ["latin", "vietnamese"],
@@ -40,7 +39,7 @@ export default function RootLayout({
       className={`${beVietnamPro.variable} light antialiased`}
     >
       <body suppressHydrationWarning className="min-h-screen flex flex-col bg-background font-sans">
-        <Providers>{children}</Providers>
+        {children}
       </body>
     </html>
   );

@@ -7,6 +7,7 @@ export type PromotionStatus = "draft" | "active" | "inactive" | "expired";
 export interface Promotion {
   _id: string;
   code: string;
+  point: number;
   type: PromotionType;
   value: number;
   startDate: string;
@@ -20,6 +21,7 @@ export interface Promotion {
 
 export interface CreatePromotionPayload {
   code: string;
+  point?: number;
   type: PromotionType;
   value: number;
   startDate: string;
@@ -31,6 +33,7 @@ export interface CreatePromotionPayload {
 export interface UpdatePromotionPayload {
   promotion_id: string;
   code?: string;
+  point?: number;
   type?: PromotionType;
   value?: number;
   startDate?: string;
@@ -48,12 +51,23 @@ export interface PromoCodeResult {
   message?: string;
 }
 
-// CRUD API calls
-export const getAllPromotions = async (): Promise<Promotion[]> => {
+export interface RedeemResult {
+  code: string;
+  type: PromotionType;
+  value: number;
+  pointCost: number;
+  remainingPoint: number;
+  message: string;
+}
+export const getAllPromotions = async (typeUser: string | null = null): Promise<Promotion[]> => {
   try {
-    const response = await http("/api/v1/promotions", {
-      method: "GET",
-    });
+    const response = await http(
+      "/api/v1/promotions",
+      {
+        method: "GET",
+      },
+      typeUser,
+    );
     return response.data;
   } catch (error) {
     console.error("Lỗi fetch promotions:", error);
@@ -170,5 +184,42 @@ export const applyPromoCode = async (code: string, orderTotal: number, storeId: 
       discountAmount: 0,
       message,
     };
+  }
+};
+
+// Lấy danh sách khuyến mãi có thể đổi bằng điểm (point > 0, active)
+export const getRedeemablePromotions = async (): Promise<Promotion[]> => {
+  try {
+    const allPromotions: Promotion[] = await getAllPromotions("customer");
+    const now = new Date();
+    return allPromotions.filter(
+      p =>
+        p.point !== undefined &&
+        p.point > 0 &&
+        p.status === "active" &&
+        new Date(p.startDate) <= now &&
+        new Date(p.endDate) >= now,
+    );
+  } catch (error) {
+    console.error("Lỗi fetch redeemable promotions:", error);
+    throw error;
+  }
+};
+
+// Đổi điểm lấy mã khuyến mãi
+export const redeemPromotion = async (promotion_id: string): Promise<RedeemResult> => {
+  try {
+    const response = await http(
+      "/api/v1/promotions/redeem",
+      {
+        method: "POST",
+        body: JSON.stringify({ promotion_id }),
+      },
+      "customer",
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Lỗi đổi điểm:", error);
+    throw error;
   }
 };

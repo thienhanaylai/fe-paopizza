@@ -1,5 +1,5 @@
 "use client";
-import React, { createContext, useContext, useMemo, useState, ReactNode } from "react";
+import React, { createContext, useContext, useEffect, useMemo, useState, ReactNode } from "react";
 import { http } from "../utils/config.api";
 import { useRouter } from "next/navigation";
 
@@ -87,11 +87,19 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function CustomerAuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<Customer | null>(readStoredUser);
-  const [accessToken, setAccessToken] = useState<string | null>(readStoredToken);
+  const [user, setUser] = useState<Customer | null>(null);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
   const [authMode, setAuthMode] = useState<AuthMode>(null);
 
   const router = useRouter();
+
+  // Đọc localStorage sau khi client mount để tránh hydration mismatch
+  useEffect(() => {
+    const storedUser = readStoredUser();
+    const storedToken = readStoredToken();
+    setUser(storedUser);
+    setAccessToken(storedToken);
+  }, []);
 
   const customerRegister = async (fullname: string, phone: string, password: string) => {
     const endpoint = "/customers/register";

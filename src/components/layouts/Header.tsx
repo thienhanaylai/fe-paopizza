@@ -342,7 +342,7 @@ export default function Header() {
                         </Link>
                         {true && (
                           <Link
-                            href={"/"}
+                            href={"/loyalty"}
                             onClick={() => setShowNavMenu(false)}
                             className="w-full flex items-center justify-between px-4 py-2.5 text-sm text-foreground hover:bg-muted text-left"
                           >
