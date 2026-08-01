@@ -117,7 +117,7 @@ export default function Profile() {
   const fecthData = async () => {
     const customer = await getInfo();
     const res = await getAllOrder(`customer_id=${customer.ref_id?._id}`, "customer");
-    const listAddress = await getCustomerAddresses(user?.id, "customer");
+    const listAddress = await getCustomerAddresses(customer._id, "customer");
     setListAddress(listAddress);
     setOrderHistory(res);
   };
@@ -308,7 +308,7 @@ export default function Profile() {
                       onClick={async () => {
                         setEditing(false);
                         try {
-                          const res = await updateCustomer({
+                          await updateCustomer({
                             user_id: user.id,
                             name,
                             phone,
