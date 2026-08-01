@@ -41,7 +41,7 @@ export const updateCategory = async (payload: { category_id: string; name?: stri
 };
 
 export const updateCategoryActive = async (payload: { category_id: string; isActive: boolean }) => {
-  const response = await http("/api/v1/categories/active", {
+  const response = await http("/api/v1/categories/updateActive", {
     method: "PATCH",
     body: JSON.stringify(payload),
   });

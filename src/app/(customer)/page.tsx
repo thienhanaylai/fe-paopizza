@@ -233,6 +233,11 @@ export default function IndexPage() {
   const comboCounterRef = useRef(0);
   const ruleRefs = useRef<(HTMLDivElement | null)[]>([]);
 
+  // Category horizontal scroll
+  const categoryScrollRef = useRef<HTMLDivElement>(null);
+  const [categoryCanScrollLeft, setCategoryCanScrollLeft] = useState(false);
+  const [categoryCanScrollRight, setCategoryCanScrollRight] = useState(false);
+
   //  các URL hình ảnh đã tải xong
   const [loadedImages, setLoadedImages] = useState<Set<string>>(new Set());
   const handleImageLoaded = (url: string) => {
@@ -254,6 +259,22 @@ export default function IndexPage() {
   const [comboCanScrollPrev, setComboCanScrollPrev] = useState(false);
   const [comboCanScrollNext, setComboCanScrollNext] = useState(false);
 
+  // Category scroll check & handlers
+  const checkCategoryScroll = useCallback(() => {
+    const el = categoryScrollRef.current;
+    if (!el) return;
+    setCategoryCanScrollLeft(el.scrollLeft > 2);
+    setCategoryCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 2);
+  }, []);
+
+  const scrollCategoriesLeft = () => {
+    categoryScrollRef.current?.scrollBy({ left: -250, behavior: "smooth" });
+  };
+
+  const scrollCategoriesRight = () => {
+    categoryScrollRef.current?.scrollBy({ left: 250, behavior: "smooth" });
+  };
+
   useEffect(() => {
     if (!comboEmblaApi) return;
     const onSelect = () => {
@@ -268,6 +289,19 @@ export default function IndexPage() {
       comboEmblaApi.off("reInit", onSelect);
     };
   }, [comboEmblaApi]);
+
+  // Category scroll detection
+  useEffect(() => {
+    const el = categoryScrollRef.current;
+    if (!el) return;
+    checkCategoryScroll();
+    el.addEventListener("scroll", checkCategoryScroll, { passive: true });
+    window.addEventListener("resize", checkCategoryScroll);
+    return () => {
+      el.removeEventListener("scroll", checkCategoryScroll);
+      window.removeEventListener("resize", checkCategoryScroll);
+    };
+  }, [checkCategoryScroll, categories]);
 
   // Skeleton loading khi mở modal sản phẩm
   const [modalLoading, setModalLoading] = useState(false);
@@ -1125,23 +1159,47 @@ export default function IndexPage() {
                 ))}
               </div>
             ) : (
-              <div
-                className="flex flex-nowrap items-center gap-2 overflow-x-auto no-scrollbar py-1 w-full justify-start sm:justify-center"
-                style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
-              >
-                {categories.map(cat => (
+              <div className="relative flex items-center">
+                {/* Left scroll button */}
+                {categoryCanScrollLeft && (
                   <button
-                    key={cat.slug}
-                    onClick={() => handleCategoryClick(cat.slug)}
-                    className={`flex items-center gap-2 px-4 sm:px-5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
-                      activeCategory === cat.slug
-                        ? "border-primary/30 bg-primary/5 text-primary shadow-lg shadow-primary/10 border "
-                        : "bg-card border border-border text-muted-foreground hover:border-primary/30 hover:text-primary hover:bg-primary/5"
-                    }`}
+                    onClick={scrollCategoriesLeft}
+                    className="absolute left-0 z-10 flex items-center justify-center w-8 h-8 rounded-full bg-white border border-border shadow-md hover:bg-muted transition-colors shrink-0 -ml-1"
+                    aria-label="Scroll left"
                   >
-                    <Image src={cat.icon || ""} width={18} height={18} alt={cat.name} /> {cat.name}
+                    <ChevronLeft size={16} className="text-foreground" />
                   </button>
-                ))}
+                )}
+                {/* Scrollable category list */}
+                <div
+                  ref={categoryScrollRef}
+                  className="flex flex-nowrap items-center gap-2 overflow-x-auto no-scrollbar py-1 w-full justify-start sm:justify-center scroll-smooth"
+                  style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+                >
+                  {categories.map(cat => (
+                    <button
+                      key={cat.slug}
+                      onClick={() => handleCategoryClick(cat.slug)}
+                      className={`flex items-center gap-2 px-4 sm:px-5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
+                        activeCategory === cat.slug
+                          ? "border-primary/30 bg-primary/5 text-primary shadow-lg shadow-primary/10 border "
+                          : "bg-card border border-border text-muted-foreground hover:border-primary/30 hover:text-primary hover:bg-primary/5"
+                      }`}
+                    >
+                      <Image src={cat.icon || ""} width={18} height={18} alt={cat.name} /> {cat.name}
+                    </button>
+                  ))}
+                </div>
+                {/* Right scroll button */}
+                {categoryCanScrollRight && (
+                  <button
+                    onClick={scrollCategoriesRight}
+                    className="absolute right-0 z-10 flex items-center justify-center w-8 h-8 rounded-full bg-white border border-border shadow-md hover:bg-muted transition-colors shrink-0 -mr-1"
+                    aria-label="Scroll right"
+                  >
+                    <ChevronRight size={16} className="text-foreground" />
+                  </button>
+                )}
               </div>
             )}
           </div>

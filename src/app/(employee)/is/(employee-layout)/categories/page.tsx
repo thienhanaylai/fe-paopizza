@@ -22,8 +22,8 @@ import {
 import { toast, Toaster } from "sonner";
 import {
   getAllCategories,
-  createCategoryFormData,
-  updateCategoryFormData,
+  createCategory,
+  updateCategory,
   updateCategoryActive,
   deleteCategory,
   reorderCategories,
@@ -41,7 +41,6 @@ export default function CategoriesManagement() {
   // Form fields
   const [formName, setFormName] = useState("");
   const [formSlug, setFormSlug] = useState("");
-  const [formIcon, setFormIcon] = useState("");
   const [formIconFile, setFormIconFile] = useState<File | null>(null);
   const [formIconPreview, setFormIconPreview] = useState("");
   const iconFileRef = useRef<HTMLInputElement>(null);
@@ -56,6 +55,10 @@ export default function CategoriesManagement() {
   // Confirm delete modal
   const [confirmModal, setConfirmModal] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  // Batch action state
+  const [batchConfirmModal, setBatchConfirmModal] = useState<"hide" | "delete" | null>(null);
+  const [isBatchProcessing, setIsBatchProcessing] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -88,6 +91,16 @@ export default function CategoriesManagement() {
       .replace(/-+/g, "-");
   };
 
+  // Convert file to base64 string
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
   const handleNameChange = (value: string) => {
     setFormName(value);
     if (!editItem) {
@@ -103,14 +116,12 @@ export default function CategoriesManagement() {
       return;
     }
     setFormIconFile(file);
-    setFormIcon("");
     const previewUrl = URL.createObjectURL(file);
     setFormIconPreview(previewUrl);
   };
 
   const clearIcon = () => {
     setFormIconFile(null);
-    setFormIcon("");
     setFormIconPreview("");
     if (iconFileRef.current) {
       iconFileRef.current.value = "";
@@ -213,17 +224,19 @@ export default function CategoriesManagement() {
 
     try {
       setIsLoading(true);
+      // Convert icon file to base64 if present
+      let iconBase64 = "";
+      if (formIconFile) {
+        iconBase64 = await fileToBase64(formIconFile);
+      }
+
       if (editItem) {
-        const formData = new FormData();
-        formData.append("category_id", editItem._id);
-        formData.append("name", formName);
-        formData.append("slug", formSlug);
-        if (formIconFile) {
-          formData.append("icon", formIconFile);
-        } else if (formIcon) {
-          formData.append("icon_url", formIcon);
-        }
-        await updateCategoryFormData(formData);
+        await updateCategory({
+          category_id: editItem._id,
+          name: formName,
+          slug: formSlug,
+          icon: iconBase64 || undefined,
+        });
         // Also update active status if changed
         const newActive = formIsActive === "true";
         if (newActive !== editItem.isActive) {
@@ -234,15 +247,11 @@ export default function CategoriesManagement() {
         }
         toast.success("Cập nhật danh mục thành công!");
       } else {
-        const formData = new FormData();
-        formData.append("name", formName);
-        formData.append("slug", formSlug);
-        if (formIconFile) {
-          formData.append("icon", formIconFile);
-        } else if (formIcon) {
-          formData.append("icon_url", formIcon);
-        }
-        await createCategoryFormData(formData);
+        await createCategory({
+          name: formName,
+          slug: formSlug,
+          icon: iconBase64 || undefined,
+        });
         toast.success("Thêm danh mục thành công!");
       }
       setShowForm(false);
@@ -279,6 +288,40 @@ export default function CategoriesManagement() {
     }
   };
 
+  // Batch hide (deactivate) selected categories
+  const handleBatchHide = async () => {
+    try {
+      setIsBatchProcessing(true);
+      const ids = Array.from(selectedIds);
+      await Promise.all(ids.map(id => updateCategoryActive({ category_id: id, isActive: false })));
+      toast.success(`Đã ẩn ${ids.length} danh mục!`);
+      setSelectedIds(new Set());
+      setBatchConfirmModal(null);
+      await fetchData();
+    } catch (error: any) {
+      toast.error(error?.message || "Có lỗi xảy ra!");
+    } finally {
+      setIsBatchProcessing(false);
+    }
+  };
+
+  // Batch delete selected categories
+  const handleBatchDelete = async () => {
+    try {
+      setIsBatchProcessing(true);
+      const ids = Array.from(selectedIds);
+      await Promise.all(ids.map(id => deleteCategory({ category_id: id })));
+      toast.success(`Đã xoá ${ids.length} danh mục!`);
+      setSelectedIds(new Set());
+      setBatchConfirmModal(null);
+      await fetchData();
+    } catch (error: any) {
+      toast.error(error?.message || "Có lỗi xảy ra!");
+    } finally {
+      setIsBatchProcessing(false);
+    }
+  };
+
   // Stats
   const activeCount = categories.filter(c => c.isActive).length;
   const inactiveCount = categories.filter(c => !c.isActive).length;
@@ -296,7 +339,6 @@ export default function CategoriesManagement() {
             setEditItem(null);
             setFormName("");
             setFormSlug("");
-            setFormIcon("");
             setFormIconFile(null);
             setFormIconPreview("");
             setFormIsActive("true");
@@ -397,6 +439,24 @@ export default function CategoriesManagement() {
             <span className="text-sm font-medium text-foreground">
               Đã chọn <span className="text-primary font-semibold">{selectedIds.size}</span> danh mục
             </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setBatchConfirmModal("hide")}
+              disabled={isBatchProcessing}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-yellow-50 text-yellow-600 border border-yellow-200 hover:bg-yellow-100 transition-colors text-sm font-medium"
+            >
+              {isBatchProcessing ? <LoaderCircle size={14} className="animate-spin" /> : <EyeOff size={14} />}
+              Ẩn
+            </button>
+            <button
+              onClick={() => setBatchConfirmModal("delete")}
+              disabled={isBatchProcessing}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-red-50 text-red-500 border border-red-200 hover:bg-red-100 transition-colors text-sm font-medium"
+            >
+              <Trash2 size={14} />
+              Xoá
+            </button>
           </div>
         </div>
       )}
@@ -564,9 +624,8 @@ export default function CategoriesManagement() {
                                 setEditItem(item);
                                 setFormName(item.name);
                                 setFormSlug(item.slug);
-                                setFormIcon(item.icon || "");
                                 setFormIconFile(null);
-                                setFormIconPreview("");
+                                setFormIconPreview(item.icon || "");
                                 if (iconFileRef.current) iconFileRef.current.value = "";
                                 setFormIsActive(item.isActive.toString());
                                 setShowForm(true);
@@ -653,14 +712,14 @@ export default function CategoriesManagement() {
                 <div className="flex items-start gap-3">
                   {/* Preview */}
                   <div className="relative w-16 h-16 rounded-xl overflow-hidden bg-muted shrink-0 border border-border">
-                    {formIconPreview || formIcon ? (
+                    {formIconPreview ? (
                       <Image
-                        src={formIconPreview || formIcon}
+                        src={formIconPreview}
                         alt="Icon preview"
                         fill
                         className="object-cover"
                         sizes="64px"
-                        unoptimized={!!(formIconPreview || formIcon.startsWith("data:"))}
+                        unoptimized={formIconPreview.startsWith("data:") || formIconPreview.startsWith("blob:")}
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
@@ -672,25 +731,11 @@ export default function CategoriesManagement() {
                     <input
                       ref={iconFileRef}
                       type="file"
-                      accept="image/*"
+                      accept="image/png,image/jpeg,image/jpg,image/x-icon,image/vnd.microsoft.icon,.ico"
                       onChange={handleIconFileChange}
                       className="w-full text-sm text-muted-foreground file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:bg-primary/10 file:text-primary hover:file:bg-primary/20 transition-colors"
                     />
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-muted-foreground">hoặc nhập URL:</span>
-                      <input
-                        value={formIcon}
-                        onChange={e => {
-                          setFormIcon(e.target.value);
-                          setFormIconFile(null);
-                          setFormIconPreview("");
-                          if (iconFileRef.current) iconFileRef.current.value = "";
-                        }}
-                        placeholder="https://..."
-                        className="flex-1 px-3 py-1.5 rounded-lg border border-border bg-background focus:border-primary outline-none text-xs"
-                      />
-                    </div>
-                    {(formIconFile || formIcon) && (
+                    {formIconFile && (
                       <button
                         type="button"
                         onClick={clearIcon}
@@ -777,6 +822,66 @@ export default function CategoriesManagement() {
               >
                 <Trash2 size={16} />
                 Xoá
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Batch Confirm Modal (Hide / Delete) */}
+      {batchConfirmModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 m-0">
+          <div className="bg-card rounded-2xl p-6 max-w-sm w-full mx-4 shadow-xl border border-border">
+            <div className="flex items-center gap-3 mb-4">
+              <div
+                className={`w-10 h-10 rounded-xl flex items-center justify-center ${batchConfirmModal === "delete" ? "bg-red-50" : "bg-yellow-50"}`}
+              >
+                <AlertCircle size={20} className={batchConfirmModal === "delete" ? "text-red-500" : "text-yellow-600"} />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-foreground">
+                  {batchConfirmModal === "delete" ? "Xác nhận xoá hàng loạt" : "Xác nhận ẩn hàng loạt"}
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  {batchConfirmModal === "delete"
+                    ? `Bạn có chắc muốn xoá ${selectedIds.size} danh mục đã chọn?`
+                    : `Bạn có chắc muốn ẩn ${selectedIds.size} danh mục đã chọn?`}
+                </p>
+              </div>
+            </div>
+            <p className="text-sm text-muted-foreground mb-4">
+              {batchConfirmModal === "delete"
+                ? "Hành động này không thể hoàn tác. Các danh mục sẽ bị đánh dấu đã xoá."
+                : "Các danh mục sẽ bị ngừng kích hoạt và không hiển thị trên menu."}
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setBatchConfirmModal(null)}
+                className="px-4 py-2 rounded-xl border border-border hover:bg-muted/50 transition-colors text-sm"
+              >
+                Huỷ
+              </button>
+              <button
+                onClick={() => {
+                  if (batchConfirmModal === "delete") {
+                    handleBatchDelete();
+                  } else {
+                    handleBatchHide();
+                  }
+                }}
+                disabled={isBatchProcessing}
+                className={`flex items-center gap-2 text-white px-4 py-2 rounded-xl transition-colors text-sm ${
+                  batchConfirmModal === "delete" ? "bg-red-500 hover:bg-red-600" : "bg-yellow-600 hover:bg-yellow-700"
+                }`}
+              >
+                {isBatchProcessing ? (
+                  <LoaderCircle size={16} className="animate-spin" />
+                ) : batchConfirmModal === "delete" ? (
+                  <Trash2 size={16} />
+                ) : (
+                  <EyeOff size={16} />
+                )}
+                {batchConfirmModal === "delete" ? "Xoá" : "Ẩn"}
               </button>
             </div>
           </div>

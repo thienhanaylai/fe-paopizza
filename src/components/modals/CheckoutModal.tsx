@@ -303,7 +303,6 @@ export const CheckoutModal = () => {
         className="bg-card rounded-2xl w-full max-w-xl shadow-2xl max-h-[92vh] overflow-y-auto scrollbar-hide animate-fade-up animate-duration-300"
         onClick={e => e.stopPropagation()}
       >
-        {/* SUCCESS STEP */}
         {checkoutStep === "success" && (
           <div className="p-8 text-center">
             <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
@@ -345,7 +344,6 @@ export const CheckoutModal = () => {
           </div>
         )}
 
-        {/* INFO & PAYMENT STEPS */}
         {checkoutStep !== "success" && checkoutStep !== "failed" && (
           <>
             <div className="flex items-center gap-3 p-5 border-b border-border">
@@ -395,7 +393,6 @@ export const CheckoutModal = () => {
             </div>
 
             <div className="p-5 space-y-5">
-              {/* BƯỚC 1: THÔNG TIN ĐẶT HÀNG */}
               {checkoutStep === "info" && (
                 <>
                   <div>
@@ -482,7 +479,6 @@ export const CheckoutModal = () => {
                     />
                   </div>
 
-                  {/* Promotion Code */}
                   <div>
                     <label className="block text-sm mb-1">Mã khuyến mãi</label>
                     <div className="flex flex-col sm:flex-row gap-2">
@@ -579,7 +575,6 @@ export const CheckoutModal = () => {
                 </>
               )}
 
-              {/* BƯỚC 2A: CHỌN PHƯƠNG THỨC THANH TOÁN */}
               {checkoutStep === "payment" && !isPayment && (
                 <>
                   <div>
@@ -650,7 +645,6 @@ export const CheckoutModal = () => {
                 </>
               )}
 
-              {/* BƯỚC 2B: HIỂN THỊ MÃ QR DÀNH CHO CỬA HÀNG/CHUYỂN KHỎAN */}
               {checkoutStep === "payment" && isPayment && (
                 <>
                   <div>
@@ -724,7 +718,6 @@ export const CheckoutModal = () => {
           </>
         )}
 
-        {/* FAILED STEP */}
         {checkoutStep === "failed" && (
           <div className="p-5 space-y-5 text-center">
             <div>
