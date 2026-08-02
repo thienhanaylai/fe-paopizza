@@ -177,7 +177,7 @@ export default function POS() {
   const [cart, setCart] = useState<CartItem[]>([]);
   // Track selected crust per product-size key: "productId-size"
   const [selectedCrustMap, setSelectedCrustMap] = useState<Record<string, string>>({});
-  const [hideTable, setHideTable] = useState(true);
+  const [hideTable, setHideTable] = useState(false);
   const [tableNumber, setTableNumber] = useState("");
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
@@ -381,11 +381,11 @@ export default function POS() {
     setComboSelections(prev => {
       const current = prev[ruleIndex] || [];
       const requiredQty = rule?.requiredQuantity || 1;
-      // Còn slot trống → thêm slot mới (cho phép chọn cùng sản phẩm nhiều lần)
+      // còn slot trống thì thêm slot mới (cho phép chọn cùng sản phẩm nhiều lần)
       if (current.length < requiredQty) {
         return { ...prev, [ruleIndex]: [...current, selection] };
       }
-      // Đã đủ số lượng → thay thế phần tử đầu tiên
+      // Đã đủ số lượng thì thay thế phần tử đầu tiên
       const next = [...current];
       next.shift();
       return { ...prev, [ruleIndex]: [...next, selection] };
@@ -405,7 +405,7 @@ export default function POS() {
       if (slotIdx >= 0 && slotIdx < current.length && current[slotIdx]?.productId === productId) {
         current[slotIdx] = { productId, sku: newSku, size: newSize, crust: newCrust };
       } else {
-        // Fallback: tìm theo productId
+        // tìm theo productId
         const idx = current.findIndex(s => s.productId === productId);
         if (idx >= 0) {
           current[idx] = { productId, sku: newSku, size: newSize, crust: newCrust };

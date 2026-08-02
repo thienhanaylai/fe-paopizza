@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import Image from "next/image";
 import { checkPaymentStatus } from "@/src/services/payment.service";
 import { applyPromoCode, PromoCodeResult } from "@/src/services/promotion.service";
+import { getCustomerAddresses, CustomerAddress } from "@/src/services/customer.service";
 import { formatVND } from "@/src/utils/formatVND";
 
 type CheckoutStep = "info" | "payment" | "success" | "failed";
@@ -71,6 +72,10 @@ export const CheckoutModal = () => {
   const [imgQr, setImgQr] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Saved addresses for logged-in users
+  const [savedAddresses, setSavedAddresses] = useState<CustomerAddress[]>([]);
+  const [selectedAddressId, setSelectedAddressId] = useState("");
+
   // Promotion/Discount
   const [promoCode, setPromoCode] = useState("");
   const [promoError, setPromoError] = useState("");
@@ -96,7 +101,7 @@ export const CheckoutModal = () => {
       try {
         const res = await checkPaymentStatus(orderId);
 
-        if (res.data.paymentStatus === "success") {
+        if (res.paymentStatus === "success") {
           stopPolling();
           setCheckoutStep("success");
         }
@@ -124,6 +129,43 @@ export const CheckoutModal = () => {
     fecthData();
     return () => stopPolling();
   }, []);
+
+  // Fetch saved addresses for logged-in users
+  useEffect(() => {
+    if (!user?.id) return;
+    const fetchAddresses = async () => {
+      try {
+        const info = await getInfo();
+        if (info?._id) {
+          const addresses = await getCustomerAddresses(info._id, "customer");
+          setSavedAddresses(addresses || []);
+          // Auto-fill from default address if fields are empty
+          const defaultAddr = (addresses || []).find((a: CustomerAddress) => a.isDefault);
+          if (defaultAddr && !custName && !custPhone) {
+            setCustName(defaultAddr.name || "");
+            setCustPhone(defaultAddr.phone || "");
+            if (orderMethod === "delivery") {
+              setCustAddress(defaultAddr.address || "");
+            }
+            setSelectedAddressId(defaultAddr._id || "");
+          }
+        }
+      } catch {
+        // bỏ qua lỗi fetch address
+      }
+    };
+    fetchAddresses();
+  }, [user?.id]);
+
+  // Handle selecting a saved address
+  const handleSelectAddress = (addressId: string) => {
+    const addr = savedAddresses.find(a => a._id === addressId);
+    if (!addr) return;
+    setSelectedAddressId(addressId);
+    setCustName(addr.name || "");
+    setCustPhone(addr.phone || "");
+    setCustAddress(addr.address || "");
+  };
 
   const clearData = async () => {
     setIdOrder("");
@@ -264,7 +306,7 @@ export const CheckoutModal = () => {
   const handleCheckConfirm = async () => {
     try {
       const res = await checkPaymentStatus(idOrder);
-      if (res.data.paymentStatus === "success") {
+      if (res.paymentStatus === "success") {
         stopPolling();
         setCheckoutStep("success");
         clearData();
@@ -296,7 +338,7 @@ export const CheckoutModal = () => {
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 m-0"
       onClick={() => {
-        if (checkoutStep !== "success") setCheckout(false);
+        if (checkoutStep !== "success" && !imgQr) setCheckout(false);
       }}
     >
       <div
@@ -432,6 +474,24 @@ export const CheckoutModal = () => {
                     </div>
                   </div>
 
+                  {user && savedAddresses.length > 0 && (
+                    <div>
+                      <label className="block text-sm mb-1">Chọn địa chỉ đã lưu</label>
+                      <select
+                        value={selectedAddressId}
+                        onChange={e => handleSelectAddress(e.target.value)}
+                        className="w-full px-4 py-2.5 rounded-xl border border-border bg-background text-sm text-muted-foreground focus:border-primary outline-none"
+                      >
+                        <option value="">-- Chọn địa chỉ đã lưu --</option>
+                        {savedAddresses.map(addr => (
+                          <option key={addr._id} value={addr._id}>
+                            {addr.name} - {addr.phone} - {addr.address} {addr.isDefault ? "(Mặc định)" : ""}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm mb-1">Họ tên *</label>
@@ -461,7 +521,10 @@ export const CheckoutModal = () => {
                       <label className="block text-sm mb-1">Địa chỉ giao hàng *</label>
                       <input
                         value={custAddress}
-                        onChange={e => setCustAddress(e.target.value)}
+                        onChange={e => {
+                          setCustAddress(e.target.value);
+                          setSelectedAddressId("");
+                        }}
                         placeholder="Nhập địa chỉ chi tiết"
                         className="w-full px-4 py-2.5 rounded-xl border border-border bg-background focus:border-primary outline-none"
                       />
@@ -647,11 +710,11 @@ export const CheckoutModal = () => {
 
               {checkoutStep === "payment" && isPayment && (
                 <>
-                  <div>
+                  <div className="m-1">
                     <label className="block text-sm mb-3 text-center font-medium">
                       {imgQr ? "Quét mã QR bên dưới để thanh toán" : "Vui lòng chờ xử lý thanh toán..."}
                     </label>
-                    <div className="space-y-4 flex flex-col items-center">
+                    <div className="space-y-2 flex flex-col items-center">
                       {imgQr ? (
                         <Image
                           src={imgQr}
@@ -666,7 +729,7 @@ export const CheckoutModal = () => {
                           <LoaderCircle size={40} className="animate-spin text-muted-foreground" />
                         </div>
                       )}
-                      <p className="text-sm">
+                      <p className="text-sm m-1">
                         Mã đơn hàng: <span className="font-semibold text-primary">{idOrder}</span>
                       </p>
                       <CountdownTimer

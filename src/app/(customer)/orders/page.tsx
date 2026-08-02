@@ -8,6 +8,10 @@ import { useCustomerAuth } from "@/src/context/authCustomerContext";
 import { formatVND } from "@/src/utils/formatVND";
 import { formatDateTime } from "@/src/utils/formatDateTime";
 import OrderDetailModal from "@/src/components/modals/OrderDetailModal";
+import PaymentQRModal from "@/src/components/modals/PaymentQRModal";
+
+// Thời gian timeout thanh toán (phút) - đồng bộ với backend cron job
+const PAYMENT_TIMEOUT_MINUTES = 15;
 
 function fmtAddress(addr: string | { streetNumber: string; district: string; city: string }): string {
   if (!addr) return "";
@@ -47,6 +51,7 @@ export default function Orders() {
   });
   const [loading, setLoading] = useState(false);
   const [detailOrder, setDetailOrder] = useState<OrderHistory | null>(null);
+  const [paymentOrder, setPaymentOrder] = useState<OrderHistory | null>(null);
 
   const fecthData = async (page: number = 1) => {
     setLoading(true);
@@ -70,6 +75,22 @@ export default function Orders() {
         setModalConfirm(false);
       }
     } catch (error) {}
+  };
+
+  // Kiểm tra đơn hàng đã hết hạn thanh toán chưa
+  const isPaymentExpired = (order: OrderHistory) => {
+    const expiredAt = new Date(new Date(order.createdAt).getTime() + PAYMENT_TIMEOUT_MINUTES * 60 * 1000);
+    return Date.now() > expiredAt.getTime();
+  };
+
+  // Chỉ hiển thị nút thanh toán cho các phương thức hỗ trợ QR
+  const canPayOnline = (order: OrderHistory) => {
+    return ["qrCode", "ewallet", "card"].includes(order.paymentMethod);
+  };
+
+  const handlePaymentSuccess = () => {
+    setPaymentOrder(null);
+    fecthData(pagination.page);
   };
 
   return (
@@ -163,12 +184,14 @@ export default function Orders() {
                       >
                         Huỷ đơn hàng
                       </button>
-                      <button
-                        onClick={() => {}}
-                        className="bg-primary text-primary-foreground py-2 px-3 rounded-xl hover:bg-primary/90 transition-all active:scale-[0.98] text-sm"
-                      >
-                        Thanh toán
-                      </button>
+                      {!isPaymentExpired(order) && canPayOnline(order) && (
+                        <button
+                          onClick={() => setPaymentOrder(order)}
+                          className="bg-primary text-primary-foreground py-2 px-3 rounded-xl hover:bg-primary/90 transition-all active:scale-[0.98] text-sm"
+                        >
+                          Thanh toán
+                        </button>
+                      )}
                     </div>
                   )}
 
@@ -266,6 +289,9 @@ export default function Orders() {
         )}
         <Toaster position="top-right" richColors />
         {detailOrder && <OrderDetailModal order={detailOrder} onClose={() => setDetailOrder(null)} />}
+        {paymentOrder && (
+          <PaymentQRModal order={paymentOrder} onClose={() => setPaymentOrder(null)} onPaymentSuccess={handlePaymentSuccess} />
+        )}
       </div>
     </>
   );
