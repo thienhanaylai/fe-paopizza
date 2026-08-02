@@ -59,16 +59,31 @@ export interface RedeemResult {
   remainingPoint: number;
   message: string;
 }
-export const getAllPromotions = async (typeUser: string | null = null): Promise<Promotion[]> => {
+export interface PaginationInfo {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+export const getAllPromotions = async (
+  typeUser: string | null = null,
+  page?: number,
+  limit?: number,
+): Promise<{ data: Promotion[]; pagination: PaginationInfo }> => {
   try {
+    const params = new URLSearchParams();
+    if (page) params.append("page", String(page));
+    params.append("limit", String(limit || 1000));
+
     const response = await http(
-      "/api/v1/promotions",
+      `/api/v1/promotions?${params.toString()}`,
       {
         method: "GET",
       },
       typeUser,
     );
-    return response.data;
+    return response as { data: Promotion[]; pagination: PaginationInfo };
   } catch (error) {
     console.error("Lỗi fetch promotions:", error);
     throw error;
@@ -190,7 +205,7 @@ export const applyPromoCode = async (code: string, orderTotal: number, storeId: 
 // Lấy danh sách khuyến mãi có thể đổi bằng điểm (point > 0, active)
 export const getRedeemablePromotions = async (): Promise<Promotion[]> => {
   try {
-    const allPromotions: Promotion[] = await getAllPromotions("customer");
+    const { data: allPromotions } = await getAllPromotions("customer");
     const now = new Date();
     return allPromotions.filter(
       p =>

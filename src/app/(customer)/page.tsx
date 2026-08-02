@@ -481,7 +481,7 @@ export default function IndexPage() {
     const fectData = async () => {
       try {
         setIsLoading(true);
-        const categories = await getAllCategories();
+        const { data: categories } = await getAllCategories();
         const menu = selectedStoreId ? await getMenuByStoreId(selectedStoreId) : null;
 
         const mappedCategories: MenuCategoryUI[] = categories
@@ -524,7 +524,7 @@ export default function IndexPage() {
   useEffect(() => {
     const fetchExtraToppings = async () => {
       try {
-        const ingredientList = await getAllIngredients();
+        const { data: ingredientList } = await getAllIngredients();
         setExtraToppings(ingredientList || []);
       } catch {
         setExtraToppings([]);

@@ -74,7 +74,7 @@ export default function MenuManagement() {
   // Lấy dữ liệu ban đầu
   const fetchStores = useCallback(async () => {
     try {
-      const data = await getAllStore();
+      const { data } = await getAllStore();
       const activeStores = (data || []).filter((s: StoreData) => !s.isDeleted);
       setStores(activeStores);
       if (activeStores.length > 0 && !selectedStoreId) {
@@ -96,7 +96,7 @@ export default function MenuManagement() {
 
   const fetchCombos = useCallback(async () => {
     try {
-      const data = await getAllCombos();
+      const { data } = await getAllCombos();
       setCombos(data || []);
     } catch {
       setCombos([]);

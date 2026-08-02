@@ -21,6 +21,7 @@ import { getAllOrder, OrderHistory } from "@/src/services/order.service";
 import Link from "next/link";
 import { formatDateTime } from "@/src/utils/formatDateTime";
 import { toast, Toaster } from "sonner";
+import OrderDetailModal from "@/src/components/modals/OrderDetailModal";
 import {
   addCustomerAddress,
   AddCustomerAddressPayload,
@@ -113,13 +114,14 @@ export default function Profile() {
   const [pwdError, setPwdError] = useState("");
 
   const [ordersHistory, setOrderHistory] = useState<OrderHistory[]>();
+  const [detailOrder, setDetailOrder] = useState<OrderHistory | null>(null);
 
   const fecthData = async () => {
     const customer = await getInfo();
     const res = await getAllOrder(`customer_id=${customer.ref_id?._id}`, "customer");
     const listAddress = await getCustomerAddresses(customer._id, "customer");
     setListAddress(listAddress);
-    setOrderHistory(res);
+    setOrderHistory(res.data);
   };
   useEffect(() => {
     fecthData();
@@ -429,7 +431,15 @@ export default function Profile() {
                             <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-foreground">
                               {orderTypeLabels[order.orderType]}
                             </span>
-                            <span className="text-primary text-sm">{formatVND(order.total)}</span>
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => setDetailOrder(order)}
+                                className="text-xs text-primary hover:underline font-medium"
+                              >
+                                Chi tiết
+                              </button>
+                              <span className="text-primary text-sm">{formatVND(order.total)}</span>
+                            </div>
                           </div>
                         </div>
                       );
@@ -705,6 +715,7 @@ export default function Profile() {
         </div>
       </section>
       <Toaster position="top-right" richColors />
+      {detailOrder && <OrderDetailModal order={detailOrder} onClose={() => setDetailOrder(null)} />}
     </div>
   );
 }

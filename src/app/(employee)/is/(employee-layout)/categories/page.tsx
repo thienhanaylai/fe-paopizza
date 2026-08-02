@@ -67,9 +67,9 @@ export default function CategoriesManagement() {
   const fetchData = async () => {
     try {
       setIsLoading(true);
-      const data = await getAllCategories();
+      const { data: categories } = await getAllCategories();
       // Sắp xếp theo order tăng dần
-      const sorted = (data || []).sort((a: CategoryData, b: CategoryData) => (a.order ?? 0) - (b.order ?? 0));
+      const sorted = (categories || []).sort((a: CategoryData, b: CategoryData) => (a.order ?? 0) - (b.order ?? 0));
       setCategories(sorted);
     } catch (error) {
       toast.error("Không thể tải danh sách danh mục");

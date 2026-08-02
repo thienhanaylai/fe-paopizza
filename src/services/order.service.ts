@@ -126,17 +126,45 @@ export interface OrderHistory {
   createdAt: string;
 }
 
-export const getAllOrder = async (query: string | null, typeUser: string) => {
+export interface PaginationInfo {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+export interface GetAllOrderResponse {
+  data: OrderHistory[];
+  pagination: PaginationInfo;
+}
+
+export const getAllOrder = async (
+  query: string | null,
+  typeUser: string,
+  page: number = 1,
+  limit: number = 10,
+): Promise<GetAllOrderResponse> => {
   try {
+    const params = new URLSearchParams();
+    if (query) {
+      // query có thể là dạng "key=value" hoặc "key=value&key2=value2"
+      const searchParams = new URLSearchParams(query);
+      searchParams.forEach((value, key) => {
+        params.append(key, value);
+      });
+    }
+    params.append("page", String(page));
+    params.append("limit", String(limit));
+
     const response = await http(
-      `/api/v1/orders?${query}`,
+      `/api/v1/orders?${params.toString()}`,
       {
         method: "GET",
       },
       typeUser,
     );
 
-    return response.data;
+    return response as GetAllOrderResponse;
   } catch (error) {
     console.error("Lỗi fetch :", error);
     throw error;

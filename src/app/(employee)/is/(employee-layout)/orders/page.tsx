@@ -125,7 +125,7 @@ export default function Orders() {
     const info = await getInfo();
     if (info?.ref_id?.store_id) {
       const res = await getAllOrder(`store_id=${info.ref_id.store_id}`, "");
-      setAllOrders(res);
+      setAllOrders(res.data);
     }
     setIsLoading(false);
   };

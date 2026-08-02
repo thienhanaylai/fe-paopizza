@@ -109,12 +109,16 @@ export const getMenuByStoreId = async (store_id: string) => {
 
 // === Admin operations ===
 
-export const getAllMenus = async () => {
+export const getAllMenus = async (page?: number, limit?: number) => {
   try {
-    const response = await http("/api/v1/menus", {
+    const params = new URLSearchParams();
+    if (page) params.append("page", String(page));
+    params.append("limit", String(limit || 1000));
+
+    const response = await http(`/api/v1/menus?${params.toString()}`, {
       next: { revalidate: 3600 },
     });
-    return response.data;
+    return response as { data: any[]; pagination: { page: number; limit: number; total: number; totalPages: number } };
   } catch (error) {
     console.error("Lỗi fetch all menus:", error);
     throw error;
@@ -196,12 +200,16 @@ export const applyMenuToStores = async (payload: { storeIds: string[]; products?
   return results;
 };
 
-export const getAllCombos = async () => {
+export const getAllCombos = async (page?: number, limit?: number) => {
   try {
-    const response = await http("/api/v1/combos", {
+    const params = new URLSearchParams();
+    if (page) params.append("page", String(page));
+    params.append("limit", String(limit || 1000));
+
+    const response = await http(`/api/v1/combos?${params.toString()}`, {
       next: { revalidate: 3600 },
     });
-    return response.data;
+    return response as { data: any[]; pagination: { page: number; limit: number; total: number; totalPages: number } };
   } catch (error) {
     console.error("Lỗi fetch combos:", error);
     throw error;

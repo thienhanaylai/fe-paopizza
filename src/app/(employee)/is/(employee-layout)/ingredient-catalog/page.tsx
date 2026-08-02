@@ -69,7 +69,7 @@ export default function IngredientCatalog() {
   useEffect(() => {
     const fectData = async () => {
       try {
-        const data = await getAllIngredients();
+        const { data } = await getAllIngredients();
         const data1 = await getCategoryIngredient();
         const data3 = await getUnitIngredient();
         const finalCategories: Category[] = [
@@ -152,7 +152,7 @@ export default function IngredientCatalog() {
         toast.success("Thêm thành công !");
       }
 
-      const data = await getAllIngredients();
+      const { data } = await getAllIngredients();
       setIngredients(data);
       setShowForm(false);
     } catch (error) {
@@ -164,7 +164,7 @@ export default function IngredientCatalog() {
     try {
       await deleteIngredient({ ingredient_id: id });
       toast.success("Xoá thành công !");
-      const data = await getAllIngredients();
+      const { data } = await getAllIngredients();
       setIngredients(data);
     } catch (error) {
       toast.error("error");

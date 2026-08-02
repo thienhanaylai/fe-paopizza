@@ -1,12 +1,13 @@
 "use client";
 
-import { customerCancelOrder, getAllOrder, OrderHistory } from "@/src/services/order.service";
+import { customerCancelOrder, getAllOrder, OrderHistory, type PaginationInfo } from "@/src/services/order.service";
 import { History } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast, Toaster } from "sonner";
 import { useCustomerAuth } from "@/src/context/authCustomerContext";
 import { formatVND } from "@/src/utils/formatVND";
 import { formatDateTime } from "@/src/utils/formatDateTime";
+import OrderDetailModal from "@/src/components/modals/OrderDetailModal";
 
 function fmtAddress(addr: string | { streetNumber: string; district: string; city: string }): string {
   if (!addr) return "";
@@ -24,7 +25,7 @@ const orderStatusConfig: Record<string, { label: string; color: string }> = {
 };
 const paymentStatusConfig: Record<string, { label: string; color: string }> = {
   pending: { label: "Chờ thanh toán", color: "bg-yellow-100 text-yellow-700" },
-  success: { label: "Hoàn thành", color: "bg-green-200 text-green-700" },
+  success: { label: "Đã thanh toán", color: "bg-green-200 text-green-700" },
   failed: { label: "Đã hủy", color: "bg-red-100 text-red-700" },
 };
 
@@ -38,14 +39,26 @@ export default function Orders() {
   const [modalConfirm, setModalConfirm] = useState(false);
   const [confirmId, setConfirmId] = useState("");
   const [ordersHistory, setOrderHistory] = useState<OrderHistory[]>();
-  const fecthData = async () => {
+  const [pagination, setPagination] = useState<PaginationInfo>({
+    page: 1,
+    limit: 10,
+    total: 0,
+    totalPages: 0,
+  });
+  const [loading, setLoading] = useState(false);
+  const [detailOrder, setDetailOrder] = useState<OrderHistory | null>(null);
+
+  const fecthData = async (page: number = 1) => {
+    setLoading(true);
     const customer = await getInfo();
 
-    const res = await getAllOrder(`customer_id=${customer.ref_id?._id}`, "customer");
-    setOrderHistory(res);
+    const res = await getAllOrder(`customer_id=${customer.ref_id?._id}`, "customer", page, 10);
+    setOrderHistory(res.data);
+    setPagination(res.pagination);
+    setLoading(false);
   };
   useEffect(() => {
-    fecthData();
+    fecthData(1);
   }, []);
 
   const handleCancelOrder = async (oder_id: string) => {
@@ -53,7 +66,7 @@ export default function Orders() {
       const res = await customerCancelOrder(oder_id, "customer");
       if (res) {
         toast.success("Huỷ đơn hàng thành công!");
-        fecthData();
+        fecthData(pagination.page);
         setModalConfirm(false);
       }
     } catch (error) {}
@@ -132,38 +145,33 @@ export default function Orders() {
                   </div>
                   <div className="flex items-center justify-between pt-3 border-t border-border">
                     <span className="text-sm text-muted-foreground">Tổng cộng</span>
-                    <span className="text-primary text-lg">{formatVND(order.total)}</span>
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => setDetailOrder(order)} className="text-xs text-primary hover:underline font-medium">
+                        Chi tiết
+                      </button>
+                      <span className="text-primary text-lg">{formatVND(order.total)}</span>
+                    </div>
                   </div>
-                  {order.paymentStatus === "pending" && order.status !== "confirmed" && (
+                  {order.paymentStatus === "pending" && order.status === "pending" && (
                     <div className="flex gap-2 justify-end mt-2">
                       <button
                         onClick={() => {
                           setModalConfirm(true);
                           setConfirmId(order._id);
                         }}
-                        className="w-[20%] bg-white text-primary py-2 rounded-xl border-primary border-1 hover:text-white hover:bg-primary/90 transition-all active:scale-[0.98] "
+                        className="bg-white text-primary py-2 px-3 rounded-xl border-primary border hover:text-white hover:bg-primary/90 transition-all active:scale-[0.98] text-sm"
                       >
                         Huỷ đơn hàng
                       </button>
                       <button
                         onClick={() => {}}
-                        className="w-[20%] bg-primary text-primary-foreground py-2 rounded-xl hover:bg-primary/90 transition-all active:scale-[0.98] "
+                        className="bg-primary text-primary-foreground py-2 px-3 rounded-xl hover:bg-primary/90 transition-all active:scale-[0.98] text-sm"
                       >
                         Thanh toán
                       </button>
                     </div>
                   )}
-                  {order.status === "completed" ||
-                    (order.status === "cancelled" && (
-                      <div className="flex gap-2 justify-end mt-2">
-                        <button
-                          onClick={() => {}}
-                          className="w-[30%] sm:w-[20%] p-1 sm:p-2 bg-white text-primary py-2 rounded-xl border-primary border-1 hover:text-white hover:bg-primary/90 transition-all active:scale-[0.98] "
-                        >
-                          Đặt lại đơn hàng
-                        </button>
-                      </div>
-                    ))}
+
                   {/* {order.status === "completed" && (
                     <button className="mt-3 w-full py-2.5 rounded-xl border border-primary text-primary text-sm hover:bg-primary/5 transition-colors">
                       Đặt lại đơn này
@@ -173,6 +181,46 @@ export default function Orders() {
               );
             })}
           </div>
+
+          {/* Pagination */}
+          {pagination.totalPages > 1 && (
+            <div className="flex items-center justify-center gap-1 mt-6">
+              <button
+                onClick={() => fecthData(pagination.page - 1)}
+                disabled={pagination.page <= 1 || loading}
+                className="px-3 py-2 rounded-lg border border-border text-sm hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                Trước
+              </button>
+
+              {Array.from({ length: pagination.totalPages }, (_, i) => i + 1).map(pageNum => (
+                <button
+                  key={pageNum}
+                  onClick={() => fecthData(pageNum)}
+                  disabled={loading}
+                  className={`w-9 h-9 rounded-lg text-sm font-medium transition-colors ${
+                    pageNum === pagination.page ? "bg-primary text-primary-foreground" : "border border-border hover:bg-muted"
+                  }`}
+                >
+                  {pageNum}
+                </button>
+              ))}
+
+              <button
+                onClick={() => fecthData(pagination.page + 1)}
+                disabled={pagination.page >= pagination.totalPages || loading}
+                className="px-3 py-2 rounded-lg border border-border text-sm hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                Sau
+              </button>
+            </div>
+          )}
+
+          {loading && (
+            <div className="flex justify-center mt-4">
+              <span className="text-sm text-muted-foreground">Đang tải...</span>
+            </div>
+          )}
         </div>
         {modalConfirm && (
           <>
@@ -217,6 +265,7 @@ export default function Orders() {
           </>
         )}
         <Toaster position="top-right" richColors />
+        {detailOrder && <OrderDetailModal order={detailOrder} onClose={() => setDetailOrder(null)} />}
       </div>
     </>
   );

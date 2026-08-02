@@ -109,7 +109,7 @@ export const CheckoutModal = () => {
   useEffect(() => {
     const fecthData = async () => {
       try {
-        const stores = await getAllStore();
+        const { data: stores } = await getAllStore();
         const finalList = stores.filter(item => item.status === "active");
         setListStore(finalList);
 

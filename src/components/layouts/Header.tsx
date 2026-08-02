@@ -77,7 +77,7 @@ export default function Header() {
   const [showMobileMenu, setShowMobileMenu] = useState(false);
 
   const fectData = async () => {
-    const liststr = await getAllStore();
+    const { data: liststr } = await getAllStore();
     setListStore(liststr);
 
     const selectedStoreId = localStorage.getItem("selected_store");

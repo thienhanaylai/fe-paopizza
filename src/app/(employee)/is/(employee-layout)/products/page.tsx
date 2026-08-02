@@ -181,9 +181,9 @@ export default function Products() {
 
   const fetchProductData = async () => {
     try {
-      const ListProduct = await getAllProducts();
-      const ListCategory = await getAllCategories();
-      const ListIngredients = await getAllIngredients();
+      const { data: ListProduct } = await getAllProducts();
+      const { data: ListCategory } = await getAllCategories();
+      const { data: ListIngredients } = await getAllIngredients();
       const mappedCategories: MenuCategoryUI[] = ListCategory.filter((cat: any) => cat.isActive && !cat.isDeleted).map(
         (cat: any) => ({
           _id: cat._id,
@@ -341,9 +341,9 @@ export default function Products() {
   const fetchComboData = async () => {
     try {
       const [comboData, catData, prodData] = await Promise.all([getAllCombos(), getAllCategories(), getAllProducts()]);
-      setCombos(comboData || []);
-      setComboCategories((catData || []).filter((c: any) => c.isActive && !c.isDeleted));
-      setComboProducts(prodData || []);
+      setCombos(comboData.data || []);
+      setComboCategories((catData.data || []).filter((c: any) => c.isActive && !c.isDeleted));
+      setComboProducts(prodData.data || []);
     } catch {
       toast.error("Không thể tải dữ liệu combo");
     }

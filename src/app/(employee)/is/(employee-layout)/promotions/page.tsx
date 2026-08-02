@@ -103,11 +103,11 @@ export default function PromotionsPage() {
   // Data fetching
   const fetchData = async () => {
     try {
-      const [promotions, stores] = await Promise.all([getAllPromotions(), getAllStore()]);
-      setListPromotions(promotions || []);
+      const [promotionsRes, storesRes] = await Promise.all([getAllPromotions(), getAllStore()]);
+      setListPromotions(promotionsRes.data || []);
       const map = new Map<string, string>();
-      if (stores) {
-        stores.forEach((s: { _id: string; name: string }) => map.set(s._id, s.name));
+      if (storesRes.data) {
+        storesRes.data.forEach((s: { _id: string; name: string }) => map.set(s._id, s.name));
       }
       setStoreMap(map);
       setIsPageLoading(false);

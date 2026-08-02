@@ -86,8 +86,8 @@ export default function Accounts() {
 
   useEffect(() => {
     const fecthData = async () => {
-      const res = await getAllUser();
-      const res2 = await getAllStore();
+      const { data: res } = await getAllUser();
+      const { data: res2 } = await getAllStore();
       setListStore(res2);
       setListUser(res);
       setIsPageLoading(false);

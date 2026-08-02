@@ -104,7 +104,7 @@ export default function Stores() {
       : managerOptions;
 
   const fecthdata = async () => {
-    const res = await getAllStore();
+    const { data: res } = await getAllStore();
     const listManager = await getEmployeeByRole("manager");
 
     const totalRev = await getRevenue(getMonthRange().start, getMonthRange().end, "", "", "", "");

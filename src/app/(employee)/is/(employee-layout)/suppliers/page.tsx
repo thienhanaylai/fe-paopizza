@@ -53,7 +53,7 @@ export default function Suppliers() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const fetchSuppliers = async () => {
-    const res = await getAllSupplier();
+    const { data: res } = await getAllSupplier();
     setListSuppliers(res || []);
     setIsPageLoading(false);
   };

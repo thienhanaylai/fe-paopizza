@@ -217,8 +217,8 @@ export default function POS() {
     const fectData = async () => {
       try {
         setIsLoading(true);
-        const categories = await getAllCategories();
-        const products = await getAllProducts();
+        const { data: categories } = await getAllCategories();
+        const { data: products } = await getAllProducts();
 
         const mappedCategories: MenuCategoryUI[] = categories
           .filter(cat => cat.isActive && !cat.isDeleted)
@@ -575,8 +575,8 @@ export default function POS() {
       try {
         const storeId = user?.store_id;
         if (storeId) {
-          const stores = await getAllStore();
-          const matched = stores.find((s: StoreData) => s._id === storeId);
+          const { data: stores } = await getAllStore();
+          const matched = (stores as StoreData[]).find((s: StoreData) => s._id === storeId);
           if (matched) setStoreInfo(matched);
         }
       } catch {

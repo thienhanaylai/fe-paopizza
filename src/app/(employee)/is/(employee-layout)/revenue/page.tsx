@@ -618,10 +618,10 @@ export default function Revenue() {
 
         setEmployee(employeeInfo);
 
-        const storeList = (await getAllStore()) as StoreData[];
+        const { data: storeList } = await getAllStore();
         if (cancelled) return;
 
-        setStores(storeList.sort((a, b) => a.name.localeCompare(b.name)) || []);
+        setStores((storeList as StoreData[]).sort((a, b) => a.name.localeCompare(b.name)) || []);
 
         const initialStore = isAdmin ? "all" : employeeInfo?.ref_id?.store_id || "all";
         if (!isAdmin) {

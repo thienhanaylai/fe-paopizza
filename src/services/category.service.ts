@@ -12,12 +12,23 @@ export type CategoryData = {
   updatedAt?: string;
 };
 
-export const getAllCategories = async () => {
+export interface PaginationInfo {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+export const getAllCategories = async (page?: number, limit?: number) => {
   try {
-    const data = await http("/api/v1/categories", {
+    const params = new URLSearchParams();
+    if (page) params.append("page", String(page));
+    params.append("limit", String(limit || 1000));
+
+    const data = await http(`/api/v1/categories?${params.toString()}`, {
       next: { revalidate: 3600 },
     });
-    return data.data;
+    return data as { data: CategoryData[]; pagination: PaginationInfo };
   } catch (error) {
     console.error("Lỗi fetch categories:", error);
     throw error;

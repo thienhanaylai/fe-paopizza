@@ -129,7 +129,7 @@ export default function Employees() {
         return;
       }
 
-      const list = await getAllEmployee();
+      const { data: list } = await getAllEmployee();
       setListEmployee(list);
       setIsPageLoading(false);
     },

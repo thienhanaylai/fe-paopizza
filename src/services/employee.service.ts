@@ -34,12 +34,23 @@ export interface UpdateEmployeePayload {
   status?: boolean;
 }
 
-export const getAllEmployee = async () => {
+export interface PaginationInfo {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+export const getAllEmployee = async (page?: number, limit?: number) => {
   try {
-    const response = await http("/api/v1/employees", {
+    const params = new URLSearchParams();
+    if (page) params.append("page", String(page));
+    params.append("limit", String(limit || 1000));
+
+    const response = await http(`/api/v1/employees?${params.toString()}`, {
       method: "GET",
     });
-    return response.data;
+    return response as { data: any[]; pagination: PaginationInfo };
   } catch (error) {
     console.error("Lỗi:", error);
     throw error;

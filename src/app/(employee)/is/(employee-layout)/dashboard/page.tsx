@@ -533,7 +533,9 @@ export default function DashboardPage() {
         if (role === "admin") {
           setAdminLoading(true);
 
-          const [stores, employees] = (await Promise.all([getAllStore(), getAllEmployee()])) as [StoreData[], unknown[]];
+          const [storesRes, employeesRes] = await Promise.all([getAllStore(), getAllEmployee()]);
+          const stores = storesRes.data as StoreData[];
+          const employees = employeesRes.data as unknown[];
           const monthRange = getMonthRange(0);
 
           const systemMonthOverview = (await getRevenue(monthRange.start, monthRange.end, "", "", "", "")) as RevenueOverview;
@@ -614,7 +616,7 @@ export default function DashboardPage() {
             }),
           );
 
-          const allOrders = (await getAllOrder(`store_id=${StoreId}`, "")) as OrderHistory[];
+          const allOrders = (await getAllOrder(`store_id=${StoreId}`, "")).data as OrderHistory[];
           const safeOrders = Array.isArray(allOrders) ? allOrders : [];
 
           const monthStart = getStartOfMonth();

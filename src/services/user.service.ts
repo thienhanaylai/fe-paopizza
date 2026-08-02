@@ -37,13 +37,27 @@ export interface User {
   username: string;
   ref_id: Customer | Employee;
 }
-export const getAllUser = async () => {
+export interface PaginationInfo {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+export const getAllUser = async (page?: number, limit?: number) => {
   try {
-    const response = await http("/api/v1/users", {
+    const params = new URLSearchParams();
+    if (page) params.append("page", String(page));
+    params.append("limit", String(limit || 1000));
+
+    const response = await http(`/api/v1/users?${params.toString()}`, {
       method: "GET",
     });
-    const data = response.data;
-    return Array.isArray(data) ? data.filter(user => user?.isDeleted === false) : data;
+    const result = response as { data: User[]; pagination: PaginationInfo };
+    return {
+      ...result,
+      data: Array.isArray(result.data) ? result.data.filter((user: User) => user?.isDeleted === false) : result.data,
+    };
   } catch (error) {
     console.error("Lỗi fetch list user:", error);
     throw error;

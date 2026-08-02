@@ -38,13 +38,24 @@ export interface UpdateComboPayload {
   isActive?: boolean;
 }
 
+export interface PaginationInfo {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
 // API calls
-export const getAllCombos = async () => {
+export const getAllCombos = async (page?: number, limit?: number) => {
   try {
-    const data = await http("/api/v1/combos", {
+    const params = new URLSearchParams();
+    if (page) params.append("page", String(page));
+    params.append("limit", String(limit || 1000));
+
+    const data = await http(`/api/v1/combos?${params.toString()}`, {
       next: { revalidate: 3600 },
     });
-    return data.data;
+    return data as { data: any[]; pagination: PaginationInfo };
   } catch (error) {
     console.error("Lỗi fetch combos:", error);
     throw error;
