@@ -1,8 +1,6 @@
 "use client";
 import { useMemo, useState } from "react";
-
 export type SortDirection = "asc" | "desc";
-
 export interface SortConfig {
   key: string;
   direction: SortDirection;
@@ -23,38 +21,43 @@ export function useSort<T>(data: T[], defaultKey: string = "name", defaultDir: S
 
   const sortedData = useMemo(() => {
     if (!data || data.length === 0) return data;
+
     const sorted = [...data].sort((a: any, b: any) => {
       const aVal = a[sortConfig.key];
       const bVal = b[sortConfig.key];
 
-      // Xử lý null/undefined: đẩy về cuối
+      // Xử lý null/undefined
       if (aVal == null && bVal == null) return 0;
       if (aVal == null) return 1;
       if (bVal == null) return -1;
 
-      // Xử lý nested object (vd: ref_id.name) — hiện chưa hỗ trợ dot notation, cần mở rộng
-      let aCompare = aVal;
-      let bCompare = bVal;
-
-      // Xử lý number
+      // Xử lý Number
       if (typeof aVal === "number" && typeof bVal === "number") {
         return sortConfig.direction === "asc" ? aVal - bVal : bVal - aVal;
       }
 
-      // Xử lý date
-      if (aVal instanceof Date || !isNaN(Date.parse(aVal))) {
-        aCompare = new Date(aVal).getTime();
-        bCompare = new Date(bVal).getTime();
-        return sortConfig.direction === "asc" ? aCompare - bCompare : bCompare - aCompare;
+      //Xử lý Date
+      const isADate =
+        aVal instanceof Date || (typeof aVal === "string" && !isNaN(Date.parse(aVal)) && /^\d{4}-\d{2}-\d{2}/.test(aVal));
+      const isBDate =
+        bVal instanceof Date || (typeof bVal === "string" && !isNaN(Date.parse(bVal)) && /^\d{4}-\d{2}-\d{2}/.test(bVal));
+
+      if (isADate && isBDate) {
+        const aTime = new Date(aVal).getTime();
+        const bTime = new Date(bVal).getTime();
+        return sortConfig.direction === "asc" ? aTime - bTime : bTime - aTime;
       }
 
-      // Xử lý string (mặc định)
-      aCompare = String(aVal).toLowerCase();
-      bCompare = String(bVal).toLowerCase();
+      // Xử lý String
+      const aStr = String(aVal);
+      const bStr = String(bVal);
 
-      if (aCompare < bCompare) return sortConfig.direction === "asc" ? -1 : 1;
-      if (aCompare > bCompare) return sortConfig.direction === "asc" ? 1 : -1;
-      return 0;
+      const cmp = aStr.localeCompare(bStr, undefined, {
+        numeric: true,
+        sensitivity: "base", // Bỏ qua phân biệt hoa/thường
+      });
+
+      return sortConfig.direction === "asc" ? cmp : -cmp;
     });
 
     return sorted;
