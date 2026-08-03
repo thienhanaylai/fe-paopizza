@@ -154,7 +154,7 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
         "customer",
         { skipUnauthorized: true },
       )) as LoginApiResponse;
-
+      console.log(data);
       if (!data.accessToken || !data.user?.id) {
         return {
           success: false,
@@ -205,7 +205,12 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       const status = (error as { status?: number; data?: { message?: string } })?.status;
       const message = (error as { data?: { message?: string } })?.data?.message;
-
+      if (status === 429) {
+        return {
+          success: false,
+          message: message || "Vui lòng đăng nhập lại sau!",
+        };
+      }
       if (status === 401) {
         return {
           success: false,

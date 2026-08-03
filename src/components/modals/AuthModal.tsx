@@ -64,11 +64,12 @@ export const AuthModal = () => {
       setIsSubmitting(true);
       const result = await customerLogin(phone, password);
       setIsSubmitting(false);
-
       if (result.success) {
         handleClose();
       } else {
-        setError(result.message === "ACCOUNT_NOT_FOUND" ? "Không tìm thấy tài khoản!" : "Đăng nhập thất bại");
+        if (result.message === "RATE_LIMIT") setError(result.message === "RATE_LIMIT" ? "Vui lòng đăng nhập lại sau 1 giờ!" : "");
+        if (result.message === "ACCOUNT_NOT_FOUND")
+          setError(result.message === "ACCOUNT_NOT_FOUND" ? "Không tìm thấy tài khoản!" : "");
       }
     }
   };
