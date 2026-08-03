@@ -10,15 +10,6 @@ import { formatDateTime } from "@/src/utils/formatDateTime";
 import OrderDetailModal from "@/src/components/modals/OrderDetailModal";
 import PaymentQRModal from "@/src/components/modals/PaymentQRModal";
 
-// Thời gian timeout thanh toán (phút) - đồng bộ với backend cron job
-const PAYMENT_TIMEOUT_MINUTES = 15;
-
-function fmtAddress(addr: string | { streetNumber: string; district: string; city: string }): string {
-  if (!addr) return "";
-  if (typeof addr === "string") return addr;
-  return [addr.streetNumber, addr.district, addr.city].filter(Boolean).join(", ");
-}
-
 const orderStatusConfig: Record<string, { label: string; color: string }> = {
   pending: { label: "Chờ xử lý", color: "bg-yellow-100 text-yellow-700" },
   confirmed: { label: "Đã xác nhận", color: "bg-teal-100 text-teal-700" },
@@ -26,11 +17,6 @@ const orderStatusConfig: Record<string, { label: string; color: string }> = {
   delivering: { label: "Đang giao", color: "bg-purple-100 text-purple-700" },
   completed: { label: "Hoàn thành", color: "bg-green-200 text-green-700" },
   cancelled: { label: "Đã hủy", color: "bg-red-100 text-red-700" },
-};
-const paymentStatusConfig: Record<string, { label: string; color: string }> = {
-  pending: { label: "Chờ thanh toán", color: "bg-yellow-100 text-yellow-700" },
-  success: { label: "Đã thanh toán", color: "bg-green-200 text-green-700" },
-  failed: { label: "Đã hủy", color: "bg-red-100 text-red-700" },
 };
 
 const orderTypeLabels: Record<string, string> = {
@@ -77,17 +63,6 @@ export default function Orders() {
     } catch (error) {}
   };
 
-  // Kiểm tra đơn hàng đã hết hạn thanh toán chưa
-  const isPaymentExpired = (order: OrderHistory) => {
-    const expiredAt = new Date(new Date(order.createdAt).getTime() + PAYMENT_TIMEOUT_MINUTES * 60 * 1000);
-    return Date.now() > expiredAt.getTime();
-  };
-
-  // Chỉ hiển thị nút thanh toán cho các phương thức hỗ trợ QR
-  const canPayOnline = (order: OrderHistory) => {
-    return ["qrCode", "ewallet", "card"].includes(order.paymentMethod);
-  };
-
   const handlePaymentSuccess = () => {
     setPaymentOrder(null);
     fecthData(pagination.page);
@@ -112,94 +87,42 @@ export default function Orders() {
             )}
             {ordersHistory?.map(order => {
               const st = orderStatusConfig[order.status];
-              const pt = paymentStatusConfig[order.paymentStatus];
               return (
-                <div key={order._id} className="bg-card rounded-2xl border border-border p-5 hover:shadow-md transition-shadow">
-                  <div className="flex  sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 ">
-                    <div className="flex gap-2">
-                      <div className=" flex flex-col gap-2">
-                        <span
-                          title="Nhấn để copy toàn bộ ID"
-                          onClick={async () => {
-                            try {
-                              await navigator.clipboard.writeText(order._id);
-                              toast.success("Đã sao chép ID!");
-                            } catch (err) {
-                              toast.error("Không thể sao chép ID");
-                            }
-                          }}
-                          className="hover:underline text-primary cursor-pointer "
-                        >
-                          ...{order._id.slice(-9)}
-                        </span>
-                        <span className="text-sm text-muted-foreground">{formatDateTime(order.createdAt)}</span>
-                      </div>
-                      <div className="flex flex-col gap-1">
-                        <span className="text-sm w-fit px-2 py-1 rounded-full bg-primary/10 text-primary ">
-                          {order.store_id.name}
-                        </span>
-                        <span className="text-sm text-muted-foreground underline">{fmtAddress(order.store_id.address)}</span>
-                      </div>
+                <div key={order._id} className="border border-border rounded-xl p-4 hover:border-primary/30 transition-colors">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center text-sm gap-3">
+                      <span
+                        title="Nhấn để copy toàn bộ ID"
+                        onClick={async () => {
+                          try {
+                            await navigator.clipboard.writeText(order._id);
+                            toast.success("Đã sao chép ID!");
+                          } catch (err) {
+                            toast.error("Không thể sao chép ID");
+                          }
+                        }}
+                        className="hover:underline text-primary cursor-pointer "
+                      >
+                        ...{order._id.slice(-9)}
+                      </span>
+                      <span className="text-xs text-muted-foreground">{formatDateTime(order.createdAt)}</span>
                     </div>
-                    <div className="flex flex-col items-end gap-2">
-                      <div className="flex gap-2">
-                        <span className="px-2 py-1 rounded-full text-xs bg-muted text-foreground">
-                          {orderTypeLabels[order.orderType]}
-                        </span>
-                        <span className={`px-2 py-1 rounded-full text-xs ${pt.color}`}>{pt.label}</span>
-                      </div>
-                      {order.status !== "cancelled" && (
-                        <span className={`px-2 py-1 rounded-full text-xs ${st.color}`}>{st.label}</span>
-                      )}
-                    </div>
+                    <span className={`px-2 py-0.5 rounded-full text-[11px] ${st.color}`}>{st.label}</span>
                   </div>
-                  <div className="space-y-2 mb-4">
-                    {order.items.map((item, i) => (
-                      <div key={i} className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">
-                          {item.product_id?.name || item.sku} x{item.quantity}
-                        </span>
-
-                        <span className="text-foreground">{formatVND(item.price * item.quantity)}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="flex items-center justify-between pt-3 border-t border-border">
-                    <span className="text-sm text-muted-foreground">Tổng cộng</span>
+                  <p className="text-xs text-muted-foreground truncate mb-2">
+                    {order.items.map(i => `${i.product_id?.name || i.sku} x${i.quantity}`).join(", ")}
+                  </p>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-foreground">
+                      {orderTypeLabels[order.orderType]}
+                    </span>
                     <div className="flex items-center gap-2">
                       <button onClick={() => setDetailOrder(order)} className="text-xs text-primary hover:underline font-medium">
                         Chi tiết
                       </button>
-                      <span className="text-primary text-lg">{formatVND(order.total)}</span>
+                      <span className="text-primary text-sm">{formatVND(order.total)}</span>
                     </div>
                   </div>
-                  {order.paymentStatus === "pending" && order.status === "pending" && (
-                    <div className="flex gap-2 justify-end mt-2">
-                      <button
-                        onClick={() => {
-                          setModalConfirm(true);
-                          setConfirmId(order._id);
-                        }}
-                        className="bg-white text-primary py-2 px-3 rounded-xl border-primary border hover:text-white hover:bg-primary/90 transition-all active:scale-[0.98] text-sm"
-                      >
-                        Huỷ đơn hàng
-                      </button>
-                      {!isPaymentExpired(order) && canPayOnline(order) && (
-                        <button
-                          onClick={() => setPaymentOrder(order)}
-                          className="bg-primary text-primary-foreground py-2 px-3 rounded-xl hover:bg-primary/90 transition-all active:scale-[0.98] text-sm"
-                        >
-                          Thanh toán
-                        </button>
-                      )}
-                    </div>
-                  )}
-
-                  {/* {order.status === "completed" && (
-                    <button className="mt-3 w-full py-2.5 rounded-xl border border-primary text-primary text-sm hover:bg-primary/5 transition-colors">
-                      Đặt lại đơn này
-                    </button>
-                  )} */}
                 </div>
               );
             })}

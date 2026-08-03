@@ -134,7 +134,7 @@ export default function Header() {
                 {showStorePicker && (
                   <>
                     <div className="fixed inset-0 z-35 h-screen w-full" onClick={() => setShowStorePicker(false)} />
-                    <div className="absolute z-40 top-full mt-2 left-0 w-72 sm:w-80 bg-card rounded-xl border border-border shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
+                    <div className="absolute z-40 top-full mt-2 left-[-20vw] md:left-0 w-72 sm:w-80 bg-card rounded-xl border border-border shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
                       <div className="px-4 py-2.5 border-b border-border bg-muted/30">
                         <p className="text-xs text-muted-foreground">Chọn chi nhánh PaoPizza gần bạn</p>
                       </div>
