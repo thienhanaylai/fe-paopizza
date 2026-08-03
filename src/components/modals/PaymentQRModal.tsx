@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef } from "react";
 import { X, Clock, Copy, CheckCircle2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { OrderHistory } from "@/src/services/order.service";
@@ -25,6 +25,12 @@ export default function PaymentQRModal({ order, onClose, onPaymentSuccess }: Pay
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Dùng ref để tránh startPolling phụ thuộc vào onClose, onPaymentSuccess
+  const onCloseRef = useRef(onClose);
+  const onPaymentSuccessRef = useRef(onPaymentSuccess);
+  onCloseRef.current = onClose;
+  onPaymentSuccessRef.current = onPaymentSuccess;
+
   // Tính thời gian hết hạn dựa trên createdAt + timeout
   const expiredAt = new Date(new Date(order.createdAt).getTime() + PAYMENT_TIMEOUT_MINUTES * 60 * 1000);
 
@@ -46,38 +52,47 @@ export default function PaymentQRModal({ order, onClose, onPaymentSuccess }: Pay
   };
 
   // Fetch payment info
-  const fetchPaymentData = useCallback(async () => {
+  const fetchPaymentData = async () => {
     try {
       setLoading(true);
       setError(null);
       const data = await createPaymentRequest(order._id, "customer");
       setPaymentData(data);
       setLoading(false);
+      // Bắt đầu poll sau khi có payment data (giống cơ chế CheckoutModal)
+      startPolling();
     } catch (err: any) {
       setError(err?.data?.message || err?.message || "Không thể tạo mã thanh toán");
       setLoading(false);
     }
-  }, [order._id]);
+  };
 
-  // Poll payment status
-  const startPolling = useCallback(() => {
-    if (pollRef.current) clearInterval(pollRef.current);
+  // Poll payment status - tham khảo cơ chế từ CheckoutModal
+  const stopPolling = () => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+  };
+
+  const startPolling = () => {
+    stopPolling();
     pollRef.current = setInterval(async () => {
       try {
         const status = await checkPaymentStatus(order._id, "customer");
-        if (status.paymentState === "paid") {
-          setIsPaid(true);
-          if (pollRef.current) clearInterval(pollRef.current);
+        if (status.paymentStatus === "success") {
+          stopPolling();
           if (countdownRef.current) clearInterval(countdownRef.current);
+          setIsPaid(true);
           toast.success("Thanh toán thành công!");
-          onPaymentSuccess?.();
-          setTimeout(() => onClose(), 2000);
+          onPaymentSuccessRef.current?.();
+          setTimeout(() => onCloseRef.current(), 2000);
         }
       } catch {
         // bỏ qua lỗi poll
       }
     }, 3000);
-  }, [order._id, onClose, onPaymentSuccess]);
+  };
 
   // Countdown timer
   useEffect(() => {
@@ -103,17 +118,12 @@ export default function PaymentQRModal({ order, onClose, onPaymentSuccess }: Pay
   // Fetch payment data on mount
   useEffect(() => {
     fetchPaymentData();
-  }, [fetchPaymentData]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Start polling after payment data is loaded
+  // Cleanup polling on unmount (giống CheckoutModal)
   useEffect(() => {
-    if (paymentData && !isPaid && timeLeft > 0) {
-      startPolling();
-    }
-    return () => {
-      if (pollRef.current) clearInterval(pollRef.current);
-    };
-  }, [paymentData, isPaid, timeLeft, startPolling]);
+    return () => stopPolling();
+  }, []);
 
   const isExpired = timeLeft <= 0;
 
@@ -226,7 +236,7 @@ export default function PaymentQRModal({ order, onClose, onPaymentSuccess }: Pay
             onClick={onClose}
             className="w-full py-2.5 rounded-xl bg-muted hover:bg-muted/80 text-foreground text-sm font-medium transition-colors"
           >
-            {isPaid ? "Đóng" : "Đóng (sẽ kiểm tra lại sau)"}
+            {isPaid ? "Đã thanh toán!" : "Đóng"}
           </button>
         </div>
       </div>

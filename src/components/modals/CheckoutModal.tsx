@@ -130,7 +130,7 @@ export const CheckoutModal = () => {
     return () => stopPolling();
   }, []);
 
-  // Fetch saved addresses for logged-in users
+  // lấy dánh sách địa chỉ đã lưu
   useEffect(() => {
     if (!user?.id) return;
     const fetchAddresses = async () => {
@@ -139,9 +139,9 @@ export const CheckoutModal = () => {
         if (info?._id) {
           const addresses = await getCustomerAddresses(info._id, "customer");
           setSavedAddresses(addresses || []);
-          // Auto-fill from default address if fields are empty
           const defaultAddr = (addresses || []).find((a: CustomerAddress) => a.isDefault);
           if (defaultAddr && !custName && !custPhone) {
+            console.log(defaultAddr);
             setCustName(defaultAddr.name || "");
             setCustPhone(defaultAddr.phone || "");
             setCustAddress(defaultAddr.address || "");
@@ -230,6 +230,7 @@ export const CheckoutModal = () => {
           ? cart?.items?.map(cartItem => ({
               ...cartItem,
               product_id: typeof cartItem.product_id === "string" ? cartItem.product_id : cartItem.product_id?._id,
+              combo_id: typeof cartItem.combo === "string" ? cartItem.combo : (cartItem.combo as { _id: string })?._id,
               added_topping: Array.isArray(cartItem.added_topping)
                 ? cartItem.added_topping.map(topping => ({
                     ingredient: typeof topping === "string" ? topping : topping._id,

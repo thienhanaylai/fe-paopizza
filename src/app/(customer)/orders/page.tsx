@@ -2,7 +2,7 @@
 
 import { customerCancelOrder, getAllOrder, OrderHistory, type PaginationInfo } from "@/src/services/order.service";
 import { History } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast, Toaster } from "sonner";
 import { useCustomerAuth } from "@/src/context/authCustomerContext";
 import { formatVND } from "@/src/utils/formatVND";
@@ -75,9 +75,10 @@ export default function Orders() {
   };
 
   const handlePaymentSuccess = () => {
-    setPaymentOrder(null);
     fecthData(pagination.page);
   };
+
+  const handleClosePayment = useCallback(() => setPaymentOrder(null), []);
 
   return (
     <>
@@ -234,7 +235,7 @@ export default function Orders() {
         <Toaster position="top-right" richColors />
         {detailOrder && <OrderDetailModal order={detailOrder} onClose={() => setDetailOrder(null)} />}
         {paymentOrder && (
-          <PaymentQRModal order={paymentOrder} onClose={() => setPaymentOrder(null)} onPaymentSuccess={handlePaymentSuccess} />
+          <PaymentQRModal order={paymentOrder} onClose={handleClosePayment} onPaymentSuccess={handlePaymentSuccess} />
         )}
       </div>
     </>

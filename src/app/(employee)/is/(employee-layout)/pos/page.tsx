@@ -87,6 +87,9 @@ interface ComboDisplay {
   image?: string;
   price: number;
   rules: ComboRule[];
+  pricingType?: "static" | "dynamic";
+  discountType?: "percent" | "amount";
+  discount?: number;
 }
 
 const parseCrustOptions = (value: string | string[] | undefined): string[] => {
@@ -264,6 +267,9 @@ export default function POS() {
                   image: c.image,
                   price: c.price ?? 0,
                   rules: Array.isArray(c.rules) ? c.rules : [],
+                  pricingType: c.pricingType,
+                  discountType: c.discountType,
+                  discount: c.discount,
                 };
               });
               setCombos(mapped);
@@ -427,6 +433,41 @@ export default function POS() {
     });
   }, [selectedCombo, comboSelections]);
 
+  /** Tính giá động cho combo dựa trên các sản phẩm đã chọn (giống trang chủ) */
+  const computeDynamicComboPrice = (): number => {
+    if (!selectedCombo || selectedCombo.pricingType !== "dynamic") return selectedCombo?.price ?? 0;
+
+    let total = 0;
+    selectedCombo.rules.forEach((_rule, idx) => {
+      const selections = comboSelections[idx] || [];
+      selections.forEach(sel => {
+        const product = menuProducts.find(p => p._id === sel.productId);
+        const variant = product?.variants.find(v => v.sku === sel.sku);
+        if (variant) {
+          total += variant.price;
+        }
+      });
+    });
+
+    // Áp dụng discount nếu có
+    if (selectedCombo.discountType === "percent" && selectedCombo.discount && selectedCombo.discount > 0) {
+      total = Math.round(total * (1 - selectedCombo.discount / 100));
+    } else if (selectedCombo.discountType === "amount" && selectedCombo.discount && selectedCombo.discount > 0) {
+      total = Math.max(0, total - selectedCombo.discount);
+    }
+
+    return total;
+  };
+
+  /** Giá hiển thị của combo: static thì dùng giá fix, dynamic thì tính từ selections */
+  const getDisplayComboPrice = (): number => {
+    if (!selectedCombo) return 0;
+    if (selectedCombo.pricingType === "dynamic") {
+      return computeDynamicComboPrice();
+    }
+    return selectedCombo.price;
+  };
+
   const handleAddComboToCart = () => {
     if (!selectedCombo || !allComboSelectionsFilled) return;
     comboCounterRef.current += 1;
@@ -434,11 +475,12 @@ export default function POS() {
     selectedCombo.rules.forEach((_rule, idx) => {
       (comboSelections[idx] || []).forEach(sel => allSelections.push(sel));
     });
+    const finalPrice = getDisplayComboPrice();
     addToCart({
       item_type: "combo",
       combo_id: selectedCombo._id,
       name: selectedCombo.name,
-      price: selectedCombo.price,
+      price: finalPrice,
       sku: `combo-${selectedCombo._id}-${comboCounterRef.current}`,
       quantity: 1,
       note: "",
@@ -1237,7 +1279,11 @@ export default function POS() {
                       <div className="p-2.5">
                         <p className="text-xs text-foreground truncate">{combo.name}</p>
                         <div className="flex items-center gap-1.5 mt-1">
-                          <span className="text-xs text-primary">{formatVND(combo.price)}</span>
+                          {combo.pricingType === "dynamic" ? (
+                            <span className="text-xs text-orange-500 font-medium">Giá động</span>
+                          ) : (
+                            <span className="text-xs text-primary">{formatVND(combo.price)}</span>
+                          )}
                         </div>
                       </div>
                     </button>
@@ -1589,7 +1635,7 @@ export default function POS() {
             </div>
 
             <div className="border-t border-border pt-3 flex items-center justify-between">
-              <span className="text-primary font-bold text-lg">{formatVND(selectedCombo.price)}</span>
+              <span className="text-primary font-bold text-lg">{formatVND(getDisplayComboPrice())}</span>
               <button
                 onClick={handleAddComboToCart}
                 disabled={!allComboSelectionsFilled}
@@ -1599,7 +1645,7 @@ export default function POS() {
                     : "bg-muted text-muted-foreground cursor-not-allowed"
                 }`}
               >
-                <Plus size={16} /> Thêm vào giỏ ({formatVND(selectedCombo.price)})
+                <Plus size={16} /> Thêm vào giỏ ({formatVND(getDisplayComboPrice())})
               </button>
             </div>
           </div>
