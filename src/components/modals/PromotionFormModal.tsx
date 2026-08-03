@@ -132,7 +132,6 @@ export default function PromotionFormModal({ open, onClose, editingPromo, stores
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center pt-[10vh] bg-black/50 overflow-y-auto">
       <div className="bg-card rounded-2xl p-6 max-w-2xl w-full mx-4 shadow-xl border border-border my-8">
-        {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-lg font-semibold text-foreground">{isEditing ? "Chỉnh sửa khuyến mãi" : "Tạo khuyến mãi mới"}</h3>
           <button
@@ -144,7 +143,6 @@ export default function PromotionFormModal({ open, onClose, editingPromo, stores
         </div>
 
         <div className="space-y-5">
-          {/* Mã khuyến mãi */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-1.5">
               Mã khuyến mãi <span className="text-red-500">*</span>
@@ -157,7 +155,6 @@ export default function PromotionFormModal({ open, onClose, editingPromo, stores
             />
           </div>
 
-          {/* Loại & Giá trị */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-foreground mb-1.5">
@@ -193,7 +190,6 @@ export default function PromotionFormModal({ open, onClose, editingPromo, stores
             </div>
           </div>
 
-          {/* Ngày bắt đầu & kết thúc */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-foreground mb-1.5">
@@ -219,7 +215,6 @@ export default function PromotionFormModal({ open, onClose, editingPromo, stores
             </div>
           </div>
 
-          {/* Trạng thái */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-1.5">Trạng thái</label>
             <select
@@ -233,7 +228,6 @@ export default function PromotionFormModal({ open, onClose, editingPromo, stores
             </select>
           </div>
 
-          {/* Áp dụng cho cửa hàng */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">
               Áp dụng cho cửa hàng
@@ -276,7 +270,6 @@ export default function PromotionFormModal({ open, onClose, editingPromo, stores
             )}
           </div>
 
-          {/* Actions */}
           <div className="flex items-center gap-3 pt-2">
             <button
               onClick={handleSubmit}

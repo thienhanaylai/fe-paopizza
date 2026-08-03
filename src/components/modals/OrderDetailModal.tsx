@@ -119,7 +119,6 @@ export default function OrderDetailModal({ order, onClose }: OrderDetailModalPro
         className="bg-card rounded-2xl w-full max-w-lg shadow-2xl max-h-[90vh] overflow-hidden flex flex-col"
         onClick={e => e.stopPropagation()}
       >
-        {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-border shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
@@ -135,9 +134,7 @@ export default function OrderDetailModal({ order, onClose }: OrderDetailModalPro
           </button>
         </div>
 
-        {/* Body */}
         <div className="p-5 overflow-y-auto flex-1 space-y-4">
-          {/* Trạng thái */}
           <div className="flex items-center gap-2 flex-wrap">
             <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${st.color}`}>{st.label}</span>
             <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${pt.color}`}>{pt.label}</span>
@@ -147,10 +144,8 @@ export default function OrderDetailModal({ order, onClose }: OrderDetailModalPro
             </span>
           </div>
 
-          {/* Thời gian */}
           <div className="text-xs text-muted-foreground">Đặt lúc: {formatDateTime(order.createdAt)}</div>
 
-          {/* Cửa hàng */}
           <div className="bg-muted/30 rounded-xl p-3 space-y-1.5">
             <div className="flex items-center gap-2 text-sm">
               <Store size={14} className="text-primary shrink-0" />
@@ -162,7 +157,6 @@ export default function OrderDetailModal({ order, onClose }: OrderDetailModalPro
             </p>
           </div>
 
-          {/* Thông tin liên hệ */}
           <div className="bg-muted/30 rounded-xl p-3 space-y-1.5">
             <div className="flex items-center gap-2 text-sm">
               <User size={14} className="text-primary shrink-0" />
@@ -187,7 +181,6 @@ export default function OrderDetailModal({ order, onClose }: OrderDetailModalPro
             )}
           </div>
 
-          {/* Danh sách món */}
           <div>
             <h4 className="text-sm font-medium text-foreground flex items-center gap-2 mb-2">
               <ShoppingBag size={14} className="text-primary" />
@@ -200,7 +193,6 @@ export default function OrderDetailModal({ order, onClose }: OrderDetailModalPro
             </div>
           </div>
 
-          {/* Ghi chú đơn hàng */}
           {order.note && (
             <div className="bg-muted/30 rounded-xl p-3">
               <span className="text-xs text-muted-foreground font-medium">Ghi chú:</span>
@@ -208,7 +200,6 @@ export default function OrderDetailModal({ order, onClose }: OrderDetailModalPro
             </div>
           )}
 
-          {/* Tổng tiền */}
           <div className="border-t border-border pt-3 space-y-1.5">
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Tạm tính</span>
@@ -227,7 +218,6 @@ export default function OrderDetailModal({ order, onClose }: OrderDetailModalPro
           </div>
         </div>
 
-        {/* Footer */}
         <div className="p-4 border-t border-border shrink-0">
           <button
             onClick={onClose}

@@ -261,7 +261,6 @@ export default function Profile() {
             <ArrowLeft size={16} /> Về trang chủ
           </Link>
 
-          {/* Header card */}
           <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-card rounded-2xl border border-border p-6 mb-6">
             <div className="flex flex-col sm:flex-row sm:items-center gap-5">
               <div className="w-20 h-20 rounded-2xl bg-primary text-white flex items-center justify-center text-3xl shrink-0">
@@ -291,7 +290,6 @@ export default function Profile() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Personal info */}
             <div className="lg:col-span-2 space-y-6">
               <div className="bg-card rounded-2xl border border-border p-6">
                 <div className="flex items-center justify-between mb-4">
@@ -383,7 +381,6 @@ export default function Profile() {
                 </div>
               </div>
 
-              {/* Recent orders */}
               <div className="bg-card rounded-2xl border border-border p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-foreground flex items-center gap-2">
@@ -458,7 +455,6 @@ export default function Profile() {
                   className="bg-card rounded-2xl w-full max-w-lg shadow-2xl border border-border flex flex-col max-h-[85vh] overflow-hidden animate-in zoom-in-95 duration-200"
                   onClick={e => e.stopPropagation()}
                 >
-                  {/* Header */}
                   <div className="flex items-center justify-between p-5 border-b border-border bg-muted/20">
                     <h3 className="text-foreground font-bold flex items-center gap-2">
                       <MapPin size={18} className="text-primary" />

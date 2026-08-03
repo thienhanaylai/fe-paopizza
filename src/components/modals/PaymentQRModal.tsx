@@ -124,7 +124,6 @@ export default function PaymentQRModal({ order, onClose, onPaymentSuccess }: Pay
         className="bg-card rounded-2xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col"
         onClick={e => e.stopPropagation()}
       >
-        {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-border">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
@@ -140,7 +139,6 @@ export default function PaymentQRModal({ order, onClose, onPaymentSuccess }: Pay
           </button>
         </div>
 
-        {/* Body */}
         <div className="p-5 flex flex-col items-center space-y-4">
           {loading && (
             <div className="flex flex-col items-center gap-3 py-8">
@@ -180,7 +178,6 @@ export default function PaymentQRModal({ order, onClose, onPaymentSuccess }: Pay
 
           {paymentData && !isPaid && !isExpired && (
             <>
-              {/* Countdown */}
               <div className="flex items-center gap-2">
                 <Clock size={16} className={timeLeft <= 60 ? "text-red-500 animate-pulse" : "text-primary"} />
                 <span className={`text-sm font-mono font-semibold ${timeLeft <= 60 ? "text-red-500" : "text-foreground"}`}>
@@ -189,7 +186,6 @@ export default function PaymentQRModal({ order, onClose, onPaymentSuccess }: Pay
                 <span className="text-xs text-muted-foreground">còn lại</span>
               </div>
 
-              {/* QR Code */}
               <div className="bg-white rounded-2xl p-4 border border-border">
                 <img
                   src={paymentData.qrUrl}
@@ -201,10 +197,8 @@ export default function PaymentQRModal({ order, onClose, onPaymentSuccess }: Pay
                 />
               </div>
 
-              {/* Số tiền */}
               <p className="text-foreground text-lg font-semibold">{formatVND(paymentData.amount)}</p>
 
-              {/* Nội dung chuyển khoản */}
               <div className="w-full bg-muted/30 rounded-xl p-3 space-y-1.5">
                 <p className="text-xs text-muted-foreground">Nội dung chuyển khoản:</p>
                 <div className="flex items-center justify-between gap-2">
@@ -228,7 +222,6 @@ export default function PaymentQRModal({ order, onClose, onPaymentSuccess }: Pay
           )}
         </div>
 
-        {/* Footer */}
         <div className="p-4 border-t border-border">
           <button
             onClick={onClose}

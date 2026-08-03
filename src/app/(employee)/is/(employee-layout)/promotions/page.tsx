@@ -256,7 +256,6 @@ export default function PromotionsPage() {
   // Render
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-foreground">Quản lý khuyến mãi</h1>
@@ -270,7 +269,6 @@ export default function PromotionsPage() {
         </button>
       </div>
 
-      {/* Stats cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div className="bg-card rounded-2xl p-4 border border-border flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
@@ -310,8 +308,6 @@ export default function PromotionsPage() {
         </div>
       </div>
 
-      {/* Danh sách khuyến mãi */}
-      {/* Search & filter bar */}
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1 max-w-md">
           <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -336,7 +332,6 @@ export default function PromotionsPage() {
         </select>
       </div>
 
-      {/* Selection bar */}
       {selectedIds.size > 0 && (
         <div className="flex items-center justify-between gap-3 bg-primary/10 border border-primary/20 rounded-2xl px-5 py-3">
           <div className="flex items-center gap-3">
@@ -372,7 +367,6 @@ export default function PromotionsPage() {
         </div>
       )}
 
-      {/* Table */}
       <div className="bg-card rounded-2xl border border-border overflow-hidden">
         {isPageLoading ? (
           <div className="overflow-x-auto">
@@ -565,7 +559,6 @@ export default function PromotionsPage() {
         )}
       </div>
 
-      {/* Modal form khuyến mãi */}
       <PromotionFormModal
         open={showModal}
         onClose={closeModal}
@@ -574,7 +567,6 @@ export default function PromotionsPage() {
         onSuccess={fetchData}
       />
 
-      {/* Modal xác nhận xóa */}
       {confirmDelete && deleteTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 m-0 ">
           <div className="bg-card rounded-2xl p-6 max-w-sm w-full mx-4 shadow-xl border border-border">
@@ -615,7 +607,6 @@ export default function PromotionsPage() {
         </div>
       )}
 
-      {/* Modal xác nhận xóa hàng loạt */}
       {batchConfirmDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 m-0 ">
           <div className="bg-card rounded-2xl p-6 max-w-sm w-full mx-4 shadow-xl border border-border">

@@ -1160,7 +1160,6 @@ export default function IndexPage() {
               </div>
             ) : (
               <div className="relative flex items-center">
-                {/* Left scroll button */}
                 {categoryCanScrollLeft && (
                   <button
                     onClick={scrollCategoriesLeft}
@@ -1170,7 +1169,7 @@ export default function IndexPage() {
                     <ChevronLeft size={16} className="text-foreground" />
                   </button>
                 )}
-                {/* Scrollable category list */}
+
                 <div
                   ref={categoryScrollRef}
                   className="flex flex-nowrap items-center gap-2 overflow-x-auto no-scrollbar py-1 w-full justify-start sm:justify-center scroll-smooth"
@@ -1190,7 +1189,7 @@ export default function IndexPage() {
                     </button>
                   ))}
                 </div>
-                {/* Right scroll button */}
+
                 {categoryCanScrollRight && (
                   <button
                     onClick={scrollCategoriesRight}
@@ -1204,7 +1203,6 @@ export default function IndexPage() {
             )}
           </div>
 
-          {/* ---- Loading Skeleton for Products ---- */}
           {isLoading && (!menu || !menu.products) && (
             <div className="mt-8 space-y-6">
               <div className="h-7 w-48 bg-muted animate-pulse rounded-lg" />
@@ -1222,7 +1220,6 @@ export default function IndexPage() {
             </div>
           )}
 
-          {/* ---- Combo Section ---- */}
           {(activeCategory === "all" || activeCategory === "combo") &&
             menu?.combos &&
             menu.combos.length > 0 &&
@@ -1405,7 +1402,7 @@ export default function IndexPage() {
                             </div>
                             <div className="p-5 flex flex-col flex-1">
                               <h4 className="text-foreground mb-1 line-clamp-2">{item.name}</h4>
-                              {/* <span className="text-[14px]">{item.description}</span> */}
+
                               <div className="flex items-center justify-center mt-auto pt-3">
                                 <button
                                   onClick={() => {
@@ -1502,7 +1499,6 @@ export default function IndexPage() {
           onClick={() => setProduct(null)}
         >
           <div className="flex items-center gap-2 sm:gap-4 w-full max-w-[calc(100vw-0.5rem)] sm:max-w-[calc(100vw-7rem)] justify-center">
-            {/* Nút prev */}
             <div className="hidden sm:block w-10 h-10 shrink-0">
               {(filteredMenu1 ?? []).length > 1 && (
                 <button
@@ -1518,7 +1514,6 @@ export default function IndexPage() {
               )}
             </div>
 
-            {/* Embla carousel */}
             <div
               className="overflow-hidden rounded-3xl w-full md:w-[800px] lg:w-[896px] max-w-[calc(100vw-1rem)] sm:max-w-[calc(100vw-7rem)] shadow-2xl max-h-[90vh] max-md:max-h-[82vh] 2xl:max-h-[70vh] shrink-0"
               ref={emblaRef}
@@ -1528,7 +1523,6 @@ export default function IndexPage() {
                 {(filteredMenu1 ?? []).map(p => (
                   <div key={p._id} className="flex-[0_0_100%] min-w-0">
                     <div className="bg-card flex flex-col md:flex-row h-full max-h-[90vh] max-md:max-h-[82vh] 2xl:max-h-[70vh]">
-                      {/* Ảnh sản phẩm */}
                       <div className="md:w-2/5 bg-white border-b md:border-b-0 md:border-r border-border/60 flex items-center justify-center p-4 sm:p-6 shrink-0">
                         <div className="relative w-full max-w-[320px] aspect-square max-md:aspect-[3/2] max-md:max-h-[200px] max-md:max-w-[200px]">
                           {p._id === product._id ? (
@@ -1551,7 +1545,6 @@ export default function IndexPage() {
                         </div>
                       </div>
 
-                      {/* Chi tiết sản phẩm - chỉ render đầy đủ cho sản phẩm hiện tại */}
                       <div className="flex-1 flex flex-col min-h-0">
                         {p._id === product._id ? (
                           modalLoading ? (
@@ -1718,7 +1711,6 @@ export default function IndexPage() {
               </div>
             </div>
 
-            {/* Nút next */}
             <div className="hidden sm:block w-10 h-10 shrink-0">
               {(filteredMenu1 ?? []).length > 1 && (
                 <button
@@ -1735,7 +1727,6 @@ export default function IndexPage() {
             </div>
           </div>
 
-          {/* Mobile nav */}
           {(filteredMenu1 ?? []).length > 1 && (
             <div className="sm:hidden fixed bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-3 z-[60]">
               <button

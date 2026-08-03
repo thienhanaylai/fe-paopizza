@@ -188,7 +188,6 @@ export default function StaffContacts() {
                         </span>
                       </div>
                     </div>
-                    {/* <span className={`text-xs ${st.color}`}>{st.label}</span> */}
                   </div>
 
                   <div className="space-y-2 text-sm mb-4">

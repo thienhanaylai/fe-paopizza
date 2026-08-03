@@ -353,7 +353,6 @@ export default function ComboFormModal({
             </div>
           </div>
 
-          {/* Rules */}
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="block text-sm font-medium">Rules *</label>
@@ -522,7 +521,6 @@ export default function ComboFormModal({
             ))}
           </div>
 
-          {/* Actions */}
           <div className="flex gap-3 pt-2">
             <button
               type="button"

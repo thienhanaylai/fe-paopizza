@@ -303,7 +303,6 @@ export default function ProductFormModal({
       >
         <h3 className="text-foreground mb-4">{editItem ? "Chỉnh sửa sản phẩm" : "Thêm sản phẩm mới"}</h3>
         <div className="space-y-4">
-          {/* Basic Info */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm mb-1">Tên sản phẩm *</label>
@@ -354,7 +353,6 @@ export default function ProductFormModal({
             />
           </div>
 
-          {/* Variants */}
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="block text-sm">Size</label>
@@ -439,7 +437,6 @@ export default function ProductFormModal({
                       </div>
                     </div>
 
-                    {/* Crust selection - only for Pizza category */}
                     {categories
                       .find(c => c._id === basicInfo.category)
                       ?.slug?.toLowerCase()
@@ -474,7 +471,6 @@ export default function ProductFormModal({
                       </div>
                     )}
 
-                    {/* Recipe */}
                     <div className="flex flex-col">
                       {variant.recipe.map((ingredient, ingredientIndex) => (
                         <div key={ingredientIndex} className="flex items-center py-1 text-sm">
@@ -527,7 +523,6 @@ export default function ProductFormModal({
             )}
           </div>
 
-          {/* Actions */}
           <div className="flex gap-3 pt-2">
             <button
               onClick={onClose}

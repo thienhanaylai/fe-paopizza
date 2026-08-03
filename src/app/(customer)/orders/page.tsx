@@ -205,7 +205,6 @@ export default function Orders() {
             })}
           </div>
 
-          {/* Pagination */}
           {pagination.totalPages > 1 && (
             <div className="flex items-center justify-center gap-1 mt-6">
               <button

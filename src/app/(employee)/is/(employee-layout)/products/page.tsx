@@ -545,7 +545,6 @@ export default function Products() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-foreground">Quản lý sản phẩm</h1>
@@ -571,7 +570,6 @@ export default function Products() {
         )}
       </div>
 
-      {/* Tabs */}
       <div className="flex gap-1 bg-muted/50 rounded-xl p-1 w-fit">
         <button
           onClick={() => setActiveTab("products")}
@@ -663,7 +661,6 @@ export default function Products() {
             </div>
           </div>
 
-          {/* Products Table */}
           <div className="bg-card rounded-2xl border border-border overflow-hidden">
             {isPageLoading ? (
               <div className="overflow-x-auto">
@@ -846,7 +843,6 @@ export default function Products() {
             )}
           </div>
 
-          {/* Product Add/Edit Modal */}
           {isAdmin && (
             <ProductFormModal
               open={showModal}
@@ -859,7 +855,6 @@ export default function Products() {
             />
           )}
 
-          {/* Product Confirm Delete Modal */}
           {confirmModal && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 m-0 ">
               <div className="bg-card rounded-2xl p-6 max-w-sm w-full mx-4 shadow-xl border border-border">
@@ -984,7 +979,7 @@ export default function Products() {
               </div>
             </div>
           )}
-          {/* Search */}
+
           <div className="relative">
             <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input
@@ -995,7 +990,6 @@ export default function Products() {
             />
           </div>
 
-          {/* Combo Table */}
           <div className="bg-card rounded-2xl border border-border overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
@@ -1159,7 +1153,6 @@ export default function Products() {
             </div>
           </div>
 
-          {/* Combo Add/Edit Modal */}
           {isAdmin && (
             <ComboFormModal
               open={comboShowModal}
@@ -1173,7 +1166,6 @@ export default function Products() {
             />
           )}
 
-          {/* Combo Confirm Delete Modal */}
           {comboConfirmModal && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 m-0 ">
               <div className="bg-card rounded-2xl p-6 max-w-sm w-full mx-4 shadow-xl border border-border">

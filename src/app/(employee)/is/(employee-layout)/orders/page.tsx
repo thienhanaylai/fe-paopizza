@@ -620,7 +620,6 @@ export default function Orders() {
                 <div className="space-y-3">
                   {selectedOrder.items.map((item, i) => (
                     <div key={i} className="bg-muted/30 rounded-lg p-3 space-y-2">
-                      {/* Item header */}
                       <div className="flex justify-between items-start">
                         <div>
                           <div className="flex items-center gap-2 flex-wrap">
@@ -639,10 +638,8 @@ export default function Orders() {
                         <span className="text-foreground text-sm">{formatVND(item.price * item.quantity)}</span>
                       </div>
 
-                      {/* Note */}
                       {item.note && <p className="text-xs text-muted-foreground italic">{item.note}</p>}
 
-                      {/* Extra toppings for product items */}
                       {item.item_type === "product" && item.added_topping && item.added_topping.length > 0 && (
                         <div className="pl-2 border-l-2 border-primary/20">
                           <p className="text-xs text-muted-foreground mb-1">Topping thêm:</p>
@@ -657,7 +654,6 @@ export default function Orders() {
                         </div>
                       )}
 
-                      {/* Combo selections */}
                       {item.item_type === "combo" && item.combo_selections && item.combo_selections.length > 0 && (
                         <div className="pl-2 border-l-2 border-primary/20 space-y-2">
                           <p className="text-xs text-muted-foreground">Chi tiết combo:</p>

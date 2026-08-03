@@ -212,7 +212,7 @@ export const CartModal = () => {
                                 </span>
                               )}
                             </div>
-                            {/* Combo selections detail */}
+
                             {isCombo && comboSelection.length > 0 && (
                               <div className="mt-1.5 space-y-0.5">
                                 {comboSelection.map((itemCombo, i) => (

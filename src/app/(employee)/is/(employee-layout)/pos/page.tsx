@@ -79,7 +79,7 @@ type ComboSlotSelection = {
   crust?: string;
 };
 
-/** Combo from store menu */
+/** Combo từ menu cửa hàng */
 interface ComboDisplay {
   _id: string;
   name: string;
@@ -107,8 +107,6 @@ const tables = ["T01", "T02", "T03", "T04", "T05", "T06", "T07", "T08", "T09", "
 const paymentOptions: { key: PaymentMethod; label: string; icon: React.ReactNode }[] = [
   { key: "cash", label: "Tiền mặt", icon: <Banknote size={18} /> },
   { key: "qrCode", label: "Chuyển khoản", icon: <QrCode size={18} /> },
-  // { key: "card", label: "Thẻ", icon: <CreditCard size={18} /> },
-  // { key: "ewallet", label: "Ví điện tử", icon: <Wallet size={18} /> },
 ];
 
 export function CountdownTimer({ expiresAt, onExpire }) {
@@ -162,7 +160,7 @@ export default function POS() {
   const [editNoteIndex, setEditNoteIndex] = useState<number | null>(null);
   const [posCollapsed, setPosCollapsed] = useState(true);
 
-  // Combo selection modal state
+  // Trạng thái modal chọn combo
   const [selectedCombo, setSelectedCombo] = useState<ComboDisplay | null>(null);
   const [comboSelections, setComboSelections] = useState<Record<number, ComboSlotSelection[]>>({});
   const [menuProducts, setMenuProducts] = useState<Product[]>([]);
@@ -175,7 +173,7 @@ export default function POS() {
   const [contactModal, setContactModal] = useState(false);
   const [categories, setCategories] = useState<MenuCategoryUI[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
-  // Track selected crust per product-size key: "productId-size"
+  // Theo dõi loại đế (crust) đã chọn theo key "productId-size"
   const [selectedCrustMap, setSelectedCrustMap] = useState<Record<string, string>>({});
   const [hideTable, setHideTable] = useState(false);
   const [tableNumber, setTableNumber] = useState("");
@@ -247,14 +245,14 @@ export default function POS() {
         setCategories(finalCategories);
         setProducts(products);
 
-        // Also fetch store-specific menu for combos & store-filtered products
+        // Cũng tải menu riêng của cửa hàng để lấy combo & sản phẩm đã lọc theo cửa hàng
         const storeId = user?.store_id;
         if (storeId) {
           try {
             const menuData = await http(`/api/v1/menus/store/${storeId}`, { next: { revalidate: 3600 } });
             const menu = menuData?.data ?? menuData;
             if (menu?.products) setProducts(menu.products);
-            // Store products separately for combo selection
+            // Lưu sản phẩm riêng để dùng cho việc chọn combo
             if (menu?.products) setMenuProducts(menu.products);
             if (menu?.combos) {
               const mapped: ComboDisplay[] = menu.combos.map((entry: any) => {
@@ -271,7 +269,7 @@ export default function POS() {
               setCombos(mapped);
             }
           } catch {
-            /* keep fallback products if menu fails */
+            /* giữ lại sản phẩm dự phòng nếu tải menu thất bại */
           }
         }
       } catch (error) {
@@ -287,7 +285,7 @@ export default function POS() {
     if (activeTab === "combos" || activeCategory === "combo") return [];
     let items = activeCategory === "all" ? products : products.filter(m => m?.category.slug === activeCategory);
     if (search) items = items.filter(m => m.name.toLowerCase().includes(search.toLowerCase()));
-    // Sort by category order in sidebar
+    // Sắp xếp theo thứ tự danh mục ở sidebar
     const catOrderMap = new Map(categories.map((cat, idx) => [cat.slug, idx]));
     items = [...items].sort((a, b) => {
       const orderA = catOrderMap.get(a.category?.slug) ?? Infinity;
@@ -307,7 +305,7 @@ export default function POS() {
 
   const addToCart = (item: CartItem) => {
     setCart(prev => {
-      // For combos, match by combo_id AND combo_selections
+      // Với combo, so khớp theo combo_id VÀ combo_selections
       if (item.item_type === "combo" && item.combo_selections) {
         const idx = prev.findIndex(
           c =>
@@ -352,7 +350,7 @@ export default function POS() {
       const categoryIds = rule.applicableCategories.map(cat => (typeof cat === "string" ? cat : cat._id || cat.slug));
       filtered = menuProducts.filter(p => categoryIds.includes(p.category?._id) || categoryIds.includes(p.category?.slug));
     }
-    // Filter to only products that have at least one variant matching applicableSizes
+    // Chỉ giữ lại các sản phẩm có ít nhất một phiên bản khớp với applicableSizes
     if (rule.applicableSizes && rule.applicableSizes.length > 0) {
       filtered = filtered.filter(p => p.variants.some(v => rule.applicableSizes.includes(v.size)));
     }
@@ -415,7 +413,7 @@ export default function POS() {
     });
   };
 
-  /** Get variants for a product that match the rule's applicableSizes */
+  /** Lấy các phiên bản (variants) của sản phẩm khớp với applicableSizes của rule */
   const getVariantsForRule = (product: Product, rule: ComboRule): ProductVariant[] => {
     if (!rule.applicableSizes || rule.applicableSizes.length === 0) return product.variants;
     return product.variants.filter(v => rule.applicableSizes.includes(v.size));
@@ -569,7 +567,7 @@ export default function POS() {
     setContactModal(false);
   };
 
-  // Fetch store info for invoice
+  // Lấy thông tin cửa hàng để in hóa đơn
   useEffect(() => {
     const fetchStoreInfo = async () => {
       try {
@@ -580,7 +578,7 @@ export default function POS() {
           if (matched) setStoreInfo(matched);
         }
       } catch {
-        // store info is optional for invoice
+        // thông tin cửa hàng là tùy chọn cho hóa đơn
       }
     };
     fetchStoreInfo();
@@ -1054,7 +1052,6 @@ export default function POS() {
             </span>
           </div>
 
-          {/* Tab: All | Món ăn | Combo */}
           <div className="flex gap-1 bg-muted rounded-xl p-1">
             {[
               { key: "all" as MenuTab, label: "Tất cả" },
@@ -1086,7 +1083,6 @@ export default function POS() {
         </div>
 
         <div className="flex-1 overflow-y-auto p-4">
-          {/* Loading Skeleton */}
           {isLoading && products.length === 0 ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
               {Array.from({ length: 12 }).map((_, i) => (
@@ -1101,13 +1097,12 @@ export default function POS() {
             </div>
           ) : (
             <>
-              {/* Sản phẩm */}
               {activeTab !== "combos" && (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 mb-4">
                   {filteredMenu.map(item => {
-                    // Is this a pizza product?
+                    // Đây có phải sản phẩm pizza không?
                     const isPizza = item.category?.slug?.toLowerCase().includes("pizza");
-                    // Group variants by size – for each size, pick the first variant as display representative
+                    // Nhóm các phiên bản theo size – với mỗi size, chọn phiên bản đầu tiên làm đại diện hiển thị
                     const sizeGroups = new Map<string, ProductVariant[]>();
                     item.variants.forEach(v => {
                       const list = sizeGroups.get(v.size) || [];
@@ -1118,19 +1113,19 @@ export default function POS() {
                     return Array.from(sizeGroups.entries()).map(([size, variants]) => {
                       const displayVariant = variants[0];
                       const sizeKey = `${item._id}-${size}`;
-                      // Collect all unique crust options for this size (for pizza products)
+                      // Thu thập tất cả tùy chọn đế (crust) duy nhất cho size này (với sản phẩm pizza)
                       const allCrusts = isPizza
                         ? Array.from(new Set(variants.flatMap(v => parseCrustOptions(v.crust)).filter(Boolean)))
                         : [];
                       const selectedCrust = selectedCrustMap[sizeKey] || allCrusts[0] || "";
 
-                      // Find the variant matching selected crust
+                      // Tìm phiên bản khớp với đế đã chọn
                       const matchedVariant =
                         isPizza && selectedCrust
                           ? variants.find(v => parseCrustOptions(v.crust).includes(selectedCrust)) || displayVariant
                           : displayVariant;
 
-                      // Format crust label helper
+                      // Hàm hỗ trợ định dạng nhãn đế (crust)
                       const formatCrustLabelPos = (value: string) =>
                         value.replace(/[_-]+/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase());
 
@@ -1139,7 +1134,6 @@ export default function POS() {
                           key={`${item._id}-${size}`}
                           className="bg-card rounded-xl border overflow-hidden hover:shadow-lg transition-all text-left group relative"
                         >
-                          {/* Image */}
                           <div className="aspect-[4/3] bg-white relative overflow-hidden">
                             {displayVariant.image.url ? (
                               <Image
@@ -1156,7 +1150,7 @@ export default function POS() {
                               </div>
                             )}
                           </div>
-                          {/* Info */}
+
                           <div className="p-2.5">
                             <p className="text-xs text-foreground truncate">
                               {item.name} - {size}
@@ -1166,7 +1160,6 @@ export default function POS() {
                               <span className="text-xs text-primary">{formatVND(matchedVariant.price)}</span>
                             </div>
 
-                            {/* Crust selector for pizza */}
                             {isPizza && allCrusts.length > 1 && (
                               <div className="flex flex-wrap gap-1 mt-2" onClick={e => e.stopPropagation()}>
                                 {allCrusts.map(crust => {
@@ -1190,7 +1183,6 @@ export default function POS() {
                             )}
                           </div>
 
-                          {/* Add to cart button */}
                           <button
                             type="button"
                             onClick={() => {
@@ -1219,7 +1211,6 @@ export default function POS() {
                 </div>
               )}
 
-              {/* Combos */}
               {activeTab !== "products" && filteredCombos.length > 0 && (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 mb-4">
                   {filteredCombos.map(combo => (
@@ -1381,7 +1372,7 @@ export default function POS() {
           </div>
         </>
       )}
-      {/* Modal chọn combo */}
+
       {selectedCombo && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 m-0"
@@ -1394,7 +1385,6 @@ export default function POS() {
             className="bg-card rounded-2xl p-5 w-full max-w-lg max-h-[85vh] overflow-y-auto shadow-2xl"
             onClick={e => e.stopPropagation()}
           >
-            {/* Header */}
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-foreground text-lg font-bold flex items-center gap-2">
                 {selectedCombo.image && (
@@ -1421,7 +1411,6 @@ export default function POS() {
 
             {selectedCombo.description && <p className="text-xs text-muted-foreground mb-4">{selectedCombo.description}</p>}
 
-            {/* Rules */}
             <div className="space-y-4 mb-4">
               {selectedCombo.rules.map((rule, ruleIdx) => {
                 const products = getProductsForRule(rule);
@@ -1438,7 +1427,6 @@ export default function POS() {
                       </p>
                     </div>
 
-                    {/* Selected slots with size/crust selectors */}
                     {selectedSlots.length > 0 && (
                       <div className="space-y-2 mb-3">
                         {Array.from({ length: rule.requiredQuantity }, (_, slotIdx) => {
@@ -1477,9 +1465,8 @@ export default function POS() {
                                   <X size={12} />
                                 </button>
                               </div>
-                              {/* Size & Crust selectors */}
+
                               <div>
-                                {/* Size buttons */}
                                 {sizes.length > 1 && (
                                   <div className="flex items-center gap-1.5">
                                     {sizes.map(size => {
@@ -1515,7 +1502,7 @@ export default function POS() {
                                 {sizes.length === 1 && (
                                   <span className="text-xs text-muted-foreground">{currentVariant?.size}</span>
                                 )}
-                                {/* Crust buttons */}
+
                                 {crustsForSize.length > 1 && (
                                   <div className="flex items-center gap-1.5 mt-1.5">
                                     {crustsForSize.map(crust => {
@@ -1558,7 +1545,6 @@ export default function POS() {
                       </div>
                     )}
 
-                    {/* Product grid - luôn hiển thị để có thể chọn lại/thay thế */}
                     {products.length > 0 && (
                       <div className="grid grid-cols-2 gap-2">
                         {products.map(product => {
@@ -1602,7 +1588,6 @@ export default function POS() {
               })}
             </div>
 
-            {/* Bottom bar */}
             <div className="border-t border-border pt-3 flex items-center justify-between">
               <span className="text-primary font-bold text-lg">{formatVND(selectedCombo.price)}</span>
               <button

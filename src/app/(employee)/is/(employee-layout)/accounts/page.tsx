@@ -428,7 +428,7 @@ export default function Accounts() {
                       <td className="px-4 py-3">
                         <span className={`px-2 py-1 rounded-full text-[11px] ${st.color}`}>{st.label}</span>
                       </td>
-                      {/* <td className="px-4 py-3 text-muted-foreground text-xs hidden lg:table-cell">{account.lastLogin}</td> */}
+
                       <td className="px-4 py-3 text-right">
                         <div className="relative">
                           <button

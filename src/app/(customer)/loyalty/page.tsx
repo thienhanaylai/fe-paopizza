@@ -194,7 +194,6 @@ export default function LoyaltyPage() {
     <>
       <div className="py-8 min-h-screen bg-gradient-to-b from-background to-muted/20">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
-          {/* ─── Header ─── */}
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
               <Award size={20} className="text-primary" />
@@ -205,17 +204,14 @@ export default function LoyaltyPage() {
             </div>
           </div>
 
-          {/* ─── Points & Tier Card ─── */}
           <div
             className={`relative overflow-hidden rounded-2xl bg-gradient-to-br ${tierStyle.bg} border ${tierStyle.border} ${tierStyle.glow} p-6`}
           >
-            {/* Decorative background */}
             <div className="absolute top-0 right-0 w-48 h-48 opacity-10">
               <Sparkles className="w-full h-full text-primary" />
             </div>
 
             <div className="relative z-10 grid grid-cols-1 md:grid-cols-3 gap-6">
-              {/* Points */}
               <div className="space-y-1">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Coins size={16} />
@@ -225,7 +221,6 @@ export default function LoyaltyPage() {
                 <p className="text-xs text-muted-foreground">Tổng đã tích: {totalPoint.toLocaleString("vi-VN")} điểm</p>
               </div>
 
-              {/* Tier */}
               <div className="space-y-1">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Gem size={16} />
@@ -240,7 +235,6 @@ export default function LoyaltyPage() {
                 </p>
               </div>
 
-              {/* Quick Stats */}
               <div className="space-y-2">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Gift size={16} />
@@ -252,7 +246,6 @@ export default function LoyaltyPage() {
             </div>
           </div>
 
-          {/* ─── Redeemable Promotions ─── */}
           <div>
             <div className="flex items-center gap-2 mb-4">
               <TicketPercent size={18} className="text-primary" />
@@ -285,7 +278,6 @@ export default function LoyaltyPage() {
                         canRedeem ? "border-border hover:border-primary/30" : "border-border opacity-60"
                       }`}
                     >
-                      {/* Discount badge */}
                       <div className="absolute top-4 right-4">
                         <span
                           className={`px-2.5 py-1 rounded-full text-xs font-bold ${
@@ -298,7 +290,6 @@ export default function LoyaltyPage() {
                         </span>
                       </div>
 
-                      {/* Content */}
                       <div className="space-y-4">
                         <div>
                           <p className="text-lg font-bold text-foreground font-mono tracking-wider">{promo.code}</p>
@@ -353,7 +344,6 @@ export default function LoyaltyPage() {
             )}
           </div>
 
-          {/* ─── My Redeemed Codes ─── */}
           {redeemedCodes.length > 0 && (
             <div>
               <div className="flex items-center gap-2 mb-4">
@@ -419,13 +409,10 @@ export default function LoyaltyPage() {
         </div>
       </div>
 
-      {/* ─── Confirm Redeem Modal ─── */}
       {confirmModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          {/* Backdrop */}
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setConfirmModal(null)} />
 
-          {/* Modal */}
           <div className="relative bg-card rounded-2xl border border-border shadow-2xl max-w-sm w-full p-6 animate-in fade-in zoom-in-95">
             <div className="text-center space-y-4">
               <div className="w-14 h-14 mx-auto rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
@@ -472,13 +459,10 @@ export default function LoyaltyPage() {
         </div>
       )}
 
-      {/* ─── Result Modal ─── */}
       {resultModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          {/* Backdrop */}
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setResultModal(null)} />
 
-          {/* Modal */}
           <div className="relative bg-card rounded-2xl border border-border shadow-2xl max-w-sm w-full p-6 animate-in fade-in zoom-in-95">
             <div className="text-center space-y-4">
               <div className="w-14 h-14 mx-auto rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
@@ -490,7 +474,6 @@ export default function LoyaltyPage() {
                 <p className="text-sm text-muted-foreground mt-1">Dùng mã này khi thanh toán để được giảm giá</p>
               </div>
 
-              {/* Code display */}
               <div className="bg-muted/50 rounded-xl p-4">
                 <p className="text-xs text-muted-foreground mb-1">Mã khuyến mãi của bạn</p>
                 <p className="font-mono text-2xl font-extrabold text-primary tracking-widest">{resultModal.code}</p>

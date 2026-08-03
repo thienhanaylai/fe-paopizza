@@ -201,7 +201,6 @@ export default function Header() {
                 )}
               </button>
 
-              {/* Mobile: hamburger menu chứa NavMenu + auth */}
               <div className="flex md:hidden relative">
                 <button
                   onClick={() => setShowMobileMenu(!showMobileMenu)}
@@ -214,7 +213,6 @@ export default function Header() {
                   <>
                     <div className="fixed inset-0 z-35" onClick={() => setShowMobileMenu(false)} />
                     <div className="absolute z-40 top-full right-0 mt-2 w-56 bg-card rounded-xl border border-border shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
-                      {/* NavMenu */}
                       {NavMenu.map(item => (
                         <Link
                           key={item.link}
@@ -242,7 +240,6 @@ export default function Header() {
 
                       <div className="border-t border-border" />
 
-                      {/* Auth actions */}
                       {isMounted && isAuthenticated ? (
                         <>
                           <Link
@@ -298,7 +295,6 @@ export default function Header() {
                 )}
               </div>
 
-              {/* Desktop: auth buttons */}
               {isMounted && isAuthenticated ? (
                 <div className="hidden md:block relative shrink-0">
                   <button
@@ -398,7 +394,6 @@ export default function Header() {
             className="relative bg-card w-full max-w-lg rounded-[28px] border border-border shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-300 text-left"
             onClick={e => e.stopPropagation()}
           >
-            {/* Modal Header */}
             <div className="px-6 pt-6 pb-4 border-b border-border/80 flex items-center justify-between bg-muted/20">
               <div className="flex items-center gap-3">
                 <div
@@ -418,7 +413,6 @@ export default function Header() {
               </div>
             </div>
 
-            {/* Modal Body */}
             <div className="flex-1 overflow-y-auto p-6 space-y-5">
               <div className="space-y-3">
                 <div className="flex items-center justify-between">

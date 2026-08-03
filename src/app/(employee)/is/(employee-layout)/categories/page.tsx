@@ -328,7 +328,6 @@ export default function CategoriesManagement() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-foreground flex items-center gap-2">Quản lý danh mục menu</h1>
@@ -350,7 +349,6 @@ export default function CategoriesManagement() {
         </button>
       </div>
 
-      {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
         {[
           {
@@ -382,7 +380,6 @@ export default function CategoriesManagement() {
         ))}
       </div>
 
-      {/* Search & Filter */}
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -407,7 +404,6 @@ export default function CategoriesManagement() {
         </div>
       </div>
 
-      {/* Save order banner */}
       {hasOrderChanged && (
         <div className="flex items-center justify-between gap-3 bg-yellow-50 border border-yellow-200 rounded-2xl px-5 py-3">
           <div className="flex items-center gap-3">
@@ -425,7 +421,6 @@ export default function CategoriesManagement() {
         </div>
       )}
 
-      {/* Selection banner */}
       {selectedIds.size > 0 && (
         <div className="flex items-center justify-between gap-3 bg-primary/10 border border-primary/20 rounded-2xl px-5 py-3">
           <div className="flex items-center gap-3">
@@ -461,7 +456,6 @@ export default function CategoriesManagement() {
         </div>
       )}
 
-      {/* Table */}
       <div className="bg-card rounded-2xl border border-border overflow-hidden">
         {isLoading && categories.length === 0 ? (
           <div className="overflow-x-auto">
@@ -657,7 +651,6 @@ export default function CategoriesManagement() {
         )}
       </div>
 
-      {/* Form Modal */}
       {showForm && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 m-0"
@@ -710,7 +703,6 @@ export default function CategoriesManagement() {
               <div>
                 <label className="block text-sm text-foreground mb-1.5">Icon</label>
                 <div className="flex items-start gap-3">
-                  {/* Preview */}
                   <div className="relative w-16 h-16 rounded-xl overflow-hidden bg-muted shrink-0 border border-border">
                     {formIconPreview ? (
                       <Image
@@ -784,7 +776,6 @@ export default function CategoriesManagement() {
         </div>
       )}
 
-      {/* Confirm Delete Modal */}
       {confirmModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 m-0 ">
           <div className="bg-card rounded-2xl p-6 max-w-sm w-full mx-4 shadow-xl border border-border">
@@ -828,7 +819,6 @@ export default function CategoriesManagement() {
         </div>
       )}
 
-      {/* Batch Confirm Modal (Hide / Delete) */}
       {batchConfirmModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 m-0">
           <div className="bg-card rounded-2xl p-6 max-w-sm w-full mx-4 shadow-xl border border-border">

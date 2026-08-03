@@ -135,7 +135,6 @@ export function Sidebar() {
               <span className={`inline-block px-2 py-0.5 rounded text-[10px] ${getRoleColor(user.role)}`}>
                 {getRoleLabel(user.role)}
               </span>
-              {/* {user.storeName && <p className="text-sidebar-foreground/50 text-[10px] truncate mt-0.5">{user.storeName}</p>} */}
             </div>
           )}
           {!collapsed && (

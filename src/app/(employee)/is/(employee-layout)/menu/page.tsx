@@ -325,7 +325,6 @@ export default function MenuManagement() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-foreground">Quản lý Menu</h1>
@@ -339,7 +338,6 @@ export default function MenuManagement() {
         </div>
         {isAdmin && (
           <div className="flex items-center gap-2">
-            {/* Mode toggle */}
             <button
               onClick={switchMode}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all border ${
@@ -363,9 +361,7 @@ export default function MenuManagement() {
         )}
       </div>
 
-      {/* Store selector */}
       <div className="bg-card rounded-2xl border border-border p-5">
-        {/* === Multi-store mode === */}
         {multiStoreMode ? (
           <div className="space-y-3">
             <div className="flex items-center gap-3">
@@ -384,9 +380,7 @@ export default function MenuManagement() {
               </div>
             </div>
 
-            {/* Store list with checkboxes */}
             <div className="max-h-[30vh] overflow-y-auto border border-border rounded-xl">
-              {/* Header: select all */}
               <div className="sticky top-0 bg-muted z-10 flex items-center gap-2 px-4 py-2.5 border-b border-border">
                 <button
                   onClick={toggleAllStores}
@@ -450,7 +444,6 @@ export default function MenuManagement() {
               )}
             </div>
 
-            {/* Selected stores count */}
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Store size={14} />
               <span>
@@ -483,7 +476,6 @@ export default function MenuManagement() {
               {isLoading && <RefreshCw size={18} className="animate-spin text-muted-foreground" />}
             </div>
 
-            {/* Menu status badge */}
             {menu && (
               <div className="flex items-center gap-4 mt-4 pt-4 border-t border-border">
                 <span className="text-sm text-muted-foreground">Trạng thái menu:</span>
@@ -504,10 +496,8 @@ export default function MenuManagement() {
         )}
       </div>
 
-      {/* Tabs */}
       {(selectedStoreId || multiStoreMode) && (
         <div className="bg-card rounded-2xl border border-border overflow-hidden">
-          {/* Tab headers */}
           <div className="flex border-b border-border">
             <button
               onClick={() => setActiveTab("products")}
@@ -535,10 +525,8 @@ export default function MenuManagement() {
             </button>
           </div>
 
-          {/* Tab content: Products */}
           {activeTab === "products" && (
             <div>
-              {/* Search + Filter */}
               <div className="flex flex-col sm:flex-row gap-3 p-4 border-b border-border">
                 <div className="relative flex-1">
                   <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -565,7 +553,6 @@ export default function MenuManagement() {
                 </div>
               </div>
 
-              {/* Product list */}
               <div className="overflow-x-auto max-h-[70vh] overflow-y-auto">
                 <table className="w-full">
                   <thead className="sticky top-0 bg-muted z-10">
@@ -678,10 +665,8 @@ export default function MenuManagement() {
             </div>
           )}
 
-          {/* Tab content: Combos */}
           {activeTab === "combos" && (
             <div>
-              {/* Search + Filters */}
               <div className="flex flex-col sm:flex-row gap-3 p-4 border-b border-border">
                 <div className="relative flex-1">
                   <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -706,7 +691,6 @@ export default function MenuManagement() {
                 </div>
               </div>
 
-              {/* Combo list */}
               <div className="overflow-x-auto max-h-[70vh] overflow-y-auto">
                 <table className="w-full">
                   <thead className="sticky top-0 bg-muted z-10">
@@ -832,7 +816,6 @@ export default function MenuManagement() {
         </div>
       )}
 
-      {/* Empty state khi chưa chọn store */}
       {!selectedStoreId && !multiStoreMode && (
         <div className="bg-card rounded-2xl border border-border p-16 text-center">
           <Store size={48} className="mx-auto mb-4 text-muted-foreground/25" />
