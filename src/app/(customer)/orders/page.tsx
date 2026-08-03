@@ -10,6 +10,8 @@ import { formatDateTime } from "@/src/utils/formatDateTime";
 import OrderDetailModal from "@/src/components/modals/OrderDetailModal";
 import PaymentQRModal from "@/src/components/modals/PaymentQRModal";
 
+const PAYMENT_TIMEOUT_MINUTES = 15;
+
 const orderStatusConfig: Record<string, { label: string; color: string }> = {
   pending: { label: "Chờ xử lý", color: "bg-yellow-100 text-yellow-700" },
   confirmed: { label: "Đã xác nhận", color: "bg-teal-100 text-teal-700" },
@@ -61,6 +63,15 @@ export default function Orders() {
         setModalConfirm(false);
       }
     } catch (error) {}
+  };
+
+  const isPaymentExpired = (order: OrderHistory) => {
+    const expiredAt = new Date(new Date(order.createdAt).getTime() + PAYMENT_TIMEOUT_MINUTES * 60 * 1000);
+    return Date.now() > expiredAt.getTime();
+  };
+
+  const canPayOnline = (order: OrderHistory) => {
+    return ["qrCode", "ewallet", "card"].includes(order.paymentMethod);
   };
 
   const handlePaymentSuccess = () => {
@@ -117,6 +128,17 @@ export default function Orders() {
                       {orderTypeLabels[order.orderType]}
                     </span>
                     <div className="flex items-center gap-2">
+                      {order.paymentStatus === "pending" &&
+                        order.status === "pending" &&
+                        !isPaymentExpired(order) &&
+                        canPayOnline(order) && (
+                          <button
+                            onClick={() => setPaymentOrder(order)}
+                            className="text-xs text-primary hover:underline font-medium"
+                          >
+                            Thanh toán
+                          </button>
+                        )}
                       <button onClick={() => setDetailOrder(order)} className="text-xs text-primary hover:underline font-medium">
                         Chi tiết
                       </button>
