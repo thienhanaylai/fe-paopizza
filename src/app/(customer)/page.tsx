@@ -1,5 +1,19 @@
 "use client";
-import { ArrowRight, Award, ChefHat, ChevronLeft, ChevronRight, Clock, MapPin, Phone, Plus, Star, Truck, X } from "lucide-react";
+import {
+  ArrowRight,
+  Award,
+  ChefHat,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  MapPin,
+  Phone,
+  Plus,
+  ShoppingBag,
+  Star,
+  Truck,
+  X,
+} from "lucide-react";
 import Image from "next/image";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useCallback } from "react";
 import useEmblaCarousel from "embla-carousel-react";
@@ -1032,7 +1046,7 @@ export default function IndexPage() {
               </div>
             )}
           </div>
-
+          {/* sekeleton loading */}
           {isLoading && (!menu || !menu.products) && (
             <div className="mt-8 space-y-6">
               <div className="h-7 w-48 bg-muted animate-pulse rounded-lg" />
@@ -1208,7 +1222,7 @@ export default function IndexPage() {
                     </h3>
                     <p className="text-xs sm:text-sm text-muted-foreground mt-1">{""}</p>
                   </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
+                  <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">
                     {" "}
                     {categoryItems?.map(item => {
                       if (item.isActive)
@@ -1244,7 +1258,7 @@ export default function IndexPage() {
                                   onClick={() => {
                                     hanldeProduct(item);
                                   }}
-                                  className="flex items-center gap-1.5 px-4 py-2  text-black  rounded-lg font-bold text-sm hover:bg-primary hover:text-white transition-colors cursor-pointer"
+                                  className="flex items-center gap-1.5 px-4 py-2 text-black  rounded-lg font-bold text-sm hover:bg-primary hover:text-white transition-colors cursor-pointer"
                                 >
                                   {item.variants.length > 1
                                     ? `Chỉ từ ${formatVND(item.variants[0].price)}`
@@ -1563,32 +1577,50 @@ export default function IndexPage() {
             </div>
           </div>
 
-          {(filteredMenu1 ?? []).length > 1 && (
-            <div className="sm:hidden fixed bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-3 z-[60]">
-              <button
-                onClick={e => {
-                  e.stopPropagation();
-                  scrollPrev();
-                }}
-                className="flex items-center justify-center w-12 h-12 rounded-full bg-white/90 backdrop-blur-sm shadow-xl border border-border text-foreground active:scale-95 transition-all cursor-pointer"
-                aria-label="Sản phẩm trước"
-              >
-                <ChevronLeft size={22} />
-              </button>
-              <span className="text-xs text-white/70 font-medium bg-black/40 px-3 py-1.5 rounded-full backdrop-blur-sm">
-                {currentProductIndex + 1} / {(filteredMenu1 ?? []).length}
+          <div className="sm:hidden fixed bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-3 z-[60]">
+            {(filteredMenu1 ?? []).length > 1 && (
+              <>
+                <button
+                  onClick={e => {
+                    e.stopPropagation();
+                    scrollPrev();
+                  }}
+                  className="flex items-center justify-center w-12 h-12 rounded-full bg-white/90 backdrop-blur-sm shadow-xl border border-border text-foreground active:scale-95 transition-all cursor-pointer"
+                  aria-label="Sản phẩm trước"
+                >
+                  <ChevronLeft size={22} />
+                </button>
+                <span className="text-xs text-white/70 font-medium bg-black/40 px-3 py-1.5 rounded-full backdrop-blur-sm">
+                  {currentProductIndex + 1} / {(filteredMenu1 ?? []).length}
+                </span>
+                <button
+                  onClick={e => {
+                    e.stopPropagation();
+                    scrollNext();
+                  }}
+                  className="flex items-center justify-center w-12 h-12 rounded-full bg-white/90 backdrop-blur-sm shadow-xl border border-border text-foreground active:scale-95 transition-all cursor-pointer"
+                  aria-label="Sản phẩm tiếp theo"
+                >
+                  <ChevronRight size={22} />
+                </button>
+              </>
+            )}
+          </div>
+
+          {(cart?.items?.length ?? 0) > 0 && (
+            <button
+              onClick={e => {
+                e.stopPropagation();
+                setShowCart(true);
+              }}
+              className=" fixed bottom-3 right-3 z-[70] flex items-center justify-center w-14 h-14 rounded-full bg-primary text-white shadow-xl shadow-primary/30 active:scale-95 transition-all cursor-pointer hover:bg-primary/90"
+              aria-label="Giỏ hàng"
+            >
+              <ShoppingBag size={24} />
+              <span className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-orange-500 text-white text-[11px] font-bold flex items-center justify-center border-2 border-white">
+                {cart?.items?.length}
               </span>
-              <button
-                onClick={e => {
-                  e.stopPropagation();
-                  scrollNext();
-                }}
-                className="flex items-center justify-center w-12 h-12 rounded-full bg-white/90 backdrop-blur-sm shadow-xl border border-border text-foreground active:scale-95 transition-all cursor-pointer"
-                aria-label="Sản phẩm tiếp theo"
-              >
-                <ChevronRight size={22} />
-              </button>
-            </div>
+            </button>
           )}
         </div>
       )}
