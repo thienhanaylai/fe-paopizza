@@ -22,6 +22,7 @@ import { getAllStore } from "@/src/services/store.service";
 import { useSort } from "@/src/hooks/useSort";
 import { SortableHeader } from "@/src/components/ui/SortableHeader";
 import { toast, Toaster } from "sonner";
+import Pagination from "@/src/components/ui/Pagination";
 type UserRole = "admin" | "manager" | "staff";
 
 const statusConfig: Record<boolean, { label: string; color: string }> = {
@@ -74,6 +75,10 @@ export default function Accounts() {
   const [isLoading, setIsLoading] = useState(false);
   const [isPageLoading, setIsPageLoading] = useState(true);
 
+  // Pagination
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+
   const [formData, setFormData] = useState(createEmptyForm);
 
   const handleChange = e => {
@@ -94,6 +99,11 @@ export default function Accounts() {
     };
     fecthData();
   }, [isLoading]);
+
+  // Reset page khi filter/search thay đổi
+  useEffect(() => {
+    setPage(1);
+  }, [search, roleFilter, statusFilter]);
 
   const handleTogleStatus = async (account: User) => {
     setIsLoading(true);
@@ -186,6 +196,11 @@ export default function Accounts() {
   );
 
   const { sortedData, sortConfig, toggleSort } = useSort(filtered || [], "ref_id.name", "asc");
+
+  // Phân trang
+  const totalFiltered = sortedData.length;
+  const totalPages = Math.ceil(totalFiltered / limit);
+  const paginatedData = sortedData.slice((page - 1) * limit, page * limit);
 
   const counts = {
     total: listUser?.length,
@@ -373,7 +388,7 @@ export default function Accounts() {
                 </tr>
               </thead>
               <tbody>
-                {sortedData?.map((account, i) => {
+                {paginatedData?.map((account, i) => {
                   const st = statusConfig[account.status];
                   return (
                     <tr key={account._id} className="border-t border-border/50 hover:bg-muted/30">
@@ -498,6 +513,21 @@ export default function Accounts() {
           </div>
         )}
       </div>
+
+      {/* Phân trang */}
+      {!isPageLoading && (
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          total={totalFiltered}
+          limit={limit}
+          onPageChange={setPage}
+          onLimitChange={newLimit => {
+            setLimit(newLimit);
+            setPage(1);
+          }}
+        />
+      )}
 
       {showModal && (
         <div

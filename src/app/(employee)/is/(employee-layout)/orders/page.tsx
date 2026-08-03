@@ -33,6 +33,7 @@ import { toast, Toaster } from "sonner";
 import { useEmployeeAuth } from "@/src/context/authEmployeeContext";
 import { Skeleton } from "@/src/components/ui/skeleton";
 import { formatVND } from "@/src/utils/formatVND";
+import Pagination from "@/src/components/ui/Pagination";
 
 const statusConfig: Record<OrderStatus, { label: string; color: string; icon: React.ReactNode }> = {
   pending: { label: "Chờ xử lý", color: "bg-yellow-100 text-yellow-700", icon: <Clock size={14} /> },
@@ -102,7 +103,11 @@ export default function Orders() {
   const [selectedOrder, setSelectedOrder] = useState<OrderHistory | null>(null);
 
   const [isLoading, setIsLoading] = useState(false);
-  const [allOrders, setAllOrders] = useState<OrderHistory[]>();
+  const [allOrders, setAllOrders] = useState<OrderHistory[]>([]);
+
+  // Pagination state
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
 
   const [sortBy, setSortBy] = useState("status");
   const [sortOrder, setSortOrder] = useState("asc");
@@ -122,16 +127,30 @@ export default function Orders() {
   };
   const fecthData = async () => {
     setIsLoading(true);
-    const info = await getInfo();
-    if (info?.ref_id?.store_id) {
-      const res = await getAllOrder(`store_id=${info.ref_id.store_id}`, "");
-      setAllOrders(res.data);
+    try {
+      const info = await getInfo();
+      if (info?.ref_id?.store_id) {
+        const res = await getAllOrder(`store_id=${info.ref_id.store_id}`, "", 1, 999);
+        setAllOrders(res.data || []);
+        setPage(1);
+      }
+    } catch (error) {
+      console.error("Lỗi khi tải đơn hàng:", error);
+      toast.error("Không thể tải danh sách đơn hàng");
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
+
   useEffect(() => {
     fecthData();
   }, []);
+
+  // Reset về page 1 khi thay đổi bộ lọc
+  useEffect(() => {
+    setPage(1);
+  }, [statusFilter, typeFilter, search]);
+
   const handleSort = (field: string) => {
     if (sortBy === field) {
       setSortOrder(sortOrder === "asc" ? "desc" : "asc");
@@ -140,7 +159,8 @@ export default function Orders() {
       setSortOrder("desc");
     }
   };
-  const filtered = allOrders
+
+  const filteredAll = allOrders
     ?.filter(
       o =>
         (statusFilter === "all" || o.status === statusFilter) &&
@@ -163,6 +183,11 @@ export default function Orders() {
 
       return 0;
     });
+
+  // Phân trang phía client
+  const totalFiltered = filteredAll?.length || 0;
+  const totalPagesFiltered = Math.ceil(totalFiltered / limit);
+  const paginatedOrders = filteredAll?.slice((page - 1) * limit, page * limit) || [];
 
   const statusCounts = {
     pending: allOrders?.filter(o => o.status === "pending").length,
@@ -457,7 +482,7 @@ export default function Orders() {
                 </tr>
               </thead>
               <tbody>
-                {filtered?.map(order => {
+                {paginatedOrders?.map(order => {
                   const st = statusConfig[order.status];
                   const tc = typeConfig[order.orderType];
                   const pmst = paymentStatusConfig[order.paymentStatus];
@@ -553,6 +578,21 @@ export default function Orders() {
           )}
         </div>
       </div>
+
+      {/* Phân trang */}
+      {!isLoading && (
+        <Pagination
+          page={page}
+          totalPages={totalPagesFiltered}
+          total={totalFiltered}
+          limit={limit}
+          onPageChange={setPage}
+          onLimitChange={newLimit => {
+            setLimit(newLimit);
+            setPage(1);
+          }}
+        />
+      )}
 
       {selectedOrder && (
         <div

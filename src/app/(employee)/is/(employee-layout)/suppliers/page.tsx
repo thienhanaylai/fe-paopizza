@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { useSort } from "@/src/hooks/useSort";
 import { SortableHeader } from "@/src/components/ui/SortableHeader";
+import Pagination from "@/src/components/ui/Pagination";
 import { toast, Toaster } from "sonner";
 import {
   createSupplier,
@@ -51,6 +52,15 @@ export default function Suppliers() {
   const [confirmModal, setConfirmModal] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<SupplierApi | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  // Pagination
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+
+  // Reset page khi search thay đổi
+  useEffect(() => {
+    setPage(1);
+  }, [search]);
 
   const fetchSuppliers = async () => {
     const { data: res } = await getAllSupplier();
@@ -167,14 +177,20 @@ export default function Suppliers() {
     toggleSort: toggleSupplierSort,
   } = useSort(rawFiltered, "name", "asc");
 
-  const isAllSelected = sortedSuppliers.length > 0 && sortedSuppliers.every(s => selectedIds.has(s._id || s.id || ""));
+  // Phân trang
+  const totalSuppliers = listSuppliers.length;
+  const totalFiltered = sortedSuppliers.length;
+  const totalPages = Math.ceil(totalFiltered / limit);
+  const paginatedSuppliers = sortedSuppliers.slice((page - 1) * limit, page * limit);
+
+  const isAllSelected = paginatedSuppliers.length > 0 && paginatedSuppliers.every(s => selectedIds.has(s._id || s.id || ""));
   const isIndeterminate = selectedIds.size > 0 && !isAllSelected;
 
   const toggleSelectAll = () => {
     if (isAllSelected) {
       setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(sortedSuppliers.map(s => s._id || s.id || "")));
+      setSelectedIds(new Set(paginatedSuppliers.map(s => s._id || s.id || "")));
     }
   };
 
@@ -189,7 +205,6 @@ export default function Suppliers() {
 
   const clearSelection = () => setSelectedIds(new Set());
 
-  const totalSuppliers = listSuppliers.length;
   const activeSuppliers = listSuppliers.filter(s => s.isActive).length;
   const inactiveSuppliers = listSuppliers.filter(s => !s.isActive).length;
 
@@ -357,7 +372,7 @@ export default function Suppliers() {
                     </td>
                   </tr>
                 ) : (
-                  sortedSuppliers.map(sup => {
+                  paginatedSuppliers.map(sup => {
                     const supplierId = sup._id || sup.id || "";
                     const isSelected = selectedIds.has(supplierId);
                     return (
@@ -437,6 +452,21 @@ export default function Suppliers() {
           </div>
         )}
       </div>
+
+      {/* Phân trang */}
+      {!isPageLoading && (
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          total={totalFiltered}
+          limit={limit}
+          onPageChange={setPage}
+          onLimitChange={newLimit => {
+            setLimit(newLimit);
+            setPage(1);
+          }}
+        />
+      )}
 
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 m-0" onClick={closeModal}>

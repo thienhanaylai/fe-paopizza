@@ -27,6 +27,7 @@ import { createStore, getAllStore, StoreAddress, StoreData, updateStore } from "
 import { getEmployeeByRole } from "@/src/services/employee.service";
 import { useSort } from "@/src/hooks/useSort";
 import { SortableHeader } from "@/src/components/ui/SortableHeader";
+import Pagination from "@/src/components/ui/Pagination";
 import { toast, Toaster } from "sonner";
 import { getRevenue } from "@/src/services/revenue.service";
 import { formatVND } from "@/src/utils/formatVND";
@@ -73,6 +74,10 @@ export default function Stores() {
   const [listManager, setListManager] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  // Pagination
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
   const [nameStore, setNameStore] = useState("");
   const [streetNumber, setStreetNumber] = useState("");
   const [district, setDistrict] = useState("");
@@ -117,6 +122,11 @@ export default function Stores() {
   useEffect(() => {
     fecthdata();
   }, []);
+
+  // Reset page khi filter/search thay đổi
+  useEffect(() => {
+    setPage(1);
+  }, [search, filterStatus]);
 
   const clearFrom = () => {
     setNameStore("");
@@ -241,14 +251,19 @@ export default function Stores() {
     toggleSort: toggleStoreSort,
   } = useSort(rawFiltered, "name", "asc");
 
-  const isAllSelected = sortedStores.length > 0 && sortedStores.every(s => selectedIds.has(s._id));
+  // Phân trang
+  const totalFiltered = sortedStores.length;
+  const totalPages = Math.ceil(totalFiltered / limit);
+  const paginatedStores = sortedStores.slice((page - 1) * limit, page * limit);
+
+  const isAllSelected = paginatedStores.length > 0 && paginatedStores.every(s => selectedIds.has(s._id));
   const isIndeterminate = selectedIds.size > 0 && !isAllSelected;
 
   const toggleSelectAll = () => {
     if (isAllSelected) {
       setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(sortedStores.map(s => s._id)));
+      setSelectedIds(new Set(paginatedStores.map(s => s._id)));
     }
   };
 
@@ -461,7 +476,7 @@ export default function Stores() {
                     </td>
                   </tr>
                 ) : (
-                  sortedStores.map(store => {
+                  paginatedStores.map(store => {
                     const st = statusConfig[store.status];
                     const isSelected = selectedIds.has(store._id);
                     return (
@@ -540,6 +555,21 @@ export default function Stores() {
           </div>
         )}
       </div>
+
+      {/* Phân trang */}
+      {!isPageLoading && (
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          total={totalFiltered}
+          limit={limit}
+          onPageChange={setPage}
+          onLimitChange={newLimit => {
+            setLimit(newLimit);
+            setPage(1);
+          }}
+        />
+      )}
 
       {selectedStore && (
         <div

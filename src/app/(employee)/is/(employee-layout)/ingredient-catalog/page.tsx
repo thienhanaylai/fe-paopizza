@@ -27,6 +27,7 @@ import { useSort } from "@/src/hooks/useSort";
 import { SortableHeader } from "@/src/components/ui/SortableHeader";
 import { toast, Toaster } from "sonner";
 import { formatVND } from "@/src/utils/formatVND";
+import Pagination from "@/src/components/ui/Pagination";
 
 export interface Unit {
   name: string;
@@ -66,6 +67,10 @@ export default function IngredientCatalog() {
   const [confirmModal, setCongirmModal] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
+  // Pagination
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+
   useEffect(() => {
     const fectData = async () => {
       try {
@@ -90,6 +95,11 @@ export default function IngredientCatalog() {
     fectData();
   }, []);
 
+  // Reset page khi filter/search thay đổi
+  useEffect(() => {
+    setPage(1);
+  }, [search, categoryFilter]);
+
   const rawFiltered = (ingredients || []).filter(
     i =>
       (categoryFilter === "all" || i.category === categoryFilter) &&
@@ -101,14 +111,19 @@ export default function IngredientCatalog() {
     toggleSort: toggleIngSort,
   } = useSort(rawFiltered, "name", "asc");
 
-  const isAllSelected = sortedIngredients.length > 0 && sortedIngredients.every(i => selectedIds.has(i._id));
+  // Phân trang
+  const totalFiltered = sortedIngredients.length;
+  const totalPages = Math.ceil(totalFiltered / limit);
+  const paginatedIngredients = sortedIngredients.slice((page - 1) * limit, page * limit);
+
+  const isAllSelected = paginatedIngredients.length > 0 && paginatedIngredients.every(i => selectedIds.has(i._id));
   const isIndeterminate = selectedIds.size > 0 && !isAllSelected;
 
   const toggleSelectAll = () => {
     if (isAllSelected) {
       setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(sortedIngredients.map(i => i._id)));
+      setSelectedIds(new Set(paginatedIngredients.map(i => i._id)));
     }
   };
 
@@ -337,7 +352,7 @@ export default function IngredientCatalog() {
               </tr>
             </thead>
             <tbody>
-              {sortedIngredients.length === 0 ? (
+              {paginatedIngredients.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="px-5 py-16 text-center text-muted-foreground">
                     <Package size={40} className="mx-auto mb-3 text-muted-foreground/20" />
@@ -345,7 +360,7 @@ export default function IngredientCatalog() {
                   </td>
                 </tr>
               ) : (
-                sortedIngredients.map(item => {
+                paginatedIngredients.map(item => {
                   const isSelected = selectedIds.has(item._id);
                   return (
                     <tr
@@ -451,6 +466,19 @@ export default function IngredientCatalog() {
           </table>
         </div>
       </div>
+
+      {/* Phân trang */}
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        total={totalFiltered}
+        limit={limit}
+        onPageChange={setPage}
+        onLimitChange={newLimit => {
+          setLimit(newLimit);
+          setPage(1);
+        }}
+      />
 
       {showForm && (
         <div

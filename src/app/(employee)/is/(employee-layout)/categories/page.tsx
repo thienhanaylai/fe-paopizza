@@ -29,6 +29,7 @@ import {
   reorderCategories,
   type CategoryData,
 } from "@/src/services/category.service";
+import Pagination from "@/src/components/ui/Pagination";
 
 export default function CategoriesManagement() {
   const [search, setSearch] = useState("");
@@ -37,6 +38,10 @@ export default function CategoriesManagement() {
   const [editItem, setEditItem] = useState<CategoryData | null>(null);
   const [categories, setCategories] = useState<CategoryData[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Pagination
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
 
   // Form fields
   const [formName, setFormName] = useState("");
@@ -63,6 +68,11 @@ export default function CategoriesManagement() {
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Reset page khi filter/search thay đổi
+  useEffect(() => {
+    setPage(1);
+  }, [search, statusFilter]);
 
   const fetchData = async () => {
     try {
@@ -192,15 +202,19 @@ export default function CategoriesManagement() {
     return matchesSearch && matchesStatus;
   });
 
+  const totalFiltered = filtered?.length ?? 0;
+  const totalPages = Math.ceil(totalFiltered / limit);
+  const paginatedCategories = (filtered ?? []).slice((page - 1) * limit, page * limit);
+
   // Selection
-  const isAllSelected = (filtered?.length ?? 0) > 0 && filtered!.every(i => selectedIds.has(i._id));
+  const isAllSelected = (paginatedCategories?.length ?? 0) > 0 && paginatedCategories.every(i => selectedIds.has(i._id));
   const isIndeterminate = selectedIds.size > 0 && !isAllSelected;
 
   const toggleSelectAll = () => {
     if (isAllSelected) {
       setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(filtered?.map(i => i._id) ?? []));
+      setSelectedIds(new Set(paginatedCategories?.map(i => i._id) ?? []));
     }
   };
 
@@ -519,7 +533,7 @@ export default function CategoriesManagement() {
                     </td>
                   </tr>
                 ) : (
-                  filtered.map((item, idx) => {
+                  paginatedCategories.map((item, idx) => {
                     const isSelected = selectedIds.has(item._id);
                     const isDragging = dragIndex === idx;
                     const isDragOver = dragOverIndex === idx;
@@ -650,6 +664,21 @@ export default function CategoriesManagement() {
           </div>
         )}
       </div>
+
+      {/* Phân trang */}
+      {!isLoading && (
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          total={totalFiltered}
+          limit={limit}
+          onPageChange={setPage}
+          onLimitChange={newLimit => {
+            setLimit(newLimit);
+            setPage(1);
+          }}
+        />
+      )}
 
       {showForm && (
         <div

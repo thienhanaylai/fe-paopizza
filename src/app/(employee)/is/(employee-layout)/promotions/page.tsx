@@ -35,6 +35,7 @@ import { formatVND } from "@/src/utils/formatVND";
 import { useSort } from "@/src/hooks/useSort";
 import { SortableHeader } from "@/src/components/ui/SortableHeader";
 import PromotionFormModal from "@/src/components/modals/PromotionFormModal";
+import Pagination from "@/src/components/ui/Pagination";
 
 // Constants
 const PROMOTION_TYPE_LABELS: Record<PromotionType, string> = {
@@ -84,6 +85,10 @@ export default function PromotionsPage() {
   const [filterStatus, setFilterStatus] = useState<"all" | PromotionStatus>("all");
   const [listPromotions, setListPromotions] = useState<Promotion[]>([]);
   const [isPageLoading, setIsPageLoading] = useState(true);
+
+  // Pagination
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
   const [storeMap, setStoreMap] = useState<Map<string, string>>(new Map());
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
@@ -120,6 +125,11 @@ export default function PromotionsPage() {
     fetchData();
   }, []);
 
+  // Reset page khi filter/search thay đổi
+  useEffect(() => {
+    setPage(1);
+  }, [search, filterStatus]);
+
   // Lọc & sắp xếp
   const rawFiltered = listPromotions.filter(p => {
     const matchesSearch = p.code.toLowerCase().includes(search.toLowerCase());
@@ -131,6 +141,11 @@ export default function PromotionsPage() {
     sortConfig: promoSortConfig,
     toggleSort: togglePromoSort,
   } = useSort(rawFiltered, "code", "asc");
+
+  // Phân trang
+  const totalFiltered = sortedPromotions.length;
+  const totalPages = Math.ceil(totalFiltered / limit);
+  const paginatedPromotions = sortedPromotions.slice((page - 1) * limit, page * limit);
 
   // Thống kê
   const stats = {
@@ -148,7 +163,7 @@ export default function PromotionsPage() {
     if (isAllSelected) {
       setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(sortedPromotions.map(p => p._id)));
+      setSelectedIds(new Set(paginatedPromotions.map(p => p._id)));
     }
   };
 
@@ -466,7 +481,7 @@ export default function PromotionsPage() {
                     </td>
                   </tr>
                 ) : (
-                  sortedPromotions.map(promo => {
+                  paginatedPromotions.map(promo => {
                     const isSelected = selectedIds.has(promo._id);
                     const effectiveStatus = getEffectiveStatus(promo);
                     const statusConfig = PROMOTION_STATUS_CONFIG[effectiveStatus];
@@ -558,6 +573,21 @@ export default function PromotionsPage() {
           </div>
         )}
       </div>
+
+      {/* Phân trang */}
+      {!isPageLoading && (
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          total={totalFiltered}
+          limit={limit}
+          onPageChange={setPage}
+          onLimitChange={newLimit => {
+            setLimit(newLimit);
+            setPage(1);
+          }}
+        />
+      )}
 
       <PromotionFormModal
         open={showModal}

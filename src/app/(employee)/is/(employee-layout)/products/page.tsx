@@ -37,6 +37,7 @@ import { SortableHeader } from "@/src/components/ui/SortableHeader";
 import { toast, Toaster } from "sonner";
 import ProductFormModal, { ProductFormSubmitPayload } from "@/src/components/modals/ProductFormModal";
 import ComboFormModal, { ComboFormSubmitPayload } from "@/src/components/modals/ComboFormModal";
+import Pagination from "@/src/components/ui/Pagination";
 
 interface IngredientList {
   _id: string;
@@ -94,6 +95,14 @@ export default function Products() {
   const [isPageLoading, setIsPageLoading] = useState(true);
   const [confirmModal, setCongirmModal] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  // Pagination - Products tab
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+
+  // Pagination - Combo tab
+  const [comboPage, setComboPage] = useState(1);
+  const [comboLimit, setComboLimit] = useState(10);
 
   const [comboSearch, setComboSearch] = useState("");
   const [combos, setCombos] = useState<any[]>([]);
@@ -216,6 +225,11 @@ export default function Products() {
     fetchProductData();
   }, [isLoading]);
 
+  // Reset page khi filter/search thay đổi
+  useEffect(() => {
+    setPage(1);
+  }, [search, categoryFilter]);
+
   const filtered = products.filter(
     p => (categoryFilter === "all" || p.category.slug === categoryFilter) && p.name.toLowerCase().includes(search.toLowerCase()),
   );
@@ -225,14 +239,19 @@ export default function Products() {
     toggleSort: toggleProductSort,
   } = useSort(filtered, "name", "asc");
 
-  const isAllSelected = sortedProducts.length > 0 && sortedProducts.every(p => selectedIds.has(p._id));
+  // Phân trang - Products
+  const totalFiltered = sortedProducts.length;
+  const totalPages = Math.ceil(totalFiltered / limit);
+  const paginatedProducts = sortedProducts.slice((page - 1) * limit, page * limit);
+
+  const isAllSelected = paginatedProducts.length > 0 && paginatedProducts.every(p => selectedIds.has(p._id));
   const isIndeterminate = selectedIds.size > 0 && !isAllSelected;
 
   const toggleSelectAll = () => {
     if (isAllSelected) {
       setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(sortedProducts.map(p => p._id)));
+      setSelectedIds(new Set(paginatedProducts.map(p => p._id)));
     }
   };
 
@@ -353,12 +372,22 @@ export default function Products() {
     fetchComboData();
   }, [comboIsLoading]);
 
+  // Reset combo page khi search thay đổi
+  useEffect(() => {
+    setComboPage(1);
+  }, [comboSearch]);
+
   const comboFiltered = combos.filter((c: any) => c.name.toLowerCase().includes(comboSearch.toLowerCase()));
   const {
     sortedData: sortedCombos,
     sortConfig: comboSortConfig,
     toggleSort: toggleComboSort,
   } = useSort(comboFiltered, "name", "asc");
+
+  // Phân trang - Combo
+  const comboTotalFiltered = sortedCombos.length;
+  const comboTotalPages = Math.ceil(comboTotalFiltered / comboLimit);
+  const paginatedCombos = sortedCombos.slice((comboPage - 1) * comboLimit, comboPage * comboLimit);
 
   // Compute set of category IDs that have at least one active, non-deleted product
   const categoriesWithProducts = useMemo(() => {
@@ -371,7 +400,7 @@ export default function Products() {
     return catIds;
   }, [comboProducts]);
 
-  const comboIsAllSelected = sortedCombos.length > 0 && sortedCombos.every((c: any) => comboSelectedIds.has(c._id));
+  const comboIsAllSelected = paginatedCombos.length > 0 && paginatedCombos.every((c: any) => comboSelectedIds.has(c._id));
   const comboClearSelection = () => setComboSelectedIds(new Set());
 
   const comboOpenCreate = () => {
@@ -390,7 +419,7 @@ export default function Products() {
     } else {
       setComboSelectedIds(
         new Set(
-          sortedCombos.map((c: any) => {
+          paginatedCombos.map((c: any) => {
             if (c.isActive) return c._id;
           }),
         ),
@@ -746,7 +775,7 @@ export default function Products() {
                         </td>
                       </tr>
                     ) : (
-                      sortedProducts.map(product => {
+                      paginatedProducts.map(product => {
                         const isSelected = selectedIds.has(product._id);
                         return (
                           <tr
@@ -842,6 +871,21 @@ export default function Products() {
               </div>
             )}
           </div>
+
+          {/* Phân trang - Products */}
+          {!isPageLoading && (
+            <Pagination
+              page={page}
+              totalPages={totalPages}
+              total={totalFiltered}
+              limit={limit}
+              onPageChange={setPage}
+              onLimitChange={newLimit => {
+                setLimit(newLimit);
+                setPage(1);
+              }}
+            />
+          )}
 
           {isAdmin && (
             <ProductFormModal
@@ -1050,7 +1094,7 @@ export default function Products() {
                       </td>
                     </tr>
                   ) : (
-                    sortedCombos.map((combo: any) => {
+                    paginatedCombos.map((combo: any) => {
                       const isSelected = comboSelectedIds.has(combo._id);
                       return (
                         <tr
@@ -1152,6 +1196,19 @@ export default function Products() {
               </table>
             </div>
           </div>
+
+          {/* Phân trang - Combo */}
+          <Pagination
+            page={comboPage}
+            totalPages={comboTotalPages}
+            total={comboTotalFiltered}
+            limit={comboLimit}
+            onPageChange={setComboPage}
+            onLimitChange={newLimit => {
+              setComboLimit(newLimit);
+              setComboPage(1);
+            }}
+          />
 
           {isAdmin && (
             <ComboFormModal

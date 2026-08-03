@@ -13,8 +13,8 @@ interface PaymentQRModalProps {
   onPaymentSuccess?: () => void;
 }
 
-// Thời gian timeout thanh toán (phút) - đồng bộ với backend cron job
-const PAYMENT_TIMEOUT_MINUTES = 15;
+// Thời gian timeout thanh toán (phút)
+const PAYMENT_TIMEOUT_MINUTES = 10;
 
 export default function PaymentQRModal({ order, onClose, onPaymentSuccess }: PaymentQRModalProps) {
   const [paymentData, setPaymentData] = useState<PaymentRequestData | null>(null);
@@ -35,7 +35,6 @@ export default function PaymentQRModal({ order, onClose, onPaymentSuccess }: Pay
     return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
   };
 
-  // Copy nội dung chuyển khoản
   const handleCopyContent = async () => {
     if (!paymentData?.content) return;
     try {

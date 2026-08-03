@@ -30,6 +30,7 @@ import {
 } from "@/src/services/employee.service";
 import { toast, Toaster } from "sonner";
 import { formatVND } from "@/src/utils/formatVND";
+import Pagination from "@/src/components/ui/Pagination";
 
 export type EmployeeType = "fulltime" | "parttime";
 
@@ -95,6 +96,10 @@ export default function Employees() {
   const [editItem, setEditItem] = useState<Employee | null>(null);
   const [listEmployee, setListEmployee] = useState<Employee[]>([]);
   const [isPageLoading, setIsPageLoading] = useState(true);
+
+  // Pagination
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
   const [formName, setFormName] = useState("");
   const [formUsername, setFormUsername] = useState("");
   const [formPassword, setFormPassword] = useState("");
@@ -139,6 +144,11 @@ export default function Employees() {
   useEffect(() => {
     fetchEmployees(authMode === "manager" ? managerStoreId : null);
   }, [authMode, managerStoreId, fetchEmployees]);
+
+  // Reset page khi filter thay đổi
+  useEffect(() => {
+    setPage(1);
+  }, [search, typeFilter, stationFilter]);
 
   const resetForm = () => {
     setFormName("");
@@ -266,6 +276,11 @@ export default function Employees() {
       (employee.name.toLowerCase().includes(search.toLowerCase()) || employee.email.toLowerCase().includes(search.toLowerCase()))
     );
   });
+
+  const totalFiltered = filtered.length;
+  const totalPages = Math.ceil(totalFiltered / limit);
+  const paginatedEmployees = filtered.slice((page - 1) * limit, page * limit);
+
   const fulltimeCount = listEmployee.filter(
     employee => getEmployeeType(employee) === "fulltime" && employee.status !== false,
   ).length;
@@ -388,7 +403,7 @@ export default function Employees() {
                 </div>
               </div>
             ))
-          : filtered.map((employee, i) => {
+          : paginatedEmployees.map((employee, i) => {
               const station = getEmployeeStation(employee);
               const type = getEmployeeType(employee);
               const status = getEmployeeStatus(employee);
@@ -490,6 +505,21 @@ export default function Employees() {
               );
             })}
       </div>
+
+      {/* Phân trang */}
+      {!isPageLoading && (
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          total={totalFiltered}
+          limit={limit}
+          onPageChange={setPage}
+          onLimitChange={newLimit => {
+            setLimit(newLimit);
+            setPage(1);
+          }}
+        />
+      )}
 
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 m-0" onClick={closeModal}>
