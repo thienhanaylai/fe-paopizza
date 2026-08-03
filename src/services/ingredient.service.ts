@@ -70,7 +70,7 @@ export const addIngredient = async (payload: {
 }) => {
   const response = await http("/api/v1/ingredient/create", {
     method: "POST",
-    body: JSON.stringify(payload),
+    body: JSON.stringify({ ...payload, isActive: true }),
   });
 
   return response.data;

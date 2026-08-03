@@ -10,7 +10,7 @@ export interface VariantPayload {
   sku: string;
   size: string;
   price: number;
-  disscountType?: "percent" | "amount";
+  discountType?: "percent" | "amount";
   discount?: number;
   crust: string[];
   recipe: RecipeItemPayload[];
@@ -21,7 +21,7 @@ export interface UpdateVariantPayload {
   sku: string;
   size: string;
   price: number;
-  disscountType?: "percent" | "amount";
+  discountType?: "percent" | "amount";
   discount?: number;
   crust?: string[];
   recipe: RecipeItemPayload[];

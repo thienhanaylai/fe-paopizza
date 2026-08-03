@@ -144,9 +144,7 @@ export const CheckoutModal = () => {
           if (defaultAddr && !custName && !custPhone) {
             setCustName(defaultAddr.name || "");
             setCustPhone(defaultAddr.phone || "");
-            if (orderMethod === "delivery") {
-              setCustAddress(defaultAddr.address || "");
-            }
+            setCustAddress(defaultAddr.address || "");
             setSelectedAddressId(defaultAddr._id || "");
           }
         }

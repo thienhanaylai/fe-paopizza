@@ -62,7 +62,7 @@ export type ProductVariant = {
   sku: string;
   price: number;
   size: string;
-  disscountType?: "percent" | "amount";
+  discountType?: "percent" | "amount";
   discount?: number;
   crust: string[];
   image: ProductImage;
@@ -158,7 +158,7 @@ export default function Products() {
               sku: v.sku,
               size: v.size,
               price: v.price,
-              disscountType: v.disscountType,
+              discountType: v.discountType,
               discount: v.discount,
               crust: v.crust,
               recipe: v.recipe,

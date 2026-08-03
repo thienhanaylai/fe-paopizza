@@ -13,7 +13,7 @@ export interface VariantSubmitPayload {
   sku: string;
   size: string;
   price: number;
-  disscountType?: "percent" | "amount";
+  discountType?: "percent" | "amount";
   discount?: number;
   crust: string[];
   recipe: RecipeItemPayload[];
@@ -51,7 +51,7 @@ interface ProductVariant {
   sku: string;
   price: number;
   size: string;
-  disscountType?: "percent" | "amount";
+  discountType?: "percent" | "amount";
   discount?: number;
   crust: string[];
   image: ProductImage;
@@ -102,7 +102,7 @@ const createEmptyVariant = (): VariantPayload => ({
   sku: "",
   size: "S",
   price: 0,
-  disscountType: undefined,
+  discountType: undefined,
   discount: 0,
   crust: [],
   imageFile: undefined as any,
@@ -124,7 +124,7 @@ const mapProductToVariants = (product: Product): VariantPayload[] => {
     sku: variant.sku,
     size: variant.size,
     price: variant.price,
-    disscountType: variant.disscountType,
+    discountType: variant.discountType,
     discount: variant.discount,
     crust: normalizeCrust(variant.crust),
     imageFile: undefined as any,
@@ -269,7 +269,7 @@ export default function ProductFormModal({
         sku: variant.sku || `${categoryPrefix}-${formatForSku(basicInfo.name)}-${formatForSku(variant.size)}`,
         size: variant.size,
         price: variant.price,
-        disscountType: variant.disscountType,
+        discountType: variant.discountType,
         discount: variant.discount,
         crust: variant.crust || [],
         recipe: variant.recipe.map(item => {

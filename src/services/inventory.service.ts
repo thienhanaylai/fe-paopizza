@@ -37,7 +37,7 @@ export interface InventoryResponse {
 export interface UpdateInventoryPayload {
   store_id: string;
   ingredient_id: string;
-  current_stock?: number;
+  current_stock: number;
   min_stock_level?: number;
 }
 
@@ -45,7 +45,7 @@ export interface UpdateInventoryStockPayload {
   store_id: string;
   ingredient_id: string;
   quantity: number;
-  type?: "add" | "reduce";
+  type?: "add" | "subtract";
 }
 
 export interface SummaryShiftItemPayload {
