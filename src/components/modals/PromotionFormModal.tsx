@@ -27,6 +27,7 @@ export default function PromotionFormModal({ open, onClose, editingPromo, stores
   const [formCode, setFormCode] = useState("");
   const [formType, setFormType] = useState<PromotionType>("percentage");
   const [formValue, setFormValue] = useState("");
+  const [formPoint, setFormPoint] = useState("");
   const [formStartDate, setFormStartDate] = useState("");
   const [formEndDate, setFormEndDate] = useState("");
   const [formStatus, setFormStatus] = useState<PromotionStatus>("draft");
@@ -42,6 +43,7 @@ export default function PromotionFormModal({ open, onClose, editingPromo, stores
       setFormCode(editingPromo.code);
       setFormType(editingPromo.type);
       setFormValue(String(editingPromo.value));
+      setFormPoint(String(editingPromo.point ?? -1));
       setFormStartDate(new Date(editingPromo.startDate).toISOString().slice(0, 16));
       setFormEndDate(new Date(editingPromo.endDate).toISOString().slice(0, 16));
       setFormStatus(editingPromo.status);
@@ -50,6 +52,7 @@ export default function PromotionFormModal({ open, onClose, editingPromo, stores
       setFormCode("");
       setFormType("percentage");
       setFormValue("");
+      setFormPoint("-1");
       setFormStartDate("");
       setFormEndDate("");
       setFormStatus("draft");
@@ -81,6 +84,20 @@ export default function PromotionFormModal({ open, onClose, editingPromo, stores
       return;
     }
 
+    const now = new Date();
+    const startDate = new Date(formStartDate);
+    const endDate = new Date(formEndDate);
+
+    if (endDate < now) {
+      toast.warning("Ngày kết thúc phải lớn hơn hoặc bằng thời gian hiện tại!");
+      return;
+    }
+
+    if (endDate <= startDate) {
+      toast.warning("Ngày kết thúc phải sau ngày bắt đầu!");
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       if (isEditing) {
@@ -89,6 +106,7 @@ export default function PromotionFormModal({ open, onClose, editingPromo, stores
           code: formCode.trim(),
           type: formType,
           value: numericValue,
+          point: Number(formPoint),
           startDate: new Date(formStartDate).toISOString(),
           endDate: new Date(formEndDate).toISOString(),
           status: formStatus,
@@ -101,6 +119,7 @@ export default function PromotionFormModal({ open, onClose, editingPromo, stores
           code: formCode.trim(),
           type: formType,
           value: numericValue,
+          point: Number(formPoint),
           startDate: new Date(formStartDate).toISOString(),
           endDate: new Date(formEndDate).toISOString(),
           status: formStatus,
@@ -130,7 +149,7 @@ export default function PromotionFormModal({ open, onClose, editingPromo, stores
 
   // Render
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-[10vh] bg-black/50 overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-start justify-center pt-[10vh] bg-black/50 m-0 overflow-y-auto">
       <div className="bg-card rounded-2xl p-6 max-w-2xl w-full mx-4 shadow-xl border border-border my-8">
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-lg font-semibold text-foreground">{isEditing ? "Chỉnh sửa khuyến mãi" : "Tạo khuyến mãi mới"}</h3>
@@ -188,6 +207,23 @@ export default function PromotionFormModal({ open, onClose, editingPromo, stores
                 </span>
               </div>
             </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-1.5">
+              Điểm quy đổi
+              <span className="text-muted-foreground font-normal ml-1">
+                (-1 = không đổi được, 0 = miễn phí, {`>`}0 = số điểm cần)
+              </span>
+            </label>
+            <input
+              type="number"
+              value={formPoint}
+              onChange={e => setFormPoint(e.target.value)}
+              placeholder="VD: 500"
+              min="-1"
+              className="w-full px-4 py-2.5 rounded-xl border border-border bg-background focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none"
+            />
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

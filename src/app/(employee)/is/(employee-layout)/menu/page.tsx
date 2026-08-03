@@ -479,14 +479,14 @@ export default function MenuManagement() {
             {menu && (
               <div className="flex items-center gap-4 mt-4 pt-4 border-t border-border">
                 <span className="text-sm text-muted-foreground">Trạng thái menu:</span>
-                <span
+                {/* <span
                   className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${
                     menu.status ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-500"
                   }`}
                 >
                   <span className={`w-2 h-2 rounded-full ${menu.status ? "bg-emerald-500" : "bg-red-500"}`} />
                   {menu.status ? "Đang hoạt động" : "Đã tắt"}
-                </span>
+                </span> */}
                 <span className="text-sm text-muted-foreground">
                   · {menu.products?.length || 0} sản phẩm · {menu.combos?.length || 0} combo
                 </span>

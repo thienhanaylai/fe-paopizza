@@ -103,16 +103,9 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function EmployeeAuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<Employee | null>(null);
-  const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [user, setUser] = useState<Employee | null>(() => readStoredUser());
+  const [accessToken, setAccessToken] = useState<string | null>(() => readStoredToken());
   const [authMode, setAuthMode] = useState<AuthMode>(() => readStoredAuthMode() ?? readStoredUser()?.role ?? null);
-
-  useEffect(() => {
-    const storedUser = readStoredUser();
-    const storedToken = readStoredToken();
-    setUser(storedUser);
-    setAccessToken(storedToken);
-  }, []);
 
   const employeeLogin = async (username: string, password: string, preferredRole: AuthMode = "staff") => {
     const endpoint = "/auth/EmployeeLogin";

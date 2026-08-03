@@ -35,6 +35,8 @@ import { getAllStore, type StoreData } from "@/src/services/store.service";
 import { getRevenue } from "@/src/services/revenue.service";
 import { getAllOrder, type OrderHistory, type OrderStatus } from "@/src/services/order.service";
 import { getAllEmployee } from "@/src/services/employee.service";
+import { SortableHeader } from "@/src/components/ui/SortableHeader";
+import { useSort } from "@/src/hooks/useSort";
 
 type EmployeeRole = "admin" | "manager" | "staff";
 
@@ -351,6 +353,12 @@ function StoreDashboard({
 }
 
 function AdminDashboard({ userName, data, loading }: { userName: string; data: AdminDataState; loading: boolean }) {
+  const {
+    sortedData: sortedStores,
+    sortConfig: storeSortConfig,
+    toggleSort: toggleStoreSort,
+  } = useSort(data.stores, "name", "asc");
+
   const stats = [
     {
       label: "Tổng doanh thu tháng",
@@ -454,33 +462,61 @@ function AdminDashboard({ userName, data, loading }: { userName: string; data: A
           <table className="w-full text-sm">
             <thead>
               <tr className="text-muted-foreground text-left border-b border-border">
-                <th className="pb-3 pr-4">Cửa hàng</th>
-                <th className="pb-3 pr-4">Quản lý</th>
-                <th className="pb-3 pr-4">Doanh thu tháng</th>
-                <th className="pb-3 pr-4">Đơn hàng</th>
-                <th className="pb-3">Trạng thái</th>
+                <SortableHeader
+                  label="Cửa hàng"
+                  sortKey="name"
+                  sortConfig={storeSortConfig}
+                  onSort={toggleStoreSort}
+                  className="pb-3 pr-4 text-sm font-semibold text-foreground/70"
+                />
+                <SortableHeader
+                  label="Quản lý"
+                  sortKey="manager"
+                  sortConfig={storeSortConfig}
+                  onSort={toggleStoreSort}
+                  className="pb-3 pr-4 text-sm font-semibold text-foreground/70"
+                />
+                <SortableHeader
+                  label="Doanh thu tháng"
+                  sortKey="revenue"
+                  sortConfig={storeSortConfig}
+                  onSort={toggleStoreSort}
+                  className="pb-3 pr-4 text-sm font-semibold text-foreground/70"
+                />
+                <SortableHeader
+                  label="Đơn hàng"
+                  sortKey="orders"
+                  sortConfig={storeSortConfig}
+                  onSort={toggleStoreSort}
+                  className="pb-3 pr-4 text-sm font-semibold text-foreground/70"
+                />
+                <SortableHeader
+                  label="Trạng thái"
+                  sortKey="status"
+                  sortConfig={storeSortConfig}
+                  onSort={toggleStoreSort}
+                  className="pb-3 text-sm font-semibold text-foreground/70"
+                />
               </tr>
             </thead>
             <tbody>
-              {data.stores
-                ?.sort((a, b) => a.name.localeCompare(b.name))
-                .map(store => (
-                  <tr key={store.id} className="border-b border-border/50 last:border-0 hover:bg-muted/30">
-                    <td className="py-3 pr-4 text-foreground">{store.name}</td>
-                    <td className="py-3 pr-4 text-muted-foreground">{store.manager}</td>
-                    <td className="py-3 pr-4 text-foreground">{formatVND(store.revenue)}</td>
-                    <td className="py-3 pr-4 text-muted-foreground">{store.orders.toLocaleString("vi-VN")}</td>
-                    <td className="py-3">
-                      <span
-                        className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs ${
-                          store.status === "active" ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"
-                        }`}
-                      >
-                        <CheckCircle2 size={12} /> {store.status === "active" ? "Hoạt động" : "Bảo trì"}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
+              {sortedStores.map(store => (
+                <tr key={store.id} className="border-b border-border/50 last:border-0 hover:bg-muted/30">
+                  <td className="py-3 pr-4 text-foreground">{store.name}</td>
+                  <td className="py-3 pr-4 text-muted-foreground">{store.manager}</td>
+                  <td className="py-3 pr-4 text-foreground">{formatVND(store.revenue)}</td>
+                  <td className="py-3 pr-4 text-muted-foreground">{store.orders.toLocaleString("vi-VN")}</td>
+                  <td className="py-3">
+                    <span
+                      className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs ${
+                        store.status === "active" ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"
+                      }`}
+                    >
+                      <CheckCircle2 size={12} /> {store.status === "active" ? "Hoạt động" : "Bảo trì"}
+                    </span>
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>

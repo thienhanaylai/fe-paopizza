@@ -8,7 +8,6 @@ import { formatVND } from "@/src/utils/formatVND";
 import { formatDateTime } from "@/src/utils/formatDateTime";
 import { toast, Toaster } from "sonner";
 
-// ─── Local storage for redeemed codes (since BE doesn't track per-customer history yet) ───
 const REDEEMED_CODES_KEY = "paopizza_redeemed_codes";
 
 interface RedeemedCode {
@@ -36,7 +35,6 @@ function saveRedeemedCodes(codes: RedeemedCode[]) {
   localStorage.setItem(REDEEMED_CODES_KEY, JSON.stringify(codes));
 }
 
-// ─── Tier helpers ───
 const tierBadges: Record<string, React.ReactNode> = {
   diamond: (
     <span className="px-2 py-0.5 text-[10px] font-black uppercase rounded-md tracking-wider bg-gradient-to-r from-cyan-400 via-sky-400 to-indigo-500 text-white border border-cyan-300/30 select-none shrink-0">
@@ -95,7 +93,6 @@ function getDiscountLabel(type: string, value: number): string {
 export default function LoyaltyPage() {
   const { user, getInfo } = useCustomerAuth();
 
-  // ─── State ───
   const [promotions, setPromotions] = useState<Promotion[]>([]);
   const [redeemedCodes, setRedeemedCodes] = useState<RedeemedCode[]>([]);
   const [loading, setLoading] = useState(true);
@@ -104,7 +101,6 @@ export default function LoyaltyPage() {
   const [resultModal, setResultModal] = useState<RedeemResult | null>(null);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
-  // ─── Fetch data ───
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
@@ -122,18 +118,15 @@ export default function LoyaltyPage() {
     fetchData();
   }, [fetchData]);
 
-  // ─── Refresh user info (points) after redeem ───
   const refreshUser = async () => {
     await getInfo();
   };
 
-  // ─── Handle redeem ───
   const handleRedeem = async (promotion: Promotion) => {
     setRedeemingId(promotion._id);
     try {
       const result = await redeemPromotion(promotion._id);
 
-      // Save to local redeemed codes
       const newCode: RedeemedCode = {
         code: result.code,
         promotionName: `${getDiscountLabel(result.type, result.value)} - ${result.code}`,
@@ -147,16 +140,13 @@ export default function LoyaltyPage() {
       setRedeemedCodes(updated);
       saveRedeemedCodes(updated);
 
-      // Update user points
       await refreshUser();
 
-      // Show result modal
       setConfirmModal(null);
       setResultModal(result);
       toast.success("Đổi điểm thành công! Hãy dùng mã để được giảm giá.");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Không thể đổi điểm. Vui lòng thử lại.";
-      // Map error messages to Vietnamese
       const errorMap: Record<string, string> = {
         INSUFFICIENT_POINTS: "Bạn không đủ điểm để đổi mã này.",
         PROMOTION_NOT_ACTIVE: "Mã khuyến mãi này hiện không khả dụng.",
@@ -170,7 +160,6 @@ export default function LoyaltyPage() {
     }
   };
 
-  // ─── Copy code ───
   const handleCopyCode = async (code: string) => {
     try {
       await navigator.clipboard.writeText(code);
@@ -182,7 +171,6 @@ export default function LoyaltyPage() {
     }
   };
 
-  // ─── Guard ───
   if (!user) return null;
 
   const tier = user.tier || "member";

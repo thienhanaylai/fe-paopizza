@@ -220,12 +220,12 @@ export default function IngredientCatalog() {
           //   icon: <Truck size={20} />,
           //   color: "bg-blue-50 text-blue-600",
           // },
-          // {
-          //   label: "Danh mục",
-          //   value: (categories?.length - 1).toString(),
-          //   icon: <Filter size={20} />,
-          //   color: "bg-green-50 text-green-600",
-          // },
+          {
+            label: "Danh mục",
+            value: (categories?.length - 1).toString(),
+            icon: <Filter size={20} />,
+            color: "bg-green-50 text-green-600",
+          },
         ].map(stat => (
           <div key={stat.label} className="bg-card rounded-2xl p-4 border border-border flex items-center gap-3">
             <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${stat.color}`}>{stat.icon}</div>

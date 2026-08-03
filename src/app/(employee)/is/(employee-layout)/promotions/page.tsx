@@ -388,7 +388,7 @@ export default function PromotionsPage() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border bg-muted/50">
-                  {Array.from({ length: 9 }).map((_, i) => (
+                  {Array.from({ length: 10 }).map((_, i) => (
                     <th key={i} className="px-5 py-3.5">
                       <div className="h-4 w-16 bg-muted animate-pulse rounded" />
                     </th>
@@ -398,7 +398,7 @@ export default function PromotionsPage() {
               <tbody>
                 {Array.from({ length: 5 }).map((_, i) => (
                   <tr key={i} className="border-b border-border last:border-b-0">
-                    {Array.from({ length: 9 }).map((_, j) => (
+                    {Array.from({ length: 10 }).map((_, j) => (
                       <td key={j} className="px-5 py-3.5">
                         <div className="h-4 bg-muted animate-pulse rounded" style={{ width: `${50 + j * 10}%` }} />
                       </td>
@@ -449,6 +449,13 @@ export default function PromotionsPage() {
                     className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70"
                   />
                   <SortableHeader
+                    label="Điểm"
+                    sortKey="point"
+                    sortConfig={promoSortConfig}
+                    onSort={togglePromoSort}
+                    className="text-center px-5 py-3.5 text-sm font-semibold text-foreground/70"
+                  />
+                  <SortableHeader
                     label="Thời gian"
                     sortKey="startDate"
                     sortConfig={promoSortConfig}
@@ -475,7 +482,7 @@ export default function PromotionsPage() {
               <tbody>
                 {sortedPromotions.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-5 py-16 text-center text-muted-foreground">
+                    <td colSpan={9} className="px-5 py-16 text-center text-muted-foreground">
                       <Gift size={40} className="mx-auto mb-3 text-muted-foreground/20" />
                       <p className="text-sm">Không tìm thấy khuyến mãi nào</p>
                     </td>
@@ -517,6 +524,15 @@ export default function PromotionsPage() {
                         <td className="px-5 py-3.5">
                           <span className="text-sm font-medium text-foreground">
                             {promo.type === "percentage" ? `${promo.value}%` : formatVND(promo.value)}
+                          </span>
+                        </td>
+                        <td className="px-5 py-3.5 text-center">
+                          <span className="text-sm text-foreground">
+                            {promo.point === -1 || promo.point == null
+                              ? "Không quy đổi"
+                              : promo.point === 0
+                                ? "Miễn phí"
+                                : `${promo.point.toLocaleString("vi-VN")} Pt`}
                           </span>
                         </td>
                         <td className="px-5 py-3.5 hidden lg:table-cell">
