@@ -70,6 +70,7 @@ export const AuthModal = () => {
         if (result.message === "RATE_LIMIT") setError(result.message === "RATE_LIMIT" ? "Vui lòng đăng nhập lại sau 1 giờ!" : "");
         if (result.message === "ACCOUNT_NOT_FOUND")
           setError(result.message === "ACCOUNT_NOT_FOUND" ? "Không tìm thấy tài khoản!" : "");
+        else setError(result.message ? result.message : "Lỗi đăng nhập!");
       }
     }
   };
@@ -118,6 +119,7 @@ export const AuthModal = () => {
             <input
               type="text"
               value={phone}
+              inputMode="numeric"
               onChange={e => {
                 setPhone(e.target.value);
                 setError("");
