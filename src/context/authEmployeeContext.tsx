@@ -252,8 +252,8 @@ export function EmployeeAuthProvider({ children }: { children: ReactNode }) {
   const logout = () => {
     setUser(null);
     setAccessToken(null);
-    window.location.reload();
     clearStoredAuth();
+    window.location.reload();
   };
 
   useEffect(() => {
