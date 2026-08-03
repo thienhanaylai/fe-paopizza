@@ -15,195 +15,10 @@ import { toast } from "sonner";
 import { formatVND } from "@/src/utils/formatVND";
 import { formatCrustLabel } from "@/src/utils/formatCrustLabel";
 import { getMenuByStoreId, MenuData, Product, Combo } from "@/src/services/menu.service";
-import { IngredientData, getAllIngredients } from "@/src/services/ingredient.service";
-
-type MenuCategoryUI = {
-  slug: string;
-  name: string;
-  icon: string;
-};
-
-type ExtraTopping = IngredientData;
-
-type ComboSlotSelection = {
-  productId: string;
-  sku: string;
-  size: string;
-  crust?: string;
-};
-
-const parseCrustOptions = (value: string | string[] | undefined): string[] => {
-  if (!value) return [];
-
-  if (Array.isArray(value)) {
-    return Array.from(new Set(value.flatMap(item => parseCrustOptions(item))));
-  }
-
-  const raw = value.trim();
-  if (!raw) return [];
-
-  const splitByDelimiter = raw
-    .split(/[\s,|/;]+/)
-    .map(item => item.trim().toLowerCase())
-    .filter(Boolean);
-
-  if (splitByDelimiter.length > 1) {
-    return Array.from(new Set(splitByDelimiter));
-  }
-
-  const compact = raw.replace(/\s+/g, "").toLowerCase();
-  const mergedMatches = compact.match(/traditional|thin|medium|thick|stuffed|cheese/g);
-
-  if (mergedMatches && mergedMatches.length > 1 && mergedMatches.join("") === compact) {
-    return Array.from(new Set(mergedMatches));
-  }
-
-  return [raw.toLowerCase()];
-};
-
-const SlotCard = ({
-  product,
-  variant,
-  selectedCrust,
-  ruleIdx,
-  slotIdx,
-  onChangeVariant,
-  onReplace,
-  showReplace,
-}: {
-  product: Product;
-  variant: Product["variants"][number];
-  selectedCrust?: string;
-  ruleIdx: number;
-  slotIdx?: number;
-  onChangeVariant: (
-    ruleIdx: number,
-    slotIdx: number,
-    productId: string,
-    newSku: string,
-    newSize: string,
-    newCrust?: string,
-  ) => void;
-  onReplace?: (ruleIdx: number, slotIdx: number) => void;
-  showReplace?: boolean;
-}) => {
-  const allVariants = product.variants;
-  const sizes = Array.from(new Set(allVariants.map(v => v.size)));
-  const currentSize = variant.size;
-  const crustsForSize = Array.from(
-    new Set(
-      allVariants
-        .filter(v => v.size === currentSize)
-        .flatMap(v => parseCrustOptions(v.crust))
-        .filter(Boolean),
-    ),
-  );
-  const isPizza = product.category?.slug?.toLowerCase().includes("pizza");
-  // Dùng crust từ selection (người dùng đã chọn), fallback về variant.crust[0]
-  const activeCrust = selectedCrust || parseCrustOptions(variant.crust)[0];
-
-  const findVariantBySizeCrust = (size: string, crust?: string) => {
-    return allVariants.find(v => {
-      if (v.size !== size) return false;
-      if (!crust) return true;
-      return parseCrustOptions(v.crust).includes(crust);
-    });
-  };
-
-  const handleSizeChange = (size: string) => {
-    const matching = findVariantBySizeCrust(size, undefined);
-    if (matching && matching.size !== variant.size) {
-      const newCrust = parseCrustOptions(matching.crust)[0] || undefined;
-      onChangeVariant(ruleIdx, slotIdx ?? 0, product._id, matching.sku, matching.size, newCrust);
-    }
-  };
-
-  const handleCrustChange = (crust: string) => {
-    if (crust === activeCrust) return; // đã active → không làm gì
-    // Tìm variant khớp size + crust
-    const matching = findVariantBySizeCrust(currentSize, crust);
-    if (matching) {
-      // Nếu tìm thấy variant KHÁC → đổi hoàn toàn
-      if (matching.sku !== variant.sku) {
-        const newCrust = parseCrustOptions(matching.crust)[0] || undefined;
-        onChangeVariant(ruleIdx, slotIdx ?? 0, product._id, matching.sku, matching.size, newCrust);
-      } else {
-        // Cùng variant nhưng crust khác → chỉ cập nhật crust
-        onChangeVariant(ruleIdx, slotIdx ?? 0, product._id, variant.sku, variant.size, crust);
-      }
-    } else {
-      // Không tìm thấy variant riêng → cùng 1 variant, chỉ đổi crust
-      onChangeVariant(ruleIdx, slotIdx ?? 0, product._id, variant.sku, variant.size, crust);
-    }
-  };
-
-  return (
-    <div className="border border-orange-200 rounded-xl p-3 bg-orange-50/40">
-      <div className="flex items-center gap-3">
-        <div className="relative w-14 h-14 rounded-lg overflow-hidden shrink-0 bg-muted">
-          <Image src={variant.image.url} alt={product.name} fill className="object-cover" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-foreground truncate">{product.name}</p>
-          <p className="text-xs text-muted-foreground">
-            {variant.size}
-            {isPizza && activeCrust ? ` - ${formatCrustLabel(activeCrust)}` : ""}
-          </p>
-        </div>
-        {showReplace && onReplace && slotIdx !== undefined && (
-          <button
-            onClick={() => onReplace(ruleIdx, slotIdx)}
-            className="text-xs text-orange-600 hover:text-orange-700 font-medium underline cursor-pointer shrink-0"
-          >
-            Thay đổi
-          </button>
-        )}
-      </div>
-
-      {sizes.length > 1 && (
-        <div className="flex items-center gap-1.5 mt-2">
-          {sizes.map(size => {
-            const isActive = size === currentSize;
-            return (
-              <button
-                key={size}
-                onClick={() => handleSizeChange(size)}
-                className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
-                  isActive
-                    ? "bg-orange-500 text-white shadow-sm"
-                    : "bg-white border border-border text-muted-foreground hover:border-orange-300"
-                }`}
-              >
-                {size}
-              </button>
-            );
-          })}
-        </div>
-      )}
-
-      {isPizza && crustsForSize.length > 1 && (
-        <div className="flex items-center gap-1.5 mt-1.5">
-          {crustsForSize.map(crust => {
-            const isActive = crust === activeCrust;
-            return (
-              <button
-                key={crust}
-                onClick={() => handleCrustChange(crust)}
-                className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
-                  isActive
-                    ? "bg-gray-800 text-white shadow-sm"
-                    : "bg-white border border-border text-muted-foreground hover:border-gray-300"
-                }`}
-              >
-                {formatCrustLabel(crust)}
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-};
+import { getAllIngredients } from "@/src/services/ingredient.service";
+import { parseCrustOptions } from "./utils";
+import type { MenuCategoryUI, ExtraTopping, ComboSlotSelection } from "./types";
+import SlotCard from "./components/SlotCard";
 
 export default function IndexPage() {
   const { user } = useCustomerAuth();
@@ -233,7 +48,7 @@ export default function IndexPage() {
   const comboCounterRef = useRef(0);
   const ruleRefs = useRef<(HTMLDivElement | null)[]>([]);
 
-  // Category horizontal scroll
+  // scroll category right/left
   const categoryScrollRef = useRef<HTMLDivElement>(null);
   const [categoryCanScrollLeft, setCategoryCanScrollLeft] = useState(false);
   const [categoryCanScrollRight, setCategoryCanScrollRight] = useState(false);
@@ -340,16 +155,31 @@ export default function IndexPage() {
     }
   }, [comboSelections, selectedCombo]);
 
-  const productListRef = useRef<HTMLDivElement | null>(null);
+  // Map ref riêng cho từng category slug — tránh bug ref bị ghi đè khi .map()
+  const categoryRefsMap = useRef<Record<string, HTMLDivElement | null>>({});
+
   const handleCategoryClick = (categorySlug: string) => {
     setActiveCategory(categorySlug);
-    if (productListRef.current) {
-      productListRef.current.scrollIntoView({
+    // Không scroll ở đây — scroll sẽ được xử lý trong useEffect sau khi React re-render
+    if (categorySlug === "all" || categorySlug === "combo") {
+      // Scroll lên đầu menu section khi chọn "Tất cả" hoặc "Combo"
+      const menuSection = document.getElementById("menu");
+      menuSection?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  };
+
+  // Scroll đến category section sau khi re-render xong
+  useEffect(() => {
+    if (activeCategory === "all" || activeCategory === "combo") return;
+    // Đợi 1 tick để DOM đã cập nhật sau re-render
+    const timer = setTimeout(() => {
+      categoryRefsMap.current[activeCategory]?.scrollIntoView({
         behavior: "smooth",
         block: "start",
       });
-    }
-  };
+    }, 50);
+    return () => clearTimeout(timer);
+  }, [activeCategory]);
 
   const filteredMenu1 =
     activeCategory === "combo"
@@ -1365,7 +1195,13 @@ export default function IndexPage() {
               const categoryItems = filteredMenu1?.filter(item => item.category.slug === cat.slug);
               if (categoryItems?.length === 0) return null;
               return (
-                <div ref={productListRef} key={cat.slug} className="space-y-6 mt-5 scroll-mt-42">
+                <div
+                  ref={el => {
+                    categoryRefsMap.current[cat.slug] = el;
+                  }}
+                  key={cat.slug}
+                  className="space-y-6 mt-5 scroll-mt-42"
+                >
                   <div className="border-l-4 border-primary pl-4 py-1">
                     <h3 className="text-xl sm:text-2xl font-black text-foreground flex items-center gap-2">
                       <Image src={cat.icon || ""} width={18} height={18} alt={cat.name} /> {cat.name}
