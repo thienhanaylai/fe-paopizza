@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { DollarSign, TrendingUp, ShoppingCart, Calendar, Store, ChevronDown, ArrowUpRight, ArrowDownRight } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { useEmployeeAuth } from "@/src/context/authEmployeeContext";
-import { getRevenue } from "@/src/services/revenue.service";
+import { getRevenue, getStoresRevenue } from "@/src/services/revenue.service";
 import { getAllStore, type StoreData } from "@/src/services/store.service";
 import { formatVND } from "@/src/utils/formatVND";
 
@@ -547,50 +547,33 @@ export default function Revenue() {
         setRankingLoading(true);
         const { startDate, endDate } = getRangeByPeriod(period);
 
-        const rows = await Promise.all(
-          stores.map(async store => {
-            try {
-              const response = (await getRevenue(startDate, endDate, store._id, "", "", "")) as RevenueData;
-              const totalRevenue = getMetricNumber(response.metrics, ["total_revenue", "totalRevenue", "revenue"]);
-              const totalOrders = getMetricNumber(response.metrics, ["total_orders", "totalOrders", "orders"]);
-              const customers = getMetricNumber(response.metrics, ["customers", "total_customers", "totalCustomers"]);
-              const averageOrderValueFromApi = getMetricNumber(response.metrics, ["average_order_value", "averageOrderValue"]);
-              const averageOrderValue =
-                averageOrderValueFromApi > 0
-                  ? averageOrderValueFromApi
-                  : totalOrders > 0
-                    ? Math.round(totalRevenue / totalOrders)
-                    : 0;
-              const changeValue = getOptionalMetricNumber(response.metrics, [
-                "growth_rate",
-                "revenue_growth",
-                "change_percent",
-                "change",
-              ]);
-
-              return {
-                id: store._id,
-                name: store.name,
-                totalRevenue,
-                totalOrders,
-                customers,
-                averageOrderValue,
-                changeValue,
-              } as StoreRankingRow;
-            } catch (error) {
-              console.error("Loi lay du lieu xep hang cua hang:", error);
-              return {
-                id: store._id,
-                name: store.name,
-                totalRevenue: 0,
-                totalOrders: 0,
-                customers: 0,
-                averageOrderValue: 0,
-                changeValue: null,
-              } as StoreRankingRow;
-            }
-          }),
+        // 1 call duy nhất thay vì N calls (mỗi store 1 call)
+        const storesRevenue = await getStoresRevenue(startDate, endDate, "");
+        const revenueMap = new Map(
+          storesRevenue.map(
+            (item: { key: string; label: string; total_revenue: number; total_orders: number; average_order_value: number }) => [
+              item.key,
+              item,
+            ],
+          ),
         );
+
+        const rows = stores.map(store => {
+          const rev = revenueMap.get(store._id);
+          const totalRevenue = rev?.total_revenue || 0;
+          const totalOrders = rev?.total_orders || 0;
+          const averageOrderValue = rev?.average_order_value || 0;
+
+          return {
+            id: store._id,
+            name: store.name,
+            totalRevenue,
+            totalOrders,
+            customers: 0,
+            averageOrderValue,
+            changeValue: null,
+          } as StoreRankingRow;
+        });
 
         if (cancelled) return;
         setStoreRanking(rows.sort((a, b) => b.totalRevenue - a.totalRevenue));

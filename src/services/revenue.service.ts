@@ -26,3 +26,17 @@ export const getRevenue = async (
     throw error;
   }
 };
+
+export const getStoresRevenue = async (startDate: string, endDate: string, typeUser: string) => {
+  try {
+    const response = await http(
+      `/api/v1/revenue/breakdown?startDate=${startDate}&endDate=${endDate}&dimension=store`,
+      { method: "GET" },
+      typeUser,
+    );
+    return response.data.data;
+  } catch (error) {
+    console.error("Lỗi fetch stores revenue:", error);
+    throw error;
+  }
+};

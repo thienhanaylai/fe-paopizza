@@ -32,7 +32,7 @@ import {
 } from "recharts";
 import { useEmployeeAuth } from "@/src/context/authEmployeeContext";
 import { getAllStore, type StoreData } from "@/src/services/store.service";
-import { getRevenue } from "@/src/services/revenue.service";
+import { getRevenue, getStoresRevenue } from "@/src/services/revenue.service";
 import { getAllOrder, type OrderHistory, type OrderStatus } from "@/src/services/order.service";
 import { getAllEmployee } from "@/src/services/employee.service";
 import { SortableHeader } from "@/src/components/ui/SortableHeader";
@@ -596,19 +596,26 @@ export default function DashboardPage() {
             }),
           );
 
-          const storeRows = await Promise.all(
-            stores.map(async st => {
-              const response = (await getRevenue(monthRange.start, monthRange.end, st._id, "", "", "")) as RevenueOverview;
-              return {
-                id: st._id,
-                name: getStoreName(st),
-                manager: st.manager_by?.name || "Chưa có",
-                revenue: getRevenueMetricsValue(response, "total_revenue"),
-                orders: getRevenueMetricsValue(response, "total_orders"),
-                status: st.status,
-              } as AdminStoreRow;
-            }),
+          // 1 call duy nhất thay vì N calls (mỗi store 1 call)
+          const storesRevenue = await getStoresRevenue(monthRange.start, monthRange.end, "");
+          const revenueMap = new Map(
+            storesRevenue.map((item: { key: string; label: string; total_revenue: number; total_orders: number }) => [
+              item.key,
+              item,
+            ]),
           );
+
+          const storeRows = stores.map(st => {
+            const rev = revenueMap.get(st._id);
+            return {
+              id: st._id,
+              name: getStoreName(st),
+              manager: st.manager_by?.name || "Chưa có",
+              revenue: rev?.total_revenue || 0,
+              orders: rev?.total_orders || 0,
+              status: st.status,
+            } as AdminStoreRow;
+          });
 
           if (cancelled) return;
 
