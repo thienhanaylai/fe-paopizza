@@ -195,7 +195,17 @@ export const CheckoutModal = () => {
         setPromoError("");
       } else {
         setAppliedPromo(null);
-        setPromoError(result.message || "Mã khuyến mãi không hợp lệ");
+        const promoErrorMap: Record<string, string> = {
+          PROMOTION_NOT_FOUND: "Mã khuyến mãi không tồn tại.",
+          PROMOTION_INACTIVE: "Mã khuyến mãi này hiện không hoạt động.",
+          PROMOTION_NOT_STARTED: "Mã khuyến mãi này chưa đến thời gian áp dụng.",
+          PROMOTION_EXPIRED: "Mã khuyến mãi này đã hết hạn.",
+          PROMOTION_NOT_APPLICABLE: "Mã khuyến mãi không áp dụng cho cửa hàng này.",
+          PROMOTION_USAGE_LIMIT_REACHED: "Mã khuyến mãi này đã hết lượt sử dụng.",
+          PROMOTION_MAX_USAGE_PER_USER_REACHED: "Bạn đã sử dụng mã này quá số lần cho phép.",
+          PROMOTION_NOT_REDEEMED: "Bạn cần đổi điểm để nhận mã này trước khi sử dụng.",
+        };
+        setPromoError(promoErrorMap[result.message || ""] || result.message || "Mã khuyến mãi không hợp lệ");
       }
     } catch {
       setAppliedPromo(null);
@@ -295,8 +305,20 @@ export const CheckoutModal = () => {
         startPolling(res._id);
       }
     } catch (err: unknown) {
-      const error = err as { data?: { message?: string } };
-      toast.error(error?.data?.message || "Lỗi khi tạo đơn hàng, vui lòng thử lại!");
+      const error = err as { data?: { message?: string }; message?: string };
+      const rawMsg = error?.data?.message || error?.message || "";
+      const orderErrorMap: Record<string, string> = {
+        PROMOTION_NOT_FOUND_OR_EXPIRED: "Mã khuyến mãi không tồn tại hoặc đã hết hạn.",
+        PROMOTION_USAGE_LIMIT_REACHED: "Mã khuyến mãi này đã hết lượt sử dụng.",
+        PROMOTION_MAX_USAGE_PER_USER_REACHED: "Bạn đã sử dụng mã này quá số lần cho phép.",
+        PROMOTION_NOT_REDEEMED: "Bạn cần đổi điểm để nhận mã này trước khi sử dụng.",
+        MISSING_ORDER_INFO: "Thiếu thông tin đơn hàng.",
+        PRODUCT_NOT_FOUND: "Sản phẩm không tồn tại.",
+        SIZE_NOT_AVAILABLE: "Kích cỡ sản phẩm không khả dụng.",
+        COMBO_NOT_FOUND: "Combo không tồn tại.",
+        COMBO_MISSING_SELECTIONS: "Thiếu lựa chọn cho combo.",
+      };
+      toast.error(orderErrorMap[rawMsg] || rawMsg || "Lỗi khi tạo đơn hàng, vui lòng thử lại!");
     } finally {
       setIsSubmitting(false);
     }

@@ -37,10 +37,9 @@ import { SortableHeader } from "@/src/components/ui/SortableHeader";
 import PromotionFormModal from "@/src/components/modals/PromotionFormModal";
 import Pagination from "@/src/components/ui/Pagination";
 
-// Constants
 const PROMOTION_TYPE_LABELS: Record<PromotionType, string> = {
-  percentage: "Phần trăm (%)",
-  fixed_amount: "Số tiền cố định",
+  percentage: "%",
+  fixed_amount: "VND",
 };
 
 const PROMOTION_STATUS_CONFIG: Record<PromotionStatus, { label: string; color: string; icon: React.ReactNode }> = {
@@ -50,7 +49,7 @@ const PROMOTION_STATUS_CONFIG: Record<PromotionStatus, { label: string; color: s
   expired: { label: "Hết hạn", color: "bg-yellow-100 text-yellow-700", icon: <Clock size={14} /> },
 };
 
-// Helper: tính trạng thái hiệu lực dựa trên ngày
+//  tính trạng thái hiệu lực dựa trên ngày
 function getEffectiveStatus(promo: Promotion): PromotionStatus {
   const now = new Date();
   const start = new Date(promo.startDate);
@@ -60,16 +59,6 @@ function getEffectiveStatus(promo: Promotion): PromotionStatus {
   if (now > end) return "expired";
   if (now < start) return "inactive";
   return "active";
-}
-
-function getStoreNames(promo: Promotion, storeMap: Map<string, string>): string {
-  if (!promo.applicableStore || promo.applicableStore.length === 0) return "Tất cả cửa hàng";
-  return promo.applicableStore
-    .map(s => {
-      if (typeof s === "string") return storeMap.get(s) || s;
-      return s.name || s._id;
-    })
-    .join(", ");
 }
 
 function formatDateRange(start: string, end: string): string {
@@ -202,8 +191,11 @@ export default function PromotionsPage() {
       toast.success(newStatus === "active" ? "Đã kích hoạt khuyến mãi!" : "Đã ngừng kích hoạt khuyến mãi!");
       await fetchData();
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : "Có lỗi xảy ra!";
-      toast.error(message);
+      const rawMsg = error instanceof Error ? error.message : "";
+      const errorMap: Record<string, string> = {
+        PROMOTION_NOT_FOUND: "Không tìm thấy khuyến mãi.",
+      };
+      toast.error(errorMap[rawMsg] || rawMsg || "Có lỗi xảy ra!");
     }
   };
 
@@ -221,8 +213,11 @@ export default function PromotionsPage() {
       toast.success("Xoá khuyến mãi thành công!");
       await fetchData();
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : "Có lỗi xảy ra!";
-      toast.error(message);
+      const rawMsg = error instanceof Error ? error.message : "";
+      const errorMap: Record<string, string> = {
+        PROMOTION_NOT_FOUND: "Không tìm thấy khuyến mãi.",
+      };
+      toast.error(errorMap[rawMsg] || rawMsg || "Có lỗi xảy ra!");
     } finally {
       setIsDeleting(false);
       setConfirmDelete(false);
@@ -239,8 +234,11 @@ export default function PromotionsPage() {
       clearSelection();
       await fetchData();
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : "Có lỗi xảy ra!";
-      toast.error(message);
+      const rawMsg = error instanceof Error ? error.message : "";
+      const errorMap: Record<string, string> = {
+        PROMOTION_NOT_FOUND: "Không tìm thấy khuyến mãi.",
+      };
+      toast.error(errorMap[rawMsg] || rawMsg || "Có lỗi xảy ra!");
     }
   };
 
@@ -258,8 +256,11 @@ export default function PromotionsPage() {
       clearSelection();
       await fetchData();
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : "Có lỗi xảy ra!";
-      toast.error(message);
+      const rawMsg = error instanceof Error ? error.message : "";
+      const errorMap: Record<string, string> = {
+        PROMOTION_NOT_FOUND: "Không tìm thấy khuyến mãi.",
+      };
+      toast.error(errorMap[rawMsg] || rawMsg || "Có lỗi xảy ra!");
     } finally {
       setIsBatchDeleting(false);
       setBatchConfirmDelete(false);
@@ -388,7 +389,7 @@ export default function PromotionsPage() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border bg-muted/50">
-                  {Array.from({ length: 10 }).map((_, i) => (
+                  {Array.from({ length: 11 }).map((_, i) => (
                     <th key={i} className="px-5 py-3.5">
                       <div className="h-4 w-16 bg-muted animate-pulse rounded" />
                     </th>
@@ -398,7 +399,7 @@ export default function PromotionsPage() {
               <tbody>
                 {Array.from({ length: 5 }).map((_, i) => (
                   <tr key={i} className="border-b border-border last:border-b-0">
-                    {Array.from({ length: 10 }).map((_, j) => (
+                    {Array.from({ length: 11 }).map((_, j) => (
                       <td key={j} className="px-5 py-3.5">
                         <div className="h-4 bg-muted animate-pulse rounded" style={{ width: `${50 + j * 10}%` }} />
                       </td>
@@ -434,13 +435,13 @@ export default function PromotionsPage() {
                     onSort={togglePromoSort}
                     className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70"
                   />
-                  <SortableHeader
+                  {/* <SortableHeader
                     label="Loại"
                     sortKey="type"
                     sortConfig={promoSortConfig}
                     onSort={togglePromoSort}
                     className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70 hidden md:table-cell"
-                  />
+                  /> */}
                   <SortableHeader
                     label="Giá trị"
                     sortKey="value"
@@ -456,19 +457,33 @@ export default function PromotionsPage() {
                     className="text-center px-5 py-3.5 text-sm font-semibold text-foreground/70"
                   />
                   <SortableHeader
+                    label="Lượt dùng"
+                    sortKey="usedCount"
+                    sortConfig={promoSortConfig}
+                    onSort={togglePromoSort}
+                    className="text-center px-5 py-3.5 text-sm font-semibold text-foreground/70 hidden lg:table-cell"
+                  />
+                  <SortableHeader
+                    label="Tối đa/user"
+                    sortKey="maxUsagePerUser"
+                    sortConfig={promoSortConfig}
+                    onSort={togglePromoSort}
+                    className="text-center px-5 py-3.5 text-sm font-semibold text-foreground/70 hidden lg:table-cell"
+                  />
+                  <SortableHeader
                     label="Thời gian"
                     sortKey="startDate"
                     sortConfig={promoSortConfig}
                     onSort={togglePromoSort}
                     className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70 hidden lg:table-cell"
                   />
-                  <SortableHeader
+                  {/* <SortableHeader
                     label="Áp dụng"
                     sortKey="minOrderValue"
                     sortConfig={promoSortConfig}
                     onSort={togglePromoSort}
                     className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70 hidden xl:table-cell"
-                  />
+                  /> */}
                   <SortableHeader
                     label="Trạng thái"
                     sortKey="status"
@@ -482,7 +497,7 @@ export default function PromotionsPage() {
               <tbody>
                 {sortedPromotions.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="px-5 py-16 text-center text-muted-foreground">
+                    <td colSpan={11} className="px-5 py-16 text-center text-muted-foreground">
                       <Gift size={40} className="mx-auto mb-3 text-muted-foreground/20" />
                       <p className="text-sm">Không tìm thấy khuyến mãi nào</p>
                     </td>
@@ -507,9 +522,9 @@ export default function PromotionsPage() {
                         </td>
                         <td className="px-5 py-3.5">
                           <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                            {/* <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
                               <Tag size={18} className="text-primary" />
-                            </div>
+                            </div> */}
                             <div className="min-w-0">
                               <p className="text-sm font-semibold text-foreground font-mono tracking-wider">{promo.code}</p>
                               <p className="text-xs text-muted-foreground md:hidden mt-0.5">
@@ -518,9 +533,9 @@ export default function PromotionsPage() {
                             </div>
                           </div>
                         </td>
-                        <td className="px-5 py-3.5 hidden md:table-cell">
+                        {/* <td className="px-5 py-3.5 hidden md:table-cell">
                           <span className="text-sm text-foreground/80">{PROMOTION_TYPE_LABELS[promo.type]}</span>
-                        </td>
+                        </td> */}
                         <td className="px-5 py-3.5">
                           <span className="text-sm font-medium text-foreground">
                             {promo.type === "percentage" ? `${promo.value}%` : formatVND(promo.value)}
@@ -535,18 +550,27 @@ export default function PromotionsPage() {
                                 : `${promo.point.toLocaleString("vi-VN")} Pt`}
                           </span>
                         </td>
+                        <td className="px-5 py-3.5 text-center hidden lg:table-cell">
+                          <span className="text-sm text-foreground">
+                            {promo.usedCount ?? 0}
+                            <span className="text-muted-foreground"> / </span>
+                            {promo.usageLimit === -1 || promo.usageLimit == null ? "∞" : promo.usageLimit}
+                          </span>
+                        </td>
+                        <td className="px-5 py-3.5 text-center hidden lg:table-cell">
+                          <span className="text-sm text-foreground">{promo.maxUsagePerUser ?? 1}</span>
+                        </td>
                         <td className="px-5 py-3.5 hidden lg:table-cell">
                           <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                            <Calendar size={13} />
                             <span>{formatDateRange(promo.startDate, promo.endDate)}</span>
                           </div>
                         </td>
-                        <td className="px-5 py-3.5 hidden xl:table-cell">
+                        {/* <td className="px-5 py-3.5 hidden xl:table-cell">
                           <div className="flex items-center gap-1.5 text-sm text-muted-foreground max-w-50">
                             <Store size={13} className="shrink-0" />
                             <span className="truncate">{getStoreNames(promo, storeMap)}</span>
                           </div>
-                        </td>
+                        </td> */}
                         <td className="px-5 py-3.5 text-center">
                           <span
                             className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${statusConfig?.color || "bg-gray-100 text-gray-600"}`}

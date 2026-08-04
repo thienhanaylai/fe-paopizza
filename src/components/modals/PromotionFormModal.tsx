@@ -13,7 +13,6 @@ import {
   UpdatePromotionPayload,
 } from "@/src/services/promotion.service";
 
-// Props
 interface PromotionFormModalProps {
   open: boolean;
   onClose: () => void;
@@ -22,7 +21,6 @@ interface PromotionFormModalProps {
   onSuccess: () => void;
 }
 
-// Component
 export default function PromotionFormModal({ open, onClose, editingPromo, storesList, onSuccess }: PromotionFormModalProps) {
   const [formCode, setFormCode] = useState("");
   const [formType, setFormType] = useState<PromotionType>("percentage");
@@ -32,6 +30,8 @@ export default function PromotionFormModal({ open, onClose, editingPromo, stores
   const [formEndDate, setFormEndDate] = useState("");
   const [formStatus, setFormStatus] = useState<PromotionStatus>("draft");
   const [formStoreIds, setFormStoreIds] = useState<string[]>([]);
+  const [formUsageLimit, setFormUsageLimit] = useState("");
+  const [formMaxUsagePerUser, setFormMaxUsagePerUser] = useState("1");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const isEditing = editingPromo !== null;
@@ -48,6 +48,8 @@ export default function PromotionFormModal({ open, onClose, editingPromo, stores
       setFormEndDate(new Date(editingPromo.endDate).toISOString().slice(0, 16));
       setFormStatus(editingPromo.status);
       setFormStoreIds(editingPromo.applicableStore?.map(s => (typeof s === "string" ? s : s._id)) || []);
+      setFormUsageLimit(String(editingPromo.usageLimit ?? ""));
+      setFormMaxUsagePerUser(String(editingPromo.maxUsagePerUser ?? 1));
     } else {
       setFormCode("");
       setFormType("percentage");
@@ -57,6 +59,8 @@ export default function PromotionFormModal({ open, onClose, editingPromo, stores
       setFormEndDate("");
       setFormStatus("draft");
       setFormStoreIds([]);
+      setFormUsageLimit("");
+      setFormMaxUsagePerUser("1");
     }
     setIsSubmitting(false);
   }, [open, editingPromo]);
@@ -64,6 +68,18 @@ export default function PromotionFormModal({ open, onClose, editingPromo, stores
   // Toggle chọn cửa hàng
   const toggleStoreCheckbox = (storeId: string) => {
     setFormStoreIds(prev => (prev.includes(storeId) ? prev.filter(id => id !== storeId) : [...prev, storeId]));
+  };
+
+  // Select all / deselect all
+  const allStoresSelected = storesList.length > 0 && formStoreIds.length === storesList.length;
+  const isIndeterminate = formStoreIds.length > 0 && formStoreIds.length < storesList.length;
+
+  const toggleSelectAllStores = () => {
+    if (allStoresSelected) {
+      setFormStoreIds([]);
+    } else {
+      setFormStoreIds(storesList.map(s => s._id));
+    }
   };
 
   // Submit
@@ -111,6 +127,8 @@ export default function PromotionFormModal({ open, onClose, editingPromo, stores
           endDate: new Date(formEndDate).toISOString(),
           status: formStatus,
           applicableStore: formStoreIds,
+          usageLimit: formUsageLimit !== "" ? Number(formUsageLimit) : undefined,
+          maxUsagePerUser: formMaxUsagePerUser !== "" ? Number(formMaxUsagePerUser) : undefined,
         };
         await updatePromotion(payload);
         toast.success("Cập nhật khuyến mãi thành công!");
@@ -124,22 +142,30 @@ export default function PromotionFormModal({ open, onClose, editingPromo, stores
           endDate: new Date(formEndDate).toISOString(),
           status: formStatus,
           applicableStore: formStoreIds.length > 0 ? formStoreIds : [],
+          usageLimit: formUsageLimit !== "" ? Number(formUsageLimit) : undefined,
+          maxUsagePerUser: formMaxUsagePerUser !== "" ? Number(formMaxUsagePerUser) : 1,
         };
         await createPromotion(payload);
         toast.success("Tạo khuyến mãi thành công!");
       }
 
-      onSuccess();
+      await onSuccess();
       onClose();
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : "Có lỗi xảy ra!";
-      toast.error(message);
+      const rawMsg = error instanceof Error ? error.message : "";
+      const errorMap: Record<string, string> = {
+        MISSING_PROMOTION_INFO: "Vui lòng nhập đầy đủ thông tin khuyến mãi.",
+        PROMOTION_CODE_EXISTS: "Mã khuyến mãi này đã tồn tại.",
+        PROMOTION_NOT_FOUND: "Không tìm thấy khuyến mãi.",
+        MISSING_PROMOTION_ID: "Thiếu mã khuyến mãi.",
+        MISSING_PROMOTION_ID_OR_STATUS: "Thiếu mã khuyến mãi hoặc trạng thái.",
+      };
+      toast.error(errorMap[rawMsg] || rawMsg || "Có lỗi xảy ra!");
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Đóng modal
   const handleClose = () => {
     if (isSubmitting) return;
     onClose();
@@ -147,10 +173,9 @@ export default function PromotionFormModal({ open, onClose, editingPromo, stores
 
   if (!open) return null;
 
-  // Render
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-[10vh] bg-black/50 m-0 overflow-y-auto">
-      <div className="bg-card rounded-2xl p-6 max-w-2xl w-full mx-4 shadow-xl border border-border my-8">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 m-0">
+      <div className="bg-card rounded-2xl p-6 max-w-2xl w-full mx-auto shadow-xl border border-border max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-lg font-semibold text-foreground">{isEditing ? "Chỉnh sửa khuyến mãi" : "Tạo khuyến mãi mới"}</h3>
           <button
@@ -229,6 +254,37 @@ export default function PromotionFormModal({ open, onClose, editingPromo, stores
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-foreground mb-1.5">
+                Giới hạn lượt dùng
+                <span className="text-muted-foreground font-normal ml-1">(-1 = không giới hạn, để trống = mặc định null)</span>
+              </label>
+              <input
+                type="number"
+                value={formUsageLimit}
+                onChange={e => setFormUsageLimit(e.target.value)}
+                placeholder="VD: 100 (hoặc -1)"
+                min="-1"
+                className="w-full px-4 py-2.5 rounded-xl border border-border bg-background focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1.5">
+                Số lần dùng tối đa / user
+                <span className="text-muted-foreground font-normal ml-1">(mặc định: 1)</span>
+              </label>
+              <input
+                type="number"
+                value={formMaxUsagePerUser}
+                onChange={e => setFormMaxUsagePerUser(e.target.value)}
+                placeholder="VD: 1"
+                min="1"
+                className="w-full px-4 py-2.5 rounded-xl border border-border bg-background focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1.5">
                 Ngày bắt đầu <span className="text-red-500">*</span>
               </label>
               <input
@@ -272,37 +328,68 @@ export default function PromotionFormModal({ open, onClose, editingPromo, stores
             {storesList.length === 0 ? (
               <p className="text-sm text-muted-foreground italic">Đang tải danh sách cửa hàng...</p>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto">
-                {storesList.map(store => (
-                  <label
-                    key={store._id}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition-colors ${formStoreIds.includes(store._id) ? "border-primary bg-primary/5" : "border-border hover:border-primary/30"}`}
+              <>
+                {/* Nút chọn tất cả */}
+                <label
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition-colors mb-2 ${
+                    allStoresSelected ? "border-primary bg-primary/5" : "border-border hover:border-primary/30"
+                  }`}
+                >
+                  <input type="checkbox" checked={allStoresSelected} onChange={toggleSelectAllStores} className="sr-only" />
+                  <div
+                    className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition-colors ${
+                      allStoresSelected || isIndeterminate ? "bg-primary border-primary text-white" : "border-muted-foreground/30"
+                    }`}
                   >
-                    <input
-                      type="checkbox"
-                      checked={formStoreIds.includes(store._id)}
-                      onChange={() => toggleStoreCheckbox(store._id)}
-                      className="sr-only"
-                    />
-                    <div
-                      className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition-colors ${formStoreIds.includes(store._id) ? "bg-primary border-primary text-white" : "border-muted-foreground/30"}`}
+                    {(allStoresSelected || isIndeterminate) && (
+                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                        <path
+                          d="M2 6L5 9L10 3"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    )}
+                  </div>
+                  <span className="text-sm font-medium text-foreground">
+                    {allStoresSelected ? "Bỏ chọn tất cả" : "Chọn tất cả cửa hàng"}
+                  </span>
+                </label>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto">
+                  {storesList.map(store => (
+                    <label
+                      key={store._id}
+                      className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition-colors ${formStoreIds.includes(store._id) ? "border-primary bg-primary/5" : "border-border hover:border-primary/30"}`}
                     >
-                      {formStoreIds.includes(store._id) && (
-                        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                          <path
-                            d="M2 6L5 9L10 3"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                        </svg>
-                      )}
-                    </div>
-                    <span className="text-sm text-foreground truncate">{store.name}</span>
-                  </label>
-                ))}
-              </div>
+                      <input
+                        type="checkbox"
+                        checked={formStoreIds.includes(store._id)}
+                        onChange={() => toggleStoreCheckbox(store._id)}
+                        className="sr-only"
+                      />
+                      <div
+                        className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition-colors ${formStoreIds.includes(store._id) ? "bg-primary border-primary text-white" : "border-muted-foreground/30"}`}
+                      >
+                        {formStoreIds.includes(store._id) && (
+                          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                            <path
+                              d="M2 6L5 9L10 3"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                        )}
+                      </div>
+                      <span className="text-sm text-foreground truncate">{store.name}</span>
+                    </label>
+                  ))}
+                </div>
+              </>
             )}
           </div>
 

@@ -14,6 +14,9 @@ export interface Promotion {
   endDate: string;
   status: PromotionStatus;
   applicableStore: string[] | { _id: string; name: string }[];
+  usageLimit: number;
+  usedCount: number;
+  maxUsagePerUser: number;
   isDeleted: boolean;
   createdAt: string;
   updatedAt: string;
@@ -28,6 +31,8 @@ export interface CreatePromotionPayload {
   endDate: string;
   status?: PromotionStatus;
   applicableStore?: string[];
+  usageLimit?: number;
+  maxUsagePerUser?: number;
 }
 
 export interface UpdatePromotionPayload {
@@ -40,6 +45,8 @@ export interface UpdatePromotionPayload {
   endDate?: string;
   status?: PromotionStatus;
   applicableStore?: string[];
+  usageLimit?: number;
+  maxUsagePerUser?: number;
 }
 
 export interface PromoCodeResult {
@@ -59,6 +66,13 @@ export interface RedeemResult {
   remainingPoint: number;
   message: string;
 }
+
+export interface RedeemedPromotion {
+  _id: string;
+  promotion: Promotion | null;
+  isUsed: boolean;
+}
+
 export interface PaginationInfo {
   page: number;
   limit: number;
@@ -172,8 +186,8 @@ export const applyPromoCode = async (code: string, orderTotal: number, storeId: 
 
     if (response?.data) {
       return {
-        valid: true,
-        code: response.data.code,
+        valid: response.data.valid ?? true,
+        code: response.data.code || code,
         discountType: response.data.discountType || "fixed",
         discountValue: response.data.discountValue || 0,
         discountAmount: response.data.discountAmount || 0,
@@ -202,7 +216,7 @@ export const applyPromoCode = async (code: string, orderTotal: number, storeId: 
   }
 };
 
-// Lấy danh sách khuyến mãi có thể đổi bằng điểm (point > 0, active)
+// Lấy danh sách khuyến mãi có thể đổi bằng điểm (point >= 0, active)
 export const getRedeemablePromotions = async (): Promise<Promotion[]> => {
   try {
     const { data: allPromotions } = await getAllPromotions("customer");
@@ -210,7 +224,8 @@ export const getRedeemablePromotions = async (): Promise<Promotion[]> => {
     return allPromotions.filter(
       p =>
         p.point !== undefined &&
-        p.point > 0 &&
+        p.point !== null &&
+        p.point >= 0 &&
         p.status === "active" &&
         new Date(p.startDate) <= now &&
         new Date(p.endDate) >= now,
@@ -235,6 +250,23 @@ export const redeemPromotion = async (promotion_id: string): Promise<RedeemResul
     return response.data;
   } catch (error) {
     console.error("Lỗi đổi điểm:", error);
+    throw error;
+  }
+};
+
+// Lấy danh sách khuyến mãi đã đổi của customer hiện tại
+export const getMyRedeemedPromotions = async (): Promise<RedeemedPromotion[]> => {
+  try {
+    const response = await http(
+      "/api/v1/customers/redeemed-promotions",
+      {
+        method: "GET",
+      },
+      "customer",
+    );
+    return response.data || [];
+  } catch (error) {
+    console.error("Lỗi lấy danh sách mã đã đổi:", error);
     throw error;
   }
 };
