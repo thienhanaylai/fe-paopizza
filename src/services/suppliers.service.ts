@@ -1,6 +1,7 @@
 import { http } from "../utils/config.api";
+import { IngredientData } from "./ingredient.service";
 
-export type SupplierCategory = "main_ingredient" | "drink" | "seafood" | "vegetable";
+export type SupplierCategory = "dough" | "drink" | "seafood" | "vegetable" | "meat" | "sauce" | "other";
 
 export interface Supplier {
   id?: string;
@@ -9,6 +10,7 @@ export interface Supplier {
   email: string;
   phone: string;
   supplier_category: SupplierCategory;
+  supplierIngredients: IngredientData[];
   isActive: boolean;
   isDeleted: boolean;
   createdAt: string;
@@ -33,6 +35,7 @@ export interface CreateSupplierPayload {
   phone?: string;
   supplier_category: SupplierCategory;
   isActive?: boolean;
+  supplierIngredients?: string[];
 }
 
 export interface UpdateSupplierPayload {
@@ -42,6 +45,7 @@ export interface UpdateSupplierPayload {
   phone?: string;
   supplier_category?: SupplierCategory;
   isActive?: boolean;
+  supplierIngredients?: string[];
 }
 
 export interface PaginationInfo {

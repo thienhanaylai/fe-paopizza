@@ -50,6 +50,7 @@ interface Combo {
   rules?: ComboRule[];
   isActive?: boolean;
 }
+const SIZE_OPTIONS = ["S", "M", "L", "3XL", "1L", "1.5L", "330ml"];
 
 const DISCOUNT_TYPE_OPTIONS = [
   { value: "percent", label: "Phần trăm (%)" },
@@ -484,7 +485,7 @@ export default function ComboFormModal({
                 <div>
                   <label className="block text-xs mb-1.5">Size áp dụng</label>
                   <div className="flex flex-wrap gap-1.5">
-                    {["S", "M", "L", "XL", "XXL"].map(size => {
+                    {SIZE_OPTIONS.map(size => {
                       const checked = rule.applicableSizes.includes(size);
                       return (
                         <label

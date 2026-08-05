@@ -1,68 +1,50 @@
 "use client";
-import {
-  ArrowRight,
-  Award,
-  ChefHat,
-  ChevronLeft,
-  ChevronRight,
-  Clock,
-  MapPin,
-  Phone,
-  Plus,
-  ShoppingBag,
-  Star,
-  Truck,
-  X,
-} from "lucide-react";
+import { ArrowRight, Award, ChefHat, ChevronLeft, ChevronRight, Clock, MapPin, Phone, Star } from "lucide-react";
 import Image from "next/image";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import useEmblaCarousel from "embla-carousel-react";
 import { getAllCategories } from "@/src/services/category.service";
 import { useCustomerAuth } from "@/src/context/authCustomerContext";
-import { useCart, resolveComboId, areComboSelectionsEqual } from "@/src/context/cartContext";
-import type { ToppingRef, ProductPopulated } from "@/src/context/cartContext";
-import type { ComboSelectionPayload } from "@/src/services/cart.service";
-import { removeFromCartApi } from "@/src/services/cart.service";
-import { Textarea } from "@/src/components/ui/textarea";
+import { useCart, resolveComboId } from "@/src/context/cartContext";
 import { Skeleton } from "@/src/components/ui/skeleton";
-import { toast } from "sonner";
 import { formatVND } from "@/src/utils/formatVND";
-import { formatCrustLabel } from "@/src/utils/formatCrustLabel";
 import { getMenuByStoreId, MenuData, Product, Combo } from "@/src/services/menu.service";
 import { getAllIngredients } from "@/src/services/ingredient.service";
 import { getAllStore } from "@/src/services/store.service";
 import { parseCrustOptions } from "./utils";
 import type { MenuCategoryUI, ExtraTopping, ComboSlotSelection } from "./types";
-import SlotCard from "./components/SlotCard";
+import ProductDetailModal from "@/src/components/modals/ProductDetailModal";
+import ComboBuilderModal from "@/src/components/modals/ComboBuilderModal";
 
 export default function IndexPage() {
   const { user } = useCustomerAuth();
-  const { addToCart, fetchCart, cart, clearCart, editingSku, setEditingSku, editingComboId, setEditingComboId, setShowCart } =
-    useCart();
+  const { cart, clearCart, editingSku, setEditingSku, editingComboId, setEditingComboId } = useCart();
 
   const [activeCategory, setActiveCategory] = useState<string>("all");
   const [categories, setCategories] = useState<MenuCategoryUI[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const [product, setProduct] = useState<Product | null>(null);
-  const [note, setNote] = useState<string>("");
   const [menu, setMenu] = useState<MenuData>();
 
   const [selectedStoreId, setSelectedStoreId] = useState<string>("");
   const prevStoreIdRef = useRef<string>("");
   const [storeCount, setStoreCount] = useState<number>(0);
-  const [selectedSize, setSelectedSize] = useState<string>("");
-  const [selectedCrust, setSelectedCrust] = useState<string>("");
   const [extraToppings, setExtraToppings] = useState<ExtraTopping[]>([]);
-  const [selectedExtraToppingIds, setSelectedExtraToppingIds] = useState<string[]>([]);
 
   const [selectedCombo, setSelectedCombo] = useState<Combo | null>(null);
-  const [comboSelections, setComboSelections] = useState<Record<number, ComboSlotSelection[]>>({});
-  const [replacingRule, setReplacingRule] = useState<number | null>(null);
-  const [replacingSlot, setReplacingSlot] = useState<{ ruleIdx: number; slotIdx: number } | null>(null);
-  const editingComboOldSkuRef = useRef<string | null>(null);
-  const comboCounterRef = useRef(0);
-  const ruleRefs = useRef<(HTMLDivElement | null)[]>([]);
+
+  // Initial state for product editing flow (passed to ProductDetailModal)
+  const [editProductState, setEditProductState] = useState<{
+    size?: string;
+    crust?: string;
+    toppingIds?: string[];
+    note?: string;
+  } | null>(null);
+
+  // Initial state for combo editing flow (passed to ComboBuilderModal)
+  const [editComboSelections, setEditComboSelections] = useState<Record<number, ComboSlotSelection[]> | undefined>(undefined);
+  const [editComboOldSku, setEditComboOldSku] = useState<string | null>(null);
 
   // scroll category right/left
   const categoryScrollRef = useRef<HTMLDivElement>(null);
@@ -75,13 +57,6 @@ export default function IndexPage() {
     if (!url || loadedImages.has(url)) return;
     setLoadedImages(prev => new Set(prev).add(url));
   };
-
-  // Embla carousel cho modal sản phẩm
-  const [emblaRef, emblaApi] = useEmblaCarousel({ skipSnaps: true, duration: 30 });
-
-  // Nút prev/next
-  const scrollPrev = useCallback(() => emblaApi?.scrollPrev(), [emblaApi]);
-  const scrollNext = useCallback(() => emblaApi?.scrollNext(), [emblaApi]);
 
   // Embla carousel cho combo section
   const [comboEmblaRef, comboEmblaApi] = useEmblaCarousel({ align: "start", skipSnaps: true, duration: 30 });
@@ -134,43 +109,6 @@ export default function IndexPage() {
     };
   }, [checkCategoryScroll, categories]);
 
-  // Skeleton loading khi mở modal sản phẩm
-  const [modalLoading, setModalLoading] = useState(false);
-  const prevProductIdRef = useRef<string | null>(null);
-  useEffect(() => {
-    if (product?._id && product._id !== prevProductIdRef.current) {
-      prevProductIdRef.current = product._id;
-      setModalLoading(true);
-      const t = setTimeout(() => setModalLoading(false), 400);
-      return () => clearTimeout(t);
-    }
-    if (!product) {
-      prevProductIdRef.current = null;
-      setModalLoading(false);
-    }
-  }, [product?._id]);
-
-  // scroll đến rule chưa hoàn thành tiếp theo khi rule hiện tại vừa được fill đầy
-  useEffect(() => {
-    if (!selectedCombo) return;
-
-    // Tìm rule đầu tiên chưa được fill đầy
-    const firstUnfilledIdx = selectedCombo.rules.findIndex((rule, idx) => {
-      const selections = comboSelections[idx] || [];
-      return selections.length < rule.requiredQuantity;
-    });
-
-    if (firstUnfilledIdx >= 0) {
-      const timer = setTimeout(() => {
-        ruleRefs.current[firstUnfilledIdx]?.scrollIntoView({
-          behavior: "smooth",
-          block: "start",
-        });
-      }, 200);
-      return () => clearTimeout(timer);
-    }
-  }, [comboSelections, selectedCombo]);
-
   // Map ref riêng cho từng category slug — tránh bug ref bị ghi đè khi .map()
   const categoryRefsMap = useRef<Record<string, HTMLDivElement | null>>({});
 
@@ -203,116 +141,6 @@ export default function IndexPage() {
       : activeCategory === "all"
         ? menu?.products
         : menu?.products.filter(m => m?.category.slug === activeCategory);
-
-  const currentProductIndex = useMemo(() => {
-    if (!product || !filteredMenu1) return -1;
-    return filteredMenu1.findIndex(p => p._id === product._id);
-  }, [product, filteredMenu1]);
-
-  const availableSizes = useMemo(() => {
-    if (!product) return [];
-    return Array.from(new Set(product.variants.map(variant => variant.size)));
-  }, [product]);
-
-  const availableCrusts = useMemo(() => {
-    if (!product || !selectedSize) return [];
-    return Array.from(
-      new Set(
-        product.variants
-          .filter(variant => variant.size === selectedSize)
-          .flatMap(variant => parseCrustOptions(variant.crust))
-          .filter(Boolean),
-      ),
-    );
-  }, [product, selectedSize]);
-
-  const isPizzaProduct = useMemo(() => {
-    if (!product) return false;
-    const categorySlug = product.category?.slug?.toLowerCase() || "";
-    const productName = product.name?.toLowerCase() || "";
-    return categorySlug.includes("pizza") || productName.includes("pizza");
-  }, [product]);
-
-  const showExtraTopping = useMemo(() => {
-    if (!product) return false;
-    const categorySlug = product.category?.slug?.toLowerCase() || "";
-    const productName = product.name?.toLowerCase() || "";
-    return (
-      categorySlug.includes("pizza") ||
-      categorySlug.includes("dessert") ||
-      categorySlug.includes("desert") ||
-      productName.includes("pizza") ||
-      productName.includes("dessert") ||
-      productName.includes("desert")
-    );
-  }, [product]);
-
-  const selectedVariant = useMemo(() => {
-    if (!product) return null;
-
-    const exactVariant = product.variants.find(
-      variant =>
-        variant.size === selectedSize &&
-        (!isPizzaProduct || !selectedCrust || parseCrustOptions(variant.crust).includes(selectedCrust)),
-    );
-
-    if (exactVariant) return exactVariant;
-
-    const fallbackBySize = product.variants.find(variant => variant.size === selectedSize);
-    return fallbackBySize || product.variants[0] || null;
-  }, [isPizzaProduct, product, selectedCrust, selectedSize]);
-
-  const baseIngredientIdSet = useMemo(() => {
-    if (!selectedVariant) return new Set<string>();
-    return new Set(selectedVariant.recipe.map(item => item.ingredient._id));
-  }, [selectedVariant]);
-
-  const extraToppingOptions = useMemo(() => {
-    return extraToppings.filter(
-      item =>
-        item.isActive &&
-        !item.isDeleted &&
-        !baseIngredientIdSet.has(item._id) &&
-        !["drink", "dough", "other"].includes(item.category), //ẩn đi các loại nguyên liệu là drink dough và other
-    );
-  }, [baseIngredientIdSet, extraToppings]);
-
-  const selectedExtraToppings = useMemo(() => {
-    return extraToppingOptions.filter(item => selectedExtraToppingIds.includes(item._id));
-  }, [extraToppingOptions, selectedExtraToppingIds]);
-
-  const extraToppingTotal = useMemo(() => {
-    return selectedExtraToppings.reduce((total, item) => total + Number(item.price || 0), 0);
-  }, [selectedExtraToppings]);
-
-  const unitPrice = useMemo(() => {
-    if (!selectedVariant) return 0;
-    return Number(selectedVariant.price || 0) + extraToppingTotal;
-  }, [extraToppingTotal, selectedVariant]);
-
-  // Giá sau khi áp dụng discount của variant
-  const discountedPrice = useMemo(() => {
-    if (!selectedVariant) return unitPrice;
-    const discount = Number(selectedVariant.discount) || 0;
-    if (discount <= 0) return unitPrice;
-    if (selectedVariant.disscountType === "percent") {
-      return Math.round(unitPrice * (1 - discount / 100));
-    }
-    if (selectedVariant.disscountType === "amount") {
-      return Math.max(0, unitPrice - discount);
-    }
-    return unitPrice;
-  }, [unitPrice, selectedVariant]);
-
-  const hasDiscount =
-    selectedVariant &&
-    Number(selectedVariant.discount) > 0 &&
-    (selectedVariant.disscountType === "percent" || selectedVariant.disscountType === "amount");
-
-  const isEditMode = useMemo(() => {
-    if (!selectedVariant || !cart) return false;
-    return cart.items.some(item => item.sku === selectedVariant.sku);
-  }, [cart, selectedVariant]);
 
   useEffect(() => {
     const syncSelectedStore = () => {
@@ -447,14 +275,13 @@ export default function IndexPage() {
       ? cartItem.crust || (matchingVariant ? parseCrustOptions(matchingVariant.crust)[0] || "" : "")
       : "";
 
-    queueMicrotask(() => {
-      setProduct(targetProduct);
-      setSelectedSize(cartItem.size || matchingVariant?.size || "");
-      setSelectedCrust(crustValue);
-      setSelectedExtraToppingIds(toppingIds);
-      setNote(customNote);
+    setEditProductState({
+      size: cartItem.size || matchingVariant?.size || "",
+      crust: crustValue,
+      toppingIds,
+      note: customNote,
     });
-
+    setProduct(targetProduct);
     setEditingSku(null);
   }, [editingSku, menu, cart?.items, setEditingSku]);
 
@@ -493,93 +320,15 @@ export default function IndexPage() {
       }
     });
 
-    queueMicrotask(() => {
-      setSelectedCombo(combo);
-      setComboSelections(restoredSelections);
-      setReplacingRule(null);
-      editingComboOldSkuRef.current = cartItem.sku;
-    });
-
+    setEditComboSelections(restoredSelections);
+    setEditComboOldSku(cartItem.sku);
+    setSelectedCombo(combo);
     setEditingComboId(null);
   }, [editingComboId, menu, cart?.items, setEditingComboId]);
 
   const hanldeProduct = (selectedProduct: Product) => {
+    setEditProductState(null);
     setProduct(selectedProduct);
-
-    const firstVariant = selectedProduct.variants[0];
-    const isPizza =
-      selectedProduct.category?.slug?.toLowerCase().includes("pizza") || selectedProduct.name?.toLowerCase().includes("pizza");
-    const firstCrust = parseCrustOptions(firstVariant?.crust)[0] || "";
-
-    setSelectedSize(firstVariant?.size || "");
-    setSelectedCrust(isPizza ? firstCrust : "");
-    setSelectedExtraToppingIds([]);
-
-    const productInCart = cart?.items.find(i => i.sku === firstVariant?.sku);
-    setNote(productInCart ? productInCart?.note : "");
-  };
-
-  // Đồng bộ Embla -> product khi vuốt
-  useEffect(() => {
-    if (!emblaApi) return;
-    const onSelect = () => {
-      const idx = emblaApi.selectedScrollSnap();
-      const list = filteredMenu1 ?? [];
-      if (list[idx] && list[idx]._id !== product?._id) {
-        hanldeProduct(list[idx]);
-      }
-    };
-    emblaApi.on("select", onSelect);
-    return () => {
-      emblaApi.off("select", onSelect);
-    };
-  }, [emblaApi, filteredMenu1, product]);
-
-  // Nhảy đến sản phẩm khi click từ grid hoặc đổi filter (không animation, không flicker)
-  useLayoutEffect(() => {
-    if (emblaApi && currentProductIndex >= 0) {
-      emblaApi.scrollTo(currentProductIndex, true);
-    }
-  }, [emblaApi, currentProductIndex]);
-
-  const syncNoteBySku = (sku: string) => {
-    const productInCart = cart?.items.find(item => item.sku === sku);
-    setNote(productInCart ? productInCart.note : "");
-  };
-
-  const handleSelectSize = (size: string) => {
-    if (!product) return;
-
-    const nextVariant = isPizzaProduct
-      ? product.variants.find(
-          variant => variant.size === size && (!selectedCrust || parseCrustOptions(variant.crust).includes(selectedCrust)),
-        ) ||
-        product.variants.find(variant => variant.size === size) ||
-        null
-      : product.variants.find(variant => variant.size === size) || null;
-
-    setSelectedSize(size);
-    setSelectedCrust(isPizzaProduct ? parseCrustOptions(nextVariant?.crust)[0] || "" : "");
-
-    if (nextVariant) {
-      syncNoteBySku(nextVariant.sku);
-    }
-  };
-
-  const handleSelectCrust = (crust: string) => {
-    if (!product || !isPizzaProduct) return;
-
-    setSelectedCrust(crust);
-    const nextVariant = product.variants.find(
-      variant => variant.size === selectedSize && parseCrustOptions(variant.crust).includes(crust),
-    );
-    if (nextVariant) {
-      syncNoteBySku(nextVariant.sku);
-    }
-  };
-
-  const handleToggleExtraTopping = (toppingId: string) => {
-    setSelectedExtraToppingIds(prev => (prev.includes(toppingId) ? prev.filter(id => id !== toppingId) : [...prev, toppingId]));
   };
 
   const computeComboOriginalPrice = (combo: Combo): number => {
@@ -597,330 +346,14 @@ export default function IndexPage() {
     return computeComboOriginalPrice(combo) - combo.price;
   };
 
-  /** Tính giá động cho combo dựa trên các sản phẩm đã chọn */
-  const computeDynamicComboPrice = (): number => {
-    if (!selectedCombo || selectedCombo.pricingType !== "dynamic") return selectedCombo?.price ?? 0;
-
-    let total = 0;
-    selectedCombo.rules.forEach((rule, idx) => {
-      const selections = comboSelections[idx] || [];
-      selections.forEach(sel => {
-        const product = menu?.products.find(p => p._id === sel.productId);
-        const variant = product?.variants.find(v => v.sku === sel.sku);
-        if (variant) {
-          total += variant.price;
-        }
-      });
-    });
-
-    // Áp dụng discount nếu có
-    if (selectedCombo.discountType === "percent" && selectedCombo.discount > 0) {
-      total = Math.round(total * (1 - selectedCombo.discount / 100));
-    } else if (selectedCombo.discountType === "amount" && selectedCombo.discount > 0) {
-      total = Math.max(0, total - selectedCombo.discount);
-    }
-
-    return total;
-  };
-
-  /** Giá hiển thị của combo: static thì dùng giá fix, dynamic thì tính từ selections */
-  const getDisplayComboPrice = (combo: Combo): number => {
-    if (combo.pricingType === "dynamic") {
-      return computeDynamicComboPrice();
-    }
-    return combo.price;
-  };
-
   const getComboRuleItems = (combo: Combo): string[] => {
     return combo.rules.map(rule => `${rule.groupName} x${rule.requiredQuantity}`);
   };
 
   const handleOpenCombo = (combo: Combo) => {
+    setEditComboSelections(undefined);
+    setEditComboOldSku(null);
     setSelectedCombo(combo);
-    setComboSelections({});
-    setReplacingRule(null);
-  };
-
-  const getProductsForRule = (rule: Combo["rules"][number]): Product[] => {
-    if (!menu?.products) return [];
-
-    if (rule.applicableProducts && rule.applicableProducts.length > 0) {
-      return menu.products.filter(p => rule.applicableProducts.includes(p._id));
-    }
-
-    const categorySlugs = rule.applicableCategories.map(cat => cat.slug);
-    return menu.products.filter(p => categorySlugs.includes(p.category?.slug));
-  };
-
-  const handleSelectComboProduct = (ruleIndex: number, sku: string) => {
-    // Tìm variant để lấy size + crust
-    const product = menu?.products.find(p => p.variants.some(v => v.sku === sku));
-    const variant = product?.variants.find(v => v.sku === sku) || product?.variants[0];
-    const selection: ComboSlotSelection = {
-      productId: product?._id || "",
-      sku: sku,
-      size: variant?.size || "",
-      crust: variant ? parseCrustOptions(variant.crust)[0] || undefined : undefined,
-    };
-
-    // Slot-level replacement: thay thế 1 slot cụ thể
-    if (replacingSlot && replacingSlot.ruleIdx === ruleIndex) {
-      setComboSelections(prev => {
-        const current = [...(prev[ruleIndex] || [])];
-        current[replacingSlot.slotIdx] = selection;
-        return { ...prev, [ruleIndex]: current };
-      });
-      setReplacingSlot(null);
-      return;
-    }
-
-    setComboSelections(prev => {
-      const current = prev[ruleIndex] || [];
-      const requiredQty = selectedCombo?.rules[ruleIndex]?.requiredQuantity || 1;
-      // Còn slot trống → thêm slot mới (cho phép chọn cùng sản phẩm nhiều lần)
-      if (current.length < requiredQty) {
-        return { ...prev, [ruleIndex]: [...current, selection] };
-      }
-      // Đã đủ số lượng → thay thế phần tử đầu
-      const next = [...current];
-      next.shift();
-      return { ...prev, [ruleIndex]: [...next, selection] };
-    });
-  };
-
-  /** Thay đổi variant (size/crust) của 1 sản phẩm đã chọn trong combo */
-  const handleChangeComboVariant = (
-    ruleIndex: number,
-    slotIdx: number,
-    productId: string,
-    newSku: string,
-    newSize: string,
-    newCrust?: string,
-  ) => {
-    setComboSelections(prev => {
-      const current = [...(prev[ruleIndex] || [])];
-      // Ưu tiên tìm theo slotIdx, fallback tìm theo productId
-      let idx = slotIdx;
-      if (idx >= current.length || current[idx]?.productId !== productId) {
-        idx = current.findIndex(s => s.productId === productId);
-      }
-      if (idx >= 0) {
-        current[idx] = {
-          productId,
-          sku: newSku,
-          size: newSize,
-          crust: newCrust,
-        };
-      }
-      return { ...prev, [ruleIndex]: current };
-    });
-  };
-
-  const allComboSelectionsFilled = useMemo(() => {
-    if (!selectedCombo) return false;
-    return selectedCombo.rules.every((rule, idx) => {
-      const selected = comboSelections[idx] || [];
-      return selected.length >= rule.requiredQuantity;
-    });
-  }, [selectedCombo, comboSelections]);
-
-  const handleAddComboToCart = async () => {
-    if (!selectedCombo) return;
-
-    const oldSku = editingComboOldSkuRef.current;
-    if (oldSku) {
-      const oldCartItem = cart?.items.find(item => item.sku === oldSku);
-      if (oldCartItem) {
-        if (user?.id) {
-          try {
-            await removeFromCartApi({
-              userId: user.id,
-              item_type: "combo",
-              combo: selectedCombo._id,
-              sku: oldSku,
-              size: oldCartItem.size,
-              combo_selections: oldCartItem.combo_selections?.map(sel => ({
-                product_id: typeof sel.product_id === "string" ? sel.product_id : sel.product_id?._id || "",
-                sku: sel.sku,
-                size: sel.size,
-                crust: sel.crust,
-              })),
-            });
-          } catch {}
-        } else {
-          const guestCart = JSON.parse(localStorage.getItem("guest_cart") || "{}");
-          if (guestCart.items) {
-            guestCart.items = guestCart.items.filter(
-              (item: { sku: string; combo_selections?: Array<{ sku: string }> }) =>
-                !(item.sku === oldSku && areComboSelectionsEqual(item.combo_selections, oldCartItem.combo_selections)),
-            );
-            localStorage.setItem("guest_cart", JSON.stringify(guestCart));
-          }
-        }
-      }
-      editingComboOldSkuRef.current = null;
-    }
-    comboCounterRef.current += 1;
-    const newSku = `combo-${selectedCombo._id}-${comboCounterRef.current}`;
-
-    const comboSelectionsPayload: ComboSelectionPayload[] = [];
-    const populatedSelections: Array<{
-      product_id: string | ProductPopulated;
-      sku: string;
-      size: string;
-      crust?: string;
-      added_topping: ToppingRef[];
-    }> = [];
-
-    selectedCombo.rules.forEach((rule, idx) => {
-      (comboSelections[idx] || []).forEach(sel => {
-        const product = menu?.products.find(p => p._id === sel.productId);
-        comboSelectionsPayload.push({
-          product_id: sel.productId,
-          sku: sel.sku,
-          size: sel.size,
-          crust: sel.crust,
-          added_topping: [],
-        });
-        populatedSelections.push({
-          product_id: product
-            ? {
-                _id: product._id,
-                name: product.name,
-                variants: product.variants.map(v => ({
-                  image: { url: v.image.url },
-                  size: v.size,
-                  price: v.price,
-                })),
-              }
-            : sel.productId,
-          sku: sel.sku,
-          size: sel.size,
-          crust: sel.crust,
-          added_topping: [],
-        });
-      });
-    });
-
-    await addToCart({
-      userId: user?.id,
-      item_type: "combo",
-      combo: selectedCombo._id,
-      comboInfo: {
-        _id: selectedCombo._id,
-        name: selectedCombo.name,
-        image: selectedCombo.image,
-        pricingType: selectedCombo.pricingType,
-        discountType: selectedCombo.discountType,
-        discount: selectedCombo.discount,
-      },
-      combo_selections: (user?.id ? comboSelectionsPayload : populatedSelections) as ComboSelectionPayload[],
-      sku: newSku,
-      crust: "",
-      size: "",
-      quantity: 1,
-      note: "",
-      price: getDisplayComboPrice(selectedCombo),
-    });
-
-    await fetchCart(user?.id);
-    setSelectedCombo(null);
-    toast.success(
-      <span>
-        {oldSku ? (
-          "Đã cập nhật combo!"
-        ) : (
-          <>
-            Đã thêm combo vào{" "}
-            <button
-              className="underline font-medium hover:opacity-80"
-              onClick={() => {
-                setShowCart(true);
-                toast.dismiss();
-              }}
-            >
-              giỏ hàng
-            </button>
-            !
-          </>
-        )}
-      </span>,
-      { duration: 2000, position: "top-right" },
-    );
-  };
-
-  const handleCart = async (product_id: string, size: string, quantity: number = 1, sku: string, note: string = "") => {
-    const wasInCart = cart?.items.some(item => item.sku === sku);
-
-    await addToCart({
-      userId: user?.id,
-      item_type: "product",
-      product_id,
-      product: product
-        ? {
-            _id: product._id,
-            name: product.name,
-            variants: product.variants.map(variant => ({
-              image: {
-                url: variant.image.url,
-              },
-              size: variant.size,
-              price: variant.price,
-            })),
-          }
-        : undefined,
-      sku,
-      size,
-      crust: selectedCrust || undefined,
-      quantity,
-      note,
-      price: unitPrice,
-      added_topping: selectedExtraToppingIds,
-    });
-
-    const fetchedCart = (await fetchCart(user?.id)) as
-      | {
-          items?: Array<{ sku: string; note?: string }>;
-        }
-      | undefined
-      | null;
-    const productInCart = fetchedCart?.items?.find(item => item.sku === sku);
-    setNote(productInCart?.note || "");
-
-    toast.success(
-      <span>
-        {wasInCart ? (
-          <>
-            Đã cập nhật{" "}
-            <button
-              className="underline font-medium hover:opacity-80"
-              onClick={() => {
-                setShowCart(true);
-                toast.dismiss();
-              }}
-            >
-              giỏ hàng
-            </button>
-            !
-          </>
-        ) : (
-          <>
-            Đã thêm vào{" "}
-            <button
-              className="underline font-medium hover:opacity-80"
-              onClick={() => {
-                setShowCart(true);
-                toast.dismiss();
-              }}
-            >
-              giỏ hàng
-            </button>
-            !
-          </>
-        )}
-      </span>,
-      { duration: 2000, position: "top-right" },
-    );
   };
 
   return (
@@ -1391,492 +824,25 @@ export default function IndexPage() {
         </div>
       </section>
 
-      {product && selectedVariant && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 m-0 p-2 sm:p-4"
-          onClick={() => setProduct(null)}
-        >
-          <div className="flex items-center gap-2 sm:gap-4 w-full max-w-[calc(100vw-0.5rem)] sm:max-w-[calc(100vw-7rem)] justify-center">
-            <div className="hidden sm:block w-10 h-10 shrink-0">
-              {(filteredMenu1 ?? []).length > 1 && (
-                <button
-                  onClick={e => {
-                    e.stopPropagation();
-                    scrollPrev();
-                  }}
-                  className="flex items-center justify-center w-10 h-10 rounded-full bg-white/90 backdrop-blur-sm shadow-lg border border-border text-foreground hover:bg-white hover:scale-110 transition-all cursor-pointer"
-                  aria-label="Sản phẩm trước"
-                >
-                  <ChevronLeft size={22} />
-                </button>
-              )}
-            </div>
-
-            <div
-              className="overflow-hidden rounded-3xl w-full md:w-[800px] lg:w-[896px] max-w-[calc(100vw-1rem)] sm:max-w-[calc(100vw-7rem)] shadow-2xl max-h-[90vh] max-md:max-h-[82vh] 2xl:max-h-[70vh] shrink-0"
-              ref={emblaRef}
-              onClick={e => e.stopPropagation()}
-            >
-              <div className="flex">
-                {(filteredMenu1 ?? []).map(p => (
-                  <div key={p._id} className="flex-[0_0_100%] min-w-0">
-                    <div className="bg-card flex flex-col md:flex-row h-full max-h-[90vh] max-md:max-h-[82vh] 2xl:max-h-[70vh]">
-                      <div className="md:w-2/5 bg-white border-b md:border-b-0 md:border-r border-border/60 flex items-center justify-center p-4 sm:p-6 shrink-0">
-                        <div className="relative w-full max-w-[320px] aspect-square max-md:aspect-[3/2] max-md:max-h-[200px] max-md:max-w-[200px]">
-                          {p._id === product._id ? (
-                            <Image
-                              src={selectedVariant.image.url}
-                              alt={p.name}
-                              fill
-                              sizes="(max-width: 768px) 90vw, (max-width: 1024px) 60vw, 35vw"
-                              className="object-contain"
-                            />
-                          ) : (
-                            <Image
-                              src={p.variants[0]?.image?.url || ""}
-                              alt={p.name}
-                              fill
-                              sizes="(max-width: 768px) 90vw, (max-width: 1024px) 60vw, 35vw"
-                              className="object-contain opacity-40"
-                            />
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="flex-1 flex flex-col min-h-0">
-                        {p._id === product._id ? (
-                          modalLoading ? (
-                            /* Skeleton loading */
-                            <div className="flex-1 p-4 sm:p-5 space-y-4 animate-pulse">
-                              <div className="flex justify-between">
-                                <div className="space-y-2 flex-1">
-                                  <div className="h-6 w-48 bg-muted rounded-lg" />
-                                  <div className="h-4 w-24 bg-muted rounded-lg" />
-                                  <div className="h-4 w-full bg-muted rounded-lg" />
-                                  <div className="h-4 w-3/4 bg-muted rounded-lg" />
-                                </div>
-                                <div className="w-8 h-8 bg-muted rounded-lg shrink-0" />
-                              </div>
-                              <div className="space-y-2">
-                                <div className="h-4 w-28 bg-muted rounded-lg" />
-                                <div className="flex gap-2">
-                                  {[1, 2, 3].map(i => (
-                                    <div key={i} className="h-10 flex-1 bg-muted rounded-xl" />
-                                  ))}
-                                </div>
-                              </div>
-                              <div className="space-y-2">
-                                <div className="h-4 w-28 bg-muted rounded-lg" />
-                                <div className="grid grid-cols-2 gap-2">
-                                  {[1, 2, 3, 4].map(i => (
-                                    <div key={i} className="h-14 bg-muted rounded-lg" />
-                                  ))}
-                                </div>
-                              </div>
-                              <div className="space-y-2">
-                                <div className="h-4 w-20 bg-muted rounded-lg" />
-                                <div className="h-14 bg-muted rounded-lg" />
-                              </div>
-                            </div>
-                          ) : (
-                            <>
-                              <div className="flex items-start justify-between p-4 sm:p-5 pb-2 sm:pb-3 shrink-0">
-                                <div className="pr-3">
-                                  <h3 className="text-lg sm:text-xl text-foreground">{product.name}</h3>
-                                  <p className="text-[11px] text-muted-foreground mt-0.5">
-                                    {selectedVariant.size}
-                                    {isPizzaProduct && selectedCrust ? ` - ${formatCrustLabel(selectedCrust)}` : ""}
-                                  </p>
-                                  <p className="text-xs sm:text-sm text-muted-foreground mt-1.5 sm:mt-2 leading-relaxed line-clamp-2 sm:line-clamp-none">
-                                    {product.description}
-                                  </p>
-                                  <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 line-clamp-2 sm:line-clamp-none">
-                                    Nguyên liệu: {selectedVariant.recipe.map(item => item.ingredient.name).join(", ")}
-                                  </p>
-                                </div>
-                                <button
-                                  onClick={() => setProduct(null)}
-                                  className="p-2 rounded-lg hover:bg-muted text-muted-foreground shrink-0"
-                                >
-                                  <X size={18} />
-                                </button>
-                              </div>
-
-                              <div className="flex-1 overflow-y-auto px-4 sm:px-5 space-y-4 sm:space-y-5 max-md:pb-5">
-                                <div className="space-y-3">
-                                  <div>
-                                    <p className="text-sm font-semibold text-foreground mb-2">Chọn kích thước</p>
-                                    <div
-                                      className="grid gap-2 bg-muted rounded-xl p-1"
-                                      style={{
-                                        gridTemplateColumns: `repeat(${Math.max(availableSizes.length, 1)}, minmax(0, 1fr))`,
-                                      }}
-                                    >
-                                      {availableSizes.map(size => (
-                                        <button
-                                          key={size}
-                                          onClick={() => handleSelectSize(size)}
-                                          className={`py-2 rounded-lg text-center transition-all ${selectedSize === size ? "bg-card shadow text-foreground" : "text-muted-foreground hover:text-foreground"}`}
-                                        >
-                                          <p className="text-sm truncate">{size}</p>
-                                        </button>
-                                      ))}
-                                    </div>
-                                  </div>
-                                  {isPizzaProduct && availableCrusts.length > 0 && (
-                                    <div>
-                                      <p className="text-sm font-semibold text-foreground mb-2">Chọn loại đế</p>
-                                      <div
-                                        className="grid gap-2 bg-muted rounded-xl p-1"
-                                        style={{
-                                          gridTemplateColumns: `repeat(${Math.max(availableCrusts.length, 1)}, minmax(0, 1fr))`,
-                                        }}
-                                      >
-                                        {availableCrusts.map(crust => (
-                                          <button
-                                            key={crust}
-                                            onClick={() => handleSelectCrust(crust)}
-                                            className={`py-2 rounded-lg text-center transition-all ${selectedCrust === crust ? "bg-card shadow text-foreground" : "text-muted-foreground hover:text-foreground"}`}
-                                          >
-                                            <p className="text-sm truncate">{formatCrustLabel(crust)}</p>
-                                          </button>
-                                        ))}
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
-
-                                {showExtraTopping && extraToppingOptions.length > 0 && (
-                                  <div>
-                                    <p className="text-sm font-semibold text-foreground mb-2">Chọn extra topping</p>
-                                    <div className="grid grid-cols-2 gap-2">
-                                      {extraToppingOptions.map(item => {
-                                        const active = selectedExtraToppingIds.includes(item._id);
-                                        return (
-                                          <button
-                                            key={item._id}
-                                            onClick={() => handleToggleExtraTopping(item._id)}
-                                            className={`px-3 py-2 rounded-lg border text-left transition-all ${active ? "border-primary bg-primary/10 text-primary" : "border-border bg-muted/50 text-muted-foreground hover:border-primary/40"}`}
-                                          >
-                                            <p className="text-sm truncate">{item.name}</p>
-                                            <p className="text-xs">+ {formatVND(item.price)}</p>
-                                          </button>
-                                        );
-                                      })}
-                                    </div>
-                                  </div>
-                                )}
-
-                                <div className="pb-2">
-                                  <p className="text-sm font-semibold text-foreground mb-2">Ghi chú</p>
-                                  <Textarea
-                                    placeholder="Thêm ghi chú cho món này"
-                                    className="min-h-[52px]"
-                                    value={note}
-                                    onChange={e => setNote(e.target.value)}
-                                  />
-                                </div>
-                              </div>
-
-                              <div className="p-4 sm:p-5 border-t border-border shrink-0">
-                                <button
-                                  onClick={() => {
-                                    const toppingNote = selectedExtraToppings.map(item => item.name).join(", ");
-                                    const finalNote = [note.trim(), toppingNote ? `Extra topping: ${toppingNote}` : ""]
-                                      .filter(Boolean)
-                                      .join(" | ");
-                                    handleCart(product._id, selectedVariant.size, 1, selectedVariant.sku, finalNote);
-                                  }}
-                                  className="w-full flex items-center justify-between gap-2 bg-primary text-white pl-5 pr-4 py-3 rounded-xl hover:bg-primary/90 transition-colors shadow-lg shadow-primary/25"
-                                >
-                                  <span className="flex items-center gap-2">
-                                    <Plus size={18} /> {isEditMode ? "Cập nhật giỏ hàng" : "Thêm vào giỏ"}
-                                  </span>
-                                  <span className="flex items-center gap-2">
-                                    {hasDiscount && (
-                                      <>
-                                        <span className="text-white/70 line-through text-sm">{formatVND(unitPrice)}</span>
-                                        <span className="bg-white/20 text-white text-xs px-1.5 py-0.5 rounded font-medium">
-                                          {selectedVariant.disscountType === "percent"
-                                            ? `-${selectedVariant.discount}%`
-                                            : `-${formatVND(selectedVariant.discount || 0)}`}
-                                        </span>
-                                      </>
-                                    )}
-                                    <span>{formatVND(discountedPrice)}</span>
-                                  </span>
-                                </button>
-                              </div>
-                            </>
-                          )
-                        ) : (
-                          <div className="flex-1 flex items-center justify-center p-6">
-                            <p className="text-muted-foreground text-sm">{p.name}</p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="hidden sm:block w-10 h-10 shrink-0">
-              {(filteredMenu1 ?? []).length > 1 && (
-                <button
-                  onClick={e => {
-                    e.stopPropagation();
-                    scrollNext();
-                  }}
-                  className="flex items-center justify-center w-10 h-10 rounded-full bg-white/90 backdrop-blur-sm shadow-lg border border-border text-foreground hover:bg-white hover:scale-110 transition-all cursor-pointer"
-                  aria-label="Sản phẩm tiếp theo"
-                >
-                  <ChevronRight size={22} />
-                </button>
-              )}
-            </div>
-          </div>
-
-          <div className="sm:hidden fixed bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-3 z-[60]">
-            {(filteredMenu1 ?? []).length > 1 && (
-              <>
-                <button
-                  onClick={e => {
-                    e.stopPropagation();
-                    scrollPrev();
-                  }}
-                  className="flex items-center justify-center w-12 h-12 rounded-full bg-white/90 backdrop-blur-sm shadow-xl border border-border text-foreground active:scale-95 transition-all cursor-pointer"
-                  aria-label="Sản phẩm trước"
-                >
-                  <ChevronLeft size={22} />
-                </button>
-                <span className="text-xs text-white/70 font-medium bg-black/40 px-3 py-1.5 rounded-full backdrop-blur-sm">
-                  {currentProductIndex + 1} / {(filteredMenu1 ?? []).length}
-                </span>
-                <button
-                  onClick={e => {
-                    e.stopPropagation();
-                    scrollNext();
-                  }}
-                  className="flex items-center justify-center w-12 h-12 rounded-full bg-white/90 backdrop-blur-sm shadow-xl border border-border text-foreground active:scale-95 transition-all cursor-pointer"
-                  aria-label="Sản phẩm tiếp theo"
-                >
-                  <ChevronRight size={22} />
-                </button>
-              </>
-            )}
-          </div>
-
-          {(cart?.items?.length ?? 0) > 0 && (
-            <button
-              onClick={e => {
-                e.stopPropagation();
-                setShowCart(true);
-              }}
-              className=" fixed bottom-3 right-3 z-[70] flex items-center justify-center w-14 h-14 rounded-full bg-primary text-white shadow-xl shadow-primary/30 active:scale-95 transition-all cursor-pointer hover:bg-primary/90"
-              aria-label="Giỏ hàng"
-            >
-              <ShoppingBag size={24} />
-              <span className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-orange-500 text-white text-[11px] font-bold flex items-center justify-center border-2 border-white">
-                {cart?.items?.length}
-              </span>
-            </button>
-          )}
-        </div>
+      {product && (
+        <ProductDetailModal
+          products={filteredMenu1 ?? []}
+          initialProduct={product}
+          extraToppings={extraToppings}
+          initialState={editProductState ?? undefined}
+          onClose={() => setProduct(null)}
+        />
       )}
 
-      {selectedCombo &&
-        (() => {
-          const savings = computeComboSavings(selectedCombo);
-          const originalPrice = computeComboOriginalPrice(selectedCombo);
-          const comboImg = selectedCombo.image || "";
-          const isDynamic = selectedCombo.pricingType === "dynamic";
-          const displayPrice = getDisplayComboPrice(selectedCombo);
-
-          return (
-            <div
-              className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 m-0"
-              onClick={() => {
-                setSelectedCombo(null);
-                setReplacingRule(null);
-              }}
-            >
-              <div
-                className="bg-card rounded-3xl w-full max-w-4xl shadow-2xl overflow-hidden max-h-[92vh] flex flex-col md:flex-row"
-                onClick={e => e.stopPropagation()}
-              >
-                <div className="md:w-2/5 bg-white border-b md:border-b-0 md:border-r border-border/60 flex items-center justify-center p-4 sm:p-6 shrink-0 relative">
-                  <div className="relative w-full max-w-[320px] aspect-square max-md:aspect-[3/2] max-md:max-h-[200px] max-md:max-w-[200px]">
-                    <Image
-                      src={comboImg}
-                      alt={selectedCombo.name}
-                      fill
-                      sizes="(max-width: 768px) 90vw, (max-width: 1024px) 60vw, 35vw"
-                      className="object-contain"
-                    />
-                  </div>
-                  {savings > 0 && (
-                    <span className="absolute top-3 sm:top-5 left-3 sm:left-5 px-2.5 sm:px-3 py-1 sm:py-1.5 bg-orange-500 text-white text-xs sm:text-sm font-semibold rounded-full">
-                      Tiết kiệm {formatVND(savings)}
-                    </span>
-                  )}
-                </div>
-
-                <div className="flex-1 flex flex-col min-h-0">
-                  <div className="flex items-start justify-between p-4 sm:p-5 pb-2 shrink-0">
-                    <div className="pr-3">
-                      <h3 className="text-lg sm:text-xl text-foreground font-bold">{selectedCombo.name}</h3>
-                      <p className="text-xs sm:text-sm text-muted-foreground mt-1 leading-relaxed line-clamp-2 sm:line-clamp-none">
-                        {selectedCombo.description}
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => {
-                        setSelectedCombo(null);
-                        setReplacingRule(null);
-                        setReplacingSlot(null);
-                      }}
-                      className="p-2 rounded-lg hover:bg-muted text-muted-foreground shrink-0"
-                    >
-                      <X size={18} />
-                    </button>
-                  </div>
-
-                  <div className="flex-1 overflow-y-auto px-4 sm:px-5 space-y-3 sm:space-y-4 pb-2">
-                    {selectedCombo.rules.map((rule, ruleIdx) => {
-                      const products = getProductsForRule(rule);
-                      const selectedSelections = comboSelections[ruleIdx] || [];
-                      const isReplacing = replacingRule === ruleIdx;
-                      const isSlotReplacing = replacingSlot?.ruleIdx === ruleIdx;
-
-                      const slots = Array.from({ length: rule.requiredQuantity }, (_, slotIdx) => {
-                        const sel = selectedSelections[slotIdx] || null;
-                        const product = sel?.productId ? menu?.products.find(p => p._id === sel.productId) : null;
-                        const variant = sel?.sku ? product?.variants.find(v => v.sku === sel.sku) || product?.variants[0] : null;
-                        return { selection: sel, product, variant };
-                      });
-
-                      const isRuleFilled = selectedSelections.length >= rule.requiredQuantity;
-
-                      return (
-                        <div
-                          key={ruleIdx}
-                          ref={el => {
-                            ruleRefs.current[ruleIdx] = el;
-                          }}
-                          className="border border-border rounded-2xl p-4 bg-muted/10"
-                        >
-                          <div className="flex items-center justify-between mb-3">
-                            <p className="text-sm font-semibold text-foreground">
-                              {rule.groupName}
-                              <span className="text-xs text-muted-foreground ml-1 font-normal">
-                                ({selectedSelections.length}/{rule.requiredQuantity})
-                              </span>
-                            </p>
-                            {isSlotReplacing && (
-                              <button
-                                onClick={() => setReplacingSlot(null)}
-                                className="text-xs text-muted-foreground hover:text-foreground font-medium cursor-pointer"
-                              >
-                                Đóng
-                              </button>
-                            )}
-                          </div>
-
-                          {selectedSelections.length > 0 && (
-                            <div className="space-y-2">
-                              {slots.map((slot, slotIdx) =>
-                                slot.product && slot.variant ? (
-                                  <SlotCard
-                                    key={slotIdx}
-                                    product={slot.product}
-                                    variant={slot.variant}
-                                    selectedCrust={slot.selection?.crust}
-                                    ruleIdx={ruleIdx}
-                                    slotIdx={slotIdx}
-                                    onChangeVariant={handleChangeComboVariant}
-                                    onReplace={(ri, si) => setReplacingSlot({ ruleIdx: ri, slotIdx: si })}
-                                    showReplace={isRuleFilled && !isReplacing && !isSlotReplacing}
-                                  />
-                                ) : null,
-                              )}
-                            </div>
-                          )}
-                          {(isReplacing || !isRuleFilled || isSlotReplacing) && products.length > 0 && (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1">
-                              {products.map(product => {
-                                const repVariant = product.variants[0];
-                                if (!repVariant) return null;
-                                const isSelected = selectedSelections.some(s => s.productId === product._id);
-                                return (
-                                  <button
-                                    key={product._id}
-                                    onClick={() => handleSelectComboProduct(ruleIdx, repVariant.sku)}
-                                    className={`p-3 rounded-xl border text-left transition-all ${
-                                      isSelected
-                                        ? "border-orange-500 bg-orange-50 ring-1 ring-orange-200"
-                                        : "border-border bg-background hover:border-orange-300 hover:bg-orange-50/30"
-                                    }`}
-                                  >
-                                    <div className="flex items-center gap-3">
-                                      <div className="relative w-12 h-12 rounded-lg overflow-hidden shrink-0 bg-muted">
-                                        <Image
-                                          src={repVariant.image.url}
-                                          alt={product.name}
-                                          fill
-                                          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                                          className="object-cover"
-                                        />
-                                      </div>
-                                      <div className="min-w-0">
-                                        <p className="text-sm font-medium text-foreground">{product.name}</p>
-                                      </div>
-                                    </div>
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          )}
-
-                          {products.length === 0 && (
-                            <p className="text-xs text-muted-foreground italic">Không có sản phẩm khả dụng</p>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  <div className="p-4 sm:p-5 border-t border-border space-y-2 shrink-0">
-                    {isDynamic ? (
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">Giá tự động tính theo sản phẩm đã chọn</span>
-                        {allComboSelectionsFilled && (
-                          <span className="text-lg font-bold text-primary">{formatVND(displayPrice)}</span>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground line-through">{formatVND(originalPrice)}</span>
-                        <span className="text-green-600 text-xs font-medium">Tiết kiệm {formatVND(savings)}</span>
-                      </div>
-                    )}
-                    <button
-                      onClick={handleAddComboToCart}
-                      disabled={!allComboSelectionsFilled}
-                      className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl transition-colors shadow-lg ${
-                        allComboSelectionsFilled
-                          ? "bg-orange-500 text-white hover:bg-orange-600 shadow-orange-500/25"
-                          : "bg-muted text-muted-foreground cursor-not-allowed"
-                      }`}
-                    >
-                      <Plus size={18} /> Thêm combo vào giỏ - {formatVND(displayPrice)}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          );
-        })()}
+      {selectedCombo && (
+        <ComboBuilderModal
+          combo={selectedCombo}
+          allProducts={menu?.products ?? []}
+          initialSelections={editComboSelections}
+          editOldSku={editComboOldSku}
+          onClose={() => setSelectedCombo(null)}
+        />
+      )}
     </>
   );
 }

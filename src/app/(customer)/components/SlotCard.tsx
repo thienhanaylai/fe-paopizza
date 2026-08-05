@@ -12,6 +12,7 @@ interface SlotCardProps {
   selectedCrust?: string;
   ruleIdx: number;
   slotIdx?: number;
+  applicableSizes?: string[];
   onChangeVariant: (
     ruleIdx: number,
     slotIdx: number,
@@ -30,12 +31,15 @@ export default function SlotCard({
   selectedCrust,
   ruleIdx,
   slotIdx,
+  applicableSizes,
   onChangeVariant,
   onReplace,
   showReplace,
 }: SlotCardProps) {
   const allVariants = product.variants;
-  const sizes = Array.from(new Set(allVariants.map(v => v.size)));
+  const allSizes = Array.from(new Set(allVariants.map(v => v.size)));
+  // Lọc size theo applicableSizes của rule (nếu có)
+  const sizes = applicableSizes && applicableSizes.length > 0 ? allSizes.filter(s => applicableSizes.includes(s)) : allSizes;
   const currentSize = variant.size;
   const crustsForSize = Array.from(
     new Set(

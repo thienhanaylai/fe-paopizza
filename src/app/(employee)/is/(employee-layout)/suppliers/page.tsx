@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Search,
   Plus,
@@ -15,6 +15,7 @@ import {
   X,
   AlertCircle,
   LoaderCircle,
+  ChevronDown,
 } from "lucide-react";
 import { useSort } from "@/src/hooks/useSort";
 import { SortableHeader } from "@/src/components/ui/SortableHeader";
@@ -28,12 +29,16 @@ import {
   SupplierCategory,
   updateSupplier,
 } from "@/src/services/suppliers.service";
+import { getAllIngredients, IngredientData } from "@/src/services/ingredient.service";
 
 const supplierCategoryLabels: Record<SupplierCategory, string> = {
-  main_ingredient: "Nguyên liệu chính",
+  dough: "Bột",
   drink: "Đồ uống",
   seafood: "Hải sản",
   vegetable: "Rau củ",
+  meat: "Thịt",
+  sauce: "Sốt",
+  other: "Khác",
 };
 
 export default function Suppliers() {
@@ -45,8 +50,14 @@ export default function Suppliers() {
   const [formName, setFormName] = useState("");
   const [formEmail, setFormEmail] = useState("");
   const [formPhone, setFormPhone] = useState("");
-  const [formCategory, setFormCategory] = useState<SupplierCategory>("main_ingredient");
+  const [formCategory, setFormCategory] = useState<SupplierCategory>("dough");
   const [formIsActive, setFormIsActive] = useState(true);
+  const [formIngredients, setFormIngredients] = useState<string[]>([]);
+  const [formPhoneError, setFormPhoneError] = useState("");
+  const [formEmailError, setFormEmailError] = useState("");
+  const [ingredientList, setIngredientList] = useState<IngredientData[]>([]);
+  const [ingredientDropdownOpen, setIngredientDropdownOpen] = useState(false);
+  const ingredientDropdownRef = useRef<HTMLDivElement>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [confirmModal, setConfirmModal] = useState(false);
@@ -62,22 +73,62 @@ export default function Suppliers() {
     setPage(1);
   }, [search]);
 
+  // Click outside để đóng dropdown nguyên liệu
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (ingredientDropdownRef.current && !ingredientDropdownRef.current.contains(e.target as Node)) {
+        setIngredientDropdownOpen(false);
+      }
+    };
+    if (ingredientDropdownOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [ingredientDropdownOpen]);
+
   const fetchSuppliers = async () => {
     const { data: res } = await getAllSupplier();
     setListSuppliers(res || []);
     setIsPageLoading(false);
   };
 
+  const fetchIngredients = async () => {
+    const { data: res } = await getAllIngredients();
+    setIngredientList(res || []);
+  };
+
   useEffect(() => {
     fetchSuppliers();
+    fetchIngredients();
   }, []);
 
   const resetForm = () => {
     setFormName("");
     setFormEmail("");
     setFormPhone("");
-    setFormCategory("main_ingredient");
+    setFormCategory("dough");
     setFormIsActive(true);
+    setFormIngredients([]);
+    setFormPhoneError("");
+    setFormEmailError("");
+  };
+
+  const validatePhone = (phone: string): string => {
+    if (!phone.trim()) return "";
+    const phoneRegex = /^(0[2-9])[0-9]{8,9}$/;
+    if (!phoneRegex.test(phone.trim())) {
+      return "Số điện thoại không hợp lệ (VD: 028xxxxxxx, 090xxxxxxx)";
+    }
+    return "";
+  };
+
+  const validateEmail = (email: string): string => {
+    if (!email.trim()) return "";
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      return "Email không hợp lệ (VD: email@company.vn)";
+    }
+    return "";
   };
 
   const openCreateModal = () => {
@@ -91,8 +142,9 @@ export default function Suppliers() {
     setFormName(supplier.name || "");
     setFormEmail(supplier.email || "");
     setFormPhone(supplier.phone || "");
-    setFormCategory(supplier.supplier_category || "main_ingredient");
+    setFormCategory(supplier.supplier_category || "dough");
     setFormIsActive(Boolean(supplier.isActive));
+    setFormIngredients((supplier.supplierIngredients || []).map((ing: IngredientData) => ing._id));
     setShowModal(true);
   };
 
@@ -104,6 +156,13 @@ export default function Suppliers() {
 
   const handleSubmit = async () => {
     if (!formName || !formCategory) return;
+
+    // Validate phone & email trước khi submit
+    const phoneErr = validatePhone(formPhone);
+    const emailErr = validateEmail(formEmail);
+    setFormPhoneError(phoneErr);
+    setFormEmailError(emailErr);
+    if (phoneErr || emailErr) return;
 
     setIsSubmitting(true);
     try {
@@ -117,6 +176,7 @@ export default function Suppliers() {
           phone: formPhone,
           supplier_category: formCategory,
           isActive: formIsActive,
+          supplierIngredients: formIngredients,
         });
         toast.success("Cập nhật nhà cung cấp thành công!");
       } else {
@@ -126,6 +186,7 @@ export default function Suppliers() {
           phone: formPhone,
           supplier_category: formCategory,
           isActive: formIsActive,
+          supplierIngredients: formIngredients,
         });
         toast.success("Thêm nhà cung cấp thành công!");
       }
@@ -162,6 +223,10 @@ export default function Suppliers() {
       setConfirmModal(false);
       setDeleteTarget(null);
     }
+  };
+
+  const toggleIngredient = (ingredientId: string) => {
+    setFormIngredients(prev => (prev.includes(ingredientId) ? prev.filter(id => id !== ingredientId) : [...prev, ingredientId]));
   };
 
   const rawFiltered = listSuppliers.filter(
@@ -504,19 +569,31 @@ export default function Suppliers() {
                   <label className="block text-sm mb-1">Số điện thoại</label>
                   <input
                     value={formPhone}
-                    onChange={e => setFormPhone(e.target.value)}
+                    onChange={e => {
+                      setFormPhone(e.target.value);
+                      if (formPhoneError) setFormPhoneError("");
+                    }}
+                    onBlur={() => setFormPhoneError(validatePhone(formPhone))}
                     placeholder="028xxxxxxx"
-                    className="w-full px-4 py-2.5 rounded-xl border border-border bg-background outline-none"
+                    inputMode="numeric"
+                    className={`w-full px-4 py-2.5 rounded-xl border bg-background outline-none ${formPhoneError ? "border-red-400 focus:border-red-500" : "border-border focus:border-primary"}`}
                   />
+                  {formPhoneError && <p className="text-xs text-red-500 mt-1">{formPhoneError}</p>}
                 </div>
                 <div>
                   <label className="block text-sm mb-1">Email</label>
                   <input
                     value={formEmail}
-                    onChange={e => setFormEmail(e.target.value)}
+                    onChange={e => {
+                      setFormEmail(e.target.value);
+                      if (formEmailError) setFormEmailError("");
+                    }}
+                    onBlur={() => setFormEmailError(validateEmail(formEmail))}
                     placeholder="email@company.vn"
-                    className="w-full px-4 py-2.5 rounded-xl border border-border bg-background outline-none"
+                    type="email"
+                    className={`w-full px-4 py-2.5 rounded-xl border bg-background outline-none ${formEmailError ? "border-red-400 focus:border-red-500" : "border-border focus:border-primary"}`}
                   />
+                  {formEmailError && <p className="text-xs text-red-500 mt-1">{formEmailError}</p>}
                 </div>
               </div>
               <div>
@@ -530,6 +607,55 @@ export default function Suppliers() {
                   <option value="inactive">Ngừng hợp tác</option>
                 </select>
               </div>
+
+              {/* Chọn nguyên liệu cung cấp */}
+              <div>
+                <label className="block text-sm mb-1">Nguyên liệu cung cấp ({formIngredients.length} đã chọn)</label>
+                <div className="relative" ref={ingredientDropdownRef}>
+                  <button
+                    type="button"
+                    onClick={() => setIngredientDropdownOpen(!ingredientDropdownOpen)}
+                    className="w-full px-4 py-2.5 rounded-xl border border-border bg-background outline-none flex items-center justify-between text-left"
+                  >
+                    <span className={formIngredients.length === 0 ? "text-muted-foreground" : ""}>
+                      {formIngredients.length === 0
+                        ? "Chọn nguyên liệu..."
+                        : ingredientList
+                            .filter(i => formIngredients.includes(i._id))
+                            .map(i => i.name)
+                            .join(", ")}
+                    </span>
+                    <ChevronDown
+                      size={16}
+                      className={`text-muted-foreground transition-transform ${ingredientDropdownOpen ? "rotate-180" : ""}`}
+                    />
+                  </button>
+                  {ingredientDropdownOpen && (
+                    <div className="absolute z-10 mt-1 w-full bg-card border border-border rounded-xl shadow-lg max-h-48 overflow-y-auto">
+                      {ingredientList.length === 0 ? (
+                        <p className="px-4 py-3 text-sm text-muted-foreground">Không có nguyên liệu nào</p>
+                      ) : (
+                        ingredientList.map(ing => (
+                          <label
+                            key={ing._id}
+                            className="flex items-center gap-3 px-4 py-2.5 hover:bg-muted/50 cursor-pointer transition-colors"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={formIngredients.includes(ing._id)}
+                              onChange={() => toggleIngredient(ing._id)}
+                              className="w-4 h-4 rounded accent-primary"
+                            />
+                            <span className="text-sm">{ing.name}</span>
+                            <span className="text-xs text-muted-foreground ml-auto">{ing.unit}</span>
+                          </label>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
               <div className="flex gap-3 pt-2">
                 <button
                   onClick={closeModal}

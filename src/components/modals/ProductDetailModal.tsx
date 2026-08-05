@@ -1,0 +1,672 @@
+"use client";
+
+import Image from "next/image";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, useCallback } from "react";
+import useEmblaCarousel from "embla-carousel-react";
+import { ChevronLeft, ChevronRight, Plus, ShoppingBag, X } from "lucide-react";
+import { toast } from "sonner";
+
+import { useCustomerAuth } from "@/src/context/authCustomerContext";
+import { useCart } from "@/src/context/cartContext";
+import { Textarea } from "@/src/components/ui/textarea";
+import { formatVND } from "@/src/utils/formatVND";
+import { formatCrustLabel } from "@/src/utils/formatCrustLabel";
+import type { Product } from "@/src/services/menu.service";
+import { parseCrustOptions } from "@/src/app/(customer)/utils";
+import type { ExtraTopping } from "@/src/app/(customer)/types";
+
+interface ProductDetailModalProps {
+  products: Product[];
+  initialProduct: Product | null;
+  extraToppings: ExtraTopping[];
+  /** Initial selection state (used when editing a cart item) */
+  initialState?: {
+    size?: string;
+    crust?: string;
+    toppingIds?: string[];
+    note?: string;
+  };
+  onClose: () => void;
+}
+
+export default function ProductDetailModal({
+  products,
+  initialProduct,
+  extraToppings,
+  initialState,
+  onClose,
+}: ProductDetailModalProps) {
+  const { user } = useCustomerAuth();
+  const { addToCart, fetchCart, cart, setShowCart } = useCart();
+
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [selectedSize, setSelectedSize] = useState<string>("");
+  const [selectedCrust, setSelectedCrust] = useState<string>("");
+  const [selectedExtraToppingIds, setSelectedExtraToppingIds] = useState<string[]>([]);
+  const [note, setNote] = useState<string>("");
+
+  // Embla carousel
+  const [emblaRef, emblaApi] = useEmblaCarousel({ skipSnaps: true, duration: 30 });
+  const scrollPrev = useCallback(() => emblaApi?.scrollPrev(), [emblaApi]);
+  const scrollNext = useCallback(() => emblaApi?.scrollNext(), [emblaApi]);
+
+  // Skeleton loading khi đổi sản phẩm
+  const [modalLoading, setModalLoading] = useState(false);
+  const prevProductIdRef = useRef<string | null>(null);
+  const loadingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const currentProductIndex = useMemo(() => {
+    if (!selectedProduct || !products) return -1;
+    return products.findIndex(p => p._id === selectedProduct._id);
+  }, [selectedProduct, products]);
+
+  const handleProductChange = useCallback(
+    (product: Product, skipLoading = false) => {
+      // Clear timeout cũ nếu có
+      if (loadingTimerRef.current) {
+        clearTimeout(loadingTimerRef.current);
+        loadingTimerRef.current = null;
+      }
+
+      setSelectedProduct(product);
+      const firstVariant = product.variants[0];
+      const isPizza = product.category?.slug?.toLowerCase().includes("pizza") || product.name?.toLowerCase().includes("pizza");
+      const firstCrust = parseCrustOptions(firstVariant?.crust)[0] || "";
+
+      setSelectedSize(firstVariant?.size || "");
+      setSelectedCrust(isPizza ? firstCrust : "");
+      setSelectedExtraToppingIds([]);
+
+      const productInCart = cart?.items.find(i => i.sku === firstVariant?.sku);
+      setNote(productInCart ? productInCart.note : "");
+
+      if (!skipLoading) {
+        setModalLoading(true);
+        loadingTimerRef.current = setTimeout(() => {
+          setModalLoading(false);
+          loadingTimerRef.current = null;
+        }, 400);
+      }
+      prevProductIdRef.current = product._id;
+    },
+    [cart?.items],
+  );
+
+  // Dùng ref để tránh embla useEffect phụ thuộc vào handleProductChange
+  const handleProductChangeRef = useRef(handleProductChange);
+  useEffect(() => {
+    handleProductChangeRef.current = handleProductChange;
+  }, [handleProductChange]);
+
+  // Đồng bộ Embla -> selectedProduct khi vuốt
+  useEffect(() => {
+    if (!emblaApi) return;
+    const onSelect = () => {
+      const idx = emblaApi.selectedScrollSnap();
+      if (products[idx] && products[idx]._id !== selectedProduct?._id) {
+        handleProductChangeRef.current(products[idx]);
+      }
+    };
+    emblaApi.on("select", onSelect);
+    return () => {
+      emblaApi.off("select", onSelect);
+    };
+  }, [emblaApi, products, selectedProduct]);
+
+  // Nhảy đến sản phẩm khi mở modal hoặc đổi sản phẩm
+  useLayoutEffect(() => {
+    if (emblaApi && currentProductIndex >= 0) {
+      emblaApi.scrollTo(currentProductIndex, true);
+    }
+  }, [emblaApi, currentProductIndex]);
+
+  // Khởi tạo selectedProduct từ initialProduct — dùng chung handleProductChange
+  const initialProductAppliedRef = useRef(false);
+  useEffect(() => {
+    if (initialProduct && initialProduct._id !== prevProductIdRef.current) {
+      initialProductAppliedRef.current = true;
+      handleProductChange(initialProduct);
+    }
+    if (!initialProduct) {
+      prevProductIdRef.current = null;
+      initialProductAppliedRef.current = false;
+      setModalLoading(false);
+    }
+  }, [initialProduct, handleProductChange]);
+
+  // Áp dụng initial state từ editing flow (chỉ chạy 1 lần khi mở modal)
+  const initialStateAppliedRef = useRef(false);
+  useEffect(() => {
+    if (initialProduct && initialState && !initialStateAppliedRef.current) {
+      initialStateAppliedRef.current = true;
+      if (initialState.size) setSelectedSize(initialState.size);
+      if (initialState.crust) setSelectedCrust(initialState.crust);
+      if (initialState.toppingIds) setSelectedExtraToppingIds(initialState.toppingIds);
+      if (initialState.note !== undefined) setNote(initialState.note);
+    }
+    if (!initialProduct) {
+      initialStateAppliedRef.current = false;
+    }
+  }, [initialProduct, initialState]);
+
+  // --- Computed values ---
+
+  const isPizzaProduct = useMemo(() => {
+    if (!selectedProduct) return false;
+    const catSlug = selectedProduct.category?.slug?.toLowerCase() || "";
+    const name = selectedProduct.name?.toLowerCase() || "";
+    return catSlug.includes("pizza") || name.includes("pizza");
+  }, [selectedProduct]);
+
+  const showExtraTopping = useMemo(() => {
+    if (!selectedProduct) return false;
+    const catSlug = selectedProduct.category?.slug?.toLowerCase() || "";
+    const name = selectedProduct.name?.toLowerCase() || "";
+    return (
+      catSlug.includes("pizza") ||
+      catSlug.includes("dessert") ||
+      catSlug.includes("desert") ||
+      name.includes("pizza") ||
+      name.includes("dessert") ||
+      name.includes("desert")
+    );
+  }, [selectedProduct]);
+
+  const availableSizes = useMemo(() => {
+    if (!selectedProduct) return [];
+    return Array.from(new Set(selectedProduct.variants.map(v => v.size)));
+  }, [selectedProduct]);
+
+  const availableCrusts = useMemo(() => {
+    if (!selectedProduct || !selectedSize) return [];
+    return Array.from(
+      new Set(
+        selectedProduct.variants
+          .filter(v => v.size === selectedSize)
+          .flatMap(v => parseCrustOptions(v.crust))
+          .filter(Boolean),
+      ),
+    );
+  }, [selectedProduct, selectedSize]);
+
+  const selectedVariant = useMemo(() => {
+    if (!selectedProduct) return null;
+    const exact = selectedProduct.variants.find(
+      v => v.size === selectedSize && (!isPizzaProduct || !selectedCrust || parseCrustOptions(v.crust).includes(selectedCrust)),
+    );
+    if (exact) return exact;
+    const fallback = selectedProduct.variants.find(v => v.size === selectedSize);
+    return fallback || selectedProduct.variants[0] || null;
+  }, [selectedProduct, selectedSize, selectedCrust, isPizzaProduct]);
+
+  const baseIngredientIdSet = useMemo(() => {
+    if (!selectedVariant) return new Set<string>();
+    return new Set(selectedVariant.recipe.map(item => item.ingredient._id));
+  }, [selectedVariant]);
+
+  const extraToppingOptions = useMemo(() => {
+    return extraToppings.filter(
+      item =>
+        item.isActive &&
+        !item.isDeleted &&
+        !baseIngredientIdSet.has(item._id) &&
+        !["drink", "dough", "other"].includes(item.category),
+    );
+  }, [baseIngredientIdSet, extraToppings]);
+
+  const selectedExtraToppings = useMemo(() => {
+    return extraToppingOptions.filter(item => selectedExtraToppingIds.includes(item._id));
+  }, [extraToppingOptions, selectedExtraToppingIds]);
+
+  const extraToppingTotal = useMemo(() => {
+    return selectedExtraToppings.reduce((total, item) => total + Number(item.price || 0), 0);
+  }, [selectedExtraToppings]);
+
+  const unitPrice = useMemo(() => {
+    if (!selectedVariant) return 0;
+    return Number(selectedVariant.price || 0) + extraToppingTotal;
+  }, [extraToppingTotal, selectedVariant]);
+
+  const discountedPrice = useMemo(() => {
+    if (!selectedVariant) return unitPrice;
+    const discount = Number(selectedVariant.discount) || 0;
+    if (discount <= 0) return unitPrice;
+    if (selectedVariant.disscountType === "percent") {
+      return Math.round(unitPrice * (1 - discount / 100));
+    }
+    if (selectedVariant.disscountType === "amount") {
+      return Math.max(0, unitPrice - discount);
+    }
+    return unitPrice;
+  }, [unitPrice, selectedVariant]);
+
+  const hasDiscount =
+    selectedVariant &&
+    Number(selectedVariant.discount) > 0 &&
+    (selectedVariant.disscountType === "percent" || selectedVariant.disscountType === "amount");
+
+  const isEditMode = useMemo(() => {
+    if (!selectedVariant || !cart) return false;
+    return cart.items.some(item => item.sku === selectedVariant.sku);
+  }, [cart, selectedVariant]);
+
+  const syncNoteBySku = (sku: string) => {
+    const productInCart = cart?.items.find(item => item.sku === sku);
+    setNote(productInCart ? productInCart.note : "");
+  };
+
+  const handleSelectSize = (size: string) => {
+    if (!selectedProduct) return;
+    const nextVariant = isPizzaProduct
+      ? selectedProduct.variants.find(
+          v => v.size === size && (!selectedCrust || parseCrustOptions(v.crust).includes(selectedCrust)),
+        ) ||
+        selectedProduct.variants.find(v => v.size === size) ||
+        null
+      : selectedProduct.variants.find(v => v.size === size) || null;
+
+    setSelectedSize(size);
+    setSelectedCrust(isPizzaProduct ? parseCrustOptions(nextVariant?.crust)[0] || "" : "");
+    if (nextVariant) syncNoteBySku(nextVariant.sku);
+  };
+
+  const handleSelectCrust = (crust: string) => {
+    if (!selectedProduct || !isPizzaProduct) return;
+    setSelectedCrust(crust);
+    const nextVariant = selectedProduct.variants.find(v => v.size === selectedSize && parseCrustOptions(v.crust).includes(crust));
+    if (nextVariant) syncNoteBySku(nextVariant.sku);
+  };
+
+  const handleToggleExtraTopping = (toppingId: string) => {
+    setSelectedExtraToppingIds(prev => (prev.includes(toppingId) ? prev.filter(id => id !== toppingId) : [...prev, toppingId]));
+  };
+
+  const handleAddToCart = async () => {
+    if (!selectedProduct || !selectedVariant) return;
+    const wasInCart = cart?.items.some(item => item.sku === selectedVariant.sku);
+
+    const toppingNote = selectedExtraToppings.map(item => item.name).join(", ");
+    const finalNote = [note.trim(), toppingNote ? `Extra topping: ${toppingNote}` : ""].filter(Boolean).join(" | ");
+
+    await addToCart({
+      userId: user?.id,
+      item_type: "product",
+      product_id: selectedProduct._id,
+      product: {
+        _id: selectedProduct._id,
+        name: selectedProduct.name,
+        variants: selectedProduct.variants.map(v => ({
+          image: { url: v.image.url },
+          size: v.size,
+          price: v.price,
+        })),
+      },
+      sku: selectedVariant.sku,
+      size: selectedVariant.size,
+      crust: selectedCrust || undefined,
+      quantity: 1,
+      note: finalNote,
+      price: unitPrice,
+      added_topping: selectedExtraToppingIds,
+    });
+
+    const fetchedCart = (await fetchCart(user?.id)) as { items?: Array<{ sku: string; note?: string }> } | undefined | null;
+    const productInCart = fetchedCart?.items?.find(item => item.sku === selectedVariant.sku);
+    setNote(productInCart?.note || "");
+
+    toast.success(
+      <span>
+        {wasInCart ? (
+          <>
+            Đã cập nhật{" "}
+            <button
+              className="underline font-medium hover:opacity-80"
+              onClick={() => {
+                setShowCart(true);
+                toast.dismiss();
+              }}
+            >
+              giỏ hàng
+            </button>
+            !
+          </>
+        ) : (
+          <>
+            Đã thêm vào{" "}
+            <button
+              className="underline font-medium hover:opacity-80"
+              onClick={() => {
+                setShowCart(true);
+                toast.dismiss();
+              }}
+            >
+              giỏ hàng
+            </button>
+            !
+          </>
+        )}
+      </span>,
+      { duration: 2000, position: "top-right" },
+    );
+  };
+
+  if (!selectedProduct || !selectedVariant) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 m-0 p-2 sm:p-4" onClick={onClose}>
+      <div className="flex items-center gap-2 sm:gap-4 w-full max-w-[calc(100vw-0.5rem)] sm:max-w-[calc(100vw-7rem)] justify-center">
+        {/* Prev button - desktop */}
+        <div className="hidden sm:block w-10 h-10 shrink-0">
+          {(products ?? []).length > 1 && (
+            <button
+              onClick={e => {
+                e.stopPropagation();
+                scrollPrev();
+              }}
+              className="flex items-center justify-center w-10 h-10 rounded-full bg-white/90 backdrop-blur-sm shadow-lg border border-border text-foreground hover:bg-white hover:scale-110 transition-all cursor-pointer"
+              aria-label="Sản phẩm trước"
+            >
+              <ChevronLeft size={22} />
+            </button>
+          )}
+        </div>
+
+        {/* Carousel */}
+        <div
+          className="overflow-hidden rounded-3xl w-full md:w-[800px] lg:w-[896px] max-w-[calc(100vw-1rem)] sm:max-w-[calc(100vw-7rem)] shadow-2xl max-h-[90vh] max-md:max-h-[82vh] 2xl:max-h-[70vh] shrink-0"
+          ref={emblaRef}
+          onClick={e => e.stopPropagation()}
+        >
+          <div className="flex">
+            {(products ?? []).map(p => (
+              <div key={p._id} className="flex-[0_0_100%] min-w-0">
+                <div className="bg-card flex flex-col md:flex-row h-full max-h-[90vh] max-md:max-h-[82vh] 2xl:max-h-[70vh]">
+                  {/* Product image */}
+                  <div className="md:w-2/5 bg-white border-b md:border-b-0 md:border-r border-border/60 flex items-center justify-center p-4 sm:p-6 shrink-0">
+                    <div className="relative w-full max-w-[320px] aspect-square max-md:aspect-[3/2] max-md:max-h-[200px] max-md:max-w-[200px]">
+                      {p._id === selectedProduct._id ? (
+                        <Image
+                          src={selectedVariant.image.url}
+                          alt={p.name}
+                          fill
+                          sizes="(max-width: 768px) 90vw, (max-width: 1024px) 60vw, 35vw"
+                          className="object-contain"
+                        />
+                      ) : (
+                        <Image
+                          src={p.variants[0]?.image?.url || ""}
+                          alt={p.name}
+                          fill
+                          sizes="(max-width: 768px) 90vw, (max-width: 1024px) 60vw, 35vw"
+                          className="object-contain opacity-40"
+                        />
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Product details */}
+                  <div className="flex-1 flex flex-col min-h-0">
+                    {p._id === selectedProduct._id ? (
+                      modalLoading ? (
+                        <>
+                          {/* Header skeleton */}
+                          <div className="flex items-start justify-between p-4 sm:p-5 pb-2 sm:pb-3 shrink-0 animate-pulse">
+                            <div className="space-y-2 flex-1 pr-3">
+                              <div className="h-6 w-48 bg-muted rounded-lg" />
+                              <div className="h-4 w-24 bg-muted rounded-lg" />
+                              <div className="h-4 w-full bg-muted rounded-lg" />
+                              <div className="h-4 w-3/4 bg-muted rounded-lg" />
+                            </div>
+                            <div className="w-8 h-8 bg-muted rounded-lg shrink-0" />
+                          </div>
+
+                          {/* Scrollable body skeleton */}
+                          <div className="flex-1 overflow-y-auto px-4 sm:px-5 space-y-4 sm:space-y-5 animate-pulse">
+                            {/* Size picker */}
+                            <div className="space-y-2">
+                              <div className="h-4 w-28 bg-muted rounded-lg" />
+                              <div className="flex gap-2">
+                                {[1, 2, 3].map(i => (
+                                  <div key={i} className="h-10 flex-1 bg-muted rounded-xl" />
+                                ))}
+                              </div>
+                            </div>
+                            {/* Crust picker */}
+                            <div className="space-y-2">
+                              <div className="h-4 w-28 bg-muted rounded-lg" />
+                              <div className="flex gap-2">
+                                {[1, 2, 3].map(i => (
+                                  <div key={i} className="h-10 flex-1 bg-muted rounded-xl" />
+                                ))}
+                              </div>
+                            </div>
+                            {/* Extra topping */}
+                            <div className="space-y-2">
+                              <div className="h-4 w-36 bg-muted rounded-lg" />
+                              <div className="grid grid-cols-2 gap-2">
+                                {[1, 2, 3, 4].map(i => (
+                                  <div key={i} className="h-14 bg-muted rounded-lg" />
+                                ))}
+                              </div>
+                            </div>
+                            {/* Note */}
+                            <div className="space-y-2 pb-2">
+                              <div className="h-4 w-20 bg-muted rounded-lg" />
+                              <div className="h-14 bg-muted rounded-lg" />
+                            </div>
+                          </div>
+
+                          {/* Footer button skeleton */}
+                          <div className="p-4 sm:p-5 border-t border-border shrink-0 animate-pulse">
+                            <div className="h-12 bg-muted rounded-xl w-full" />
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          {/* Header */}
+                          <div className="flex items-start justify-between p-4 sm:p-5 pb-2 sm:pb-3 shrink-0">
+                            <div className="pr-3">
+                              <h3 className="text-lg sm:text-xl text-foreground">{selectedProduct.name}</h3>
+                              <p className="text-[11px] text-muted-foreground mt-0.5">
+                                {selectedVariant.size}
+                                {isPizzaProduct && selectedCrust ? ` - ${formatCrustLabel(selectedCrust)}` : ""}
+                              </p>
+                              <p className="text-xs sm:text-sm text-muted-foreground mt-1.5 sm:mt-2 leading-relaxed line-clamp-2 sm:line-clamp-none">
+                                {selectedProduct.description}
+                              </p>
+                              <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 line-clamp-2 sm:line-clamp-none">
+                                Nguyên liệu: {selectedVariant.recipe.map(item => item.ingredient.name).join(", ")}
+                              </p>
+                            </div>
+                            <button onClick={onClose} className="p-2 rounded-lg hover:bg-muted text-muted-foreground shrink-0">
+                              <X size={18} />
+                            </button>
+                          </div>
+
+                          {/* Scrollable content */}
+                          <div className="flex-1 overflow-y-auto px-4 sm:px-5 space-y-4 sm:space-y-5 max-md:pb-5">
+                            {/* Size selection */}
+                            <div className="space-y-3">
+                              <div>
+                                <p className="text-sm font-semibold text-foreground mb-2">Chọn kích thước</p>
+                                <div
+                                  className="grid gap-2 bg-muted rounded-xl p-1"
+                                  style={{
+                                    gridTemplateColumns: `repeat(${Math.max(availableSizes.length, 1)}, minmax(0, 1fr))`,
+                                  }}
+                                >
+                                  {availableSizes.map(size => (
+                                    <button
+                                      key={size}
+                                      onClick={() => handleSelectSize(size)}
+                                      className={`py-2 rounded-lg text-center transition-all ${selectedSize === size ? "bg-card shadow text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                                    >
+                                      <p className="text-sm truncate">{size}</p>
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+
+                              {/* Crust selection */}
+                              {isPizzaProduct && availableCrusts.length > 0 && (
+                                <div>
+                                  <p className="text-sm font-semibold text-foreground mb-2">Chọn loại đế</p>
+                                  <div
+                                    className="grid gap-2 bg-muted rounded-xl p-1"
+                                    style={{
+                                      gridTemplateColumns: `repeat(${Math.max(availableCrusts.length, 1)}, minmax(0, 1fr))`,
+                                    }}
+                                  >
+                                    {availableCrusts.map(crust => (
+                                      <button
+                                        key={crust}
+                                        onClick={() => handleSelectCrust(crust)}
+                                        className={`py-2 rounded-lg text-center transition-all ${selectedCrust === crust ? "bg-card shadow text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                                      >
+                                        <p className="text-sm truncate">{formatCrustLabel(crust)}</p>
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Extra toppings */}
+                            {showExtraTopping && extraToppingOptions.length > 0 && (
+                              <div>
+                                <p className="text-sm font-semibold text-foreground mb-2">Chọn extra topping</p>
+                                <div className="grid grid-cols-2 gap-2">
+                                  {extraToppingOptions.map(item => {
+                                    const active = selectedExtraToppingIds.includes(item._id);
+                                    return (
+                                      <button
+                                        key={item._id}
+                                        onClick={() => handleToggleExtraTopping(item._id)}
+                                        className={`px-3 py-2 rounded-lg border text-left transition-all ${active ? "border-primary bg-primary/10 text-primary" : "border-border bg-muted/50 text-muted-foreground hover:border-primary/40"}`}
+                                      >
+                                        <p className="text-sm truncate">{item.name}</p>
+                                        <p className="text-xs">+ {formatVND(item.price)}</p>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Note */}
+                            <div className="pb-2">
+                              <p className="text-sm font-semibold text-foreground mb-2">Ghi chú</p>
+                              <Textarea
+                                placeholder="Thêm ghi chú cho món này"
+                                className="min-h-[52px]"
+                                value={note}
+                                onChange={e => setNote(e.target.value)}
+                              />
+                            </div>
+                          </div>
+
+                          {/* Add to cart button */}
+                          <div className="p-4 sm:p-5 border-t border-border shrink-0">
+                            <button
+                              onClick={handleAddToCart}
+                              className="w-full flex items-center justify-between gap-2 bg-primary text-white pl-5 pr-4 py-3 rounded-xl hover:bg-primary/90 transition-colors shadow-lg shadow-primary/25"
+                            >
+                              <span className="flex items-center gap-2">
+                                <Plus size={18} /> {isEditMode ? "Cập nhật giỏ hàng" : "Thêm vào giỏ"}
+                              </span>
+                              <span className="flex items-center gap-2">
+                                {hasDiscount && (
+                                  <>
+                                    <span className="text-white/70 line-through text-sm">{formatVND(unitPrice)}</span>
+                                    <span className="bg-white/20 text-white text-xs px-1.5 py-0.5 rounded font-medium">
+                                      {selectedVariant.disscountType === "percent"
+                                        ? `-${selectedVariant.discount}%`
+                                        : `-${formatVND(selectedVariant.discount || 0)}`}
+                                    </span>
+                                  </>
+                                )}
+                                <span>{formatVND(discountedPrice)}</span>
+                              </span>
+                            </button>
+                          </div>
+                        </>
+                      )
+                    ) : (
+                      <div className="flex-1 flex items-center justify-center p-6">
+                        <p className="text-muted-foreground text-sm">{p.name}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Next button - desktop */}
+        <div className="hidden sm:block w-10 h-10 shrink-0">
+          {(products ?? []).length > 1 && (
+            <button
+              onClick={e => {
+                e.stopPropagation();
+                scrollNext();
+              }}
+              className="flex items-center justify-center w-10 h-10 rounded-full bg-white/90 backdrop-blur-sm shadow-lg border border-border text-foreground hover:bg-white hover:scale-110 transition-all cursor-pointer"
+              aria-label="Sản phẩm tiếp theo"
+            >
+              <ChevronRight size={22} />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Mobile navigation */}
+      <div className="sm:hidden fixed bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-3 z-[60]">
+        {(products ?? []).length > 1 && (
+          <>
+            <button
+              onClick={e => {
+                e.stopPropagation();
+                scrollPrev();
+              }}
+              className="flex items-center justify-center w-12 h-12 rounded-full bg-white/90 backdrop-blur-sm shadow-xl border border-border text-foreground active:scale-95 transition-all cursor-pointer"
+              aria-label="Sản phẩm trước"
+            >
+              <ChevronLeft size={22} />
+            </button>
+            <span className="text-xs text-white/70 font-medium bg-black/40 px-3 py-1.5 rounded-full backdrop-blur-sm">
+              {currentProductIndex + 1} / {(products ?? []).length}
+            </span>
+            <button
+              onClick={e => {
+                e.stopPropagation();
+                scrollNext();
+              }}
+              className="flex items-center justify-center w-12 h-12 rounded-full bg-white/90 backdrop-blur-sm shadow-xl border border-border text-foreground active:scale-95 transition-all cursor-pointer"
+              aria-label="Sản phẩm tiếp theo"
+            >
+              <ChevronRight size={22} />
+            </button>
+          </>
+        )}
+      </div>
+
+      {/* Floating cart button */}
+      {(cart?.items?.length ?? 0) > 0 && (
+        <button
+          onClick={e => {
+            e.stopPropagation();
+            setShowCart(true);
+          }}
+          className="fixed bottom-3 right-3 z-[70] flex items-center justify-center w-14 h-14 rounded-full bg-primary text-white shadow-xl shadow-primary/30 active:scale-95 transition-all cursor-pointer hover:bg-primary/90"
+          aria-label="Giỏ hàng"
+        >
+          <ShoppingBag size={24} />
+          <span className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-orange-500 text-white text-[11px] font-bold flex items-center justify-center border-2 border-white">
+            {cart?.items?.length}
+          </span>
+        </button>
+      )}
+    </div>
+  );
+}

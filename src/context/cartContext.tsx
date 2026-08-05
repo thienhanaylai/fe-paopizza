@@ -212,7 +212,14 @@ const normalizeTopping = (topping: unknown): ToppingRef | null => {
     return null;
   }
 
-  const source = topping as Partial<IngredientTopping>;
+  // Hỗ trợ format từ API: { ingredient: { _id, name, price, ... }, quantity }
+  const raw = topping as Record<string, unknown>;
+  const ingredientData =
+    raw.ingredient && typeof raw.ingredient === "object" && raw.ingredient !== null
+      ? (raw.ingredient as Record<string, unknown>)
+      : raw;
+
+  const source = ingredientData as Partial<IngredientTopping>;
   if (typeof source._id !== "string") {
     return null;
   }
@@ -725,7 +732,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
           added_topping,
           combo: comboId,
           combo_selections,
-          price: itemType === "combo" ? price : undefined,
+          price: price,
         });
 
         if (updatedCart) {

@@ -301,6 +301,7 @@ export default function PromotionFormModal({ open, onClose, editingPromo, stores
               <input
                 type="datetime-local"
                 value={formEndDate}
+                min={new Date().toISOString().slice(0, 16)}
                 onChange={e => setFormEndDate(e.target.value)}
                 className="w-full px-4 py-2.5 rounded-xl border border-border bg-background focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none"
               />

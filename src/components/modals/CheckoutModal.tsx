@@ -1,6 +1,17 @@
 "use client";
 
-import { ArrowLeft, Banknote, CheckCircle2, LoaderCircle, QrCode, ShoppingBag, TicketPercent, Truck, X } from "lucide-react";
+import {
+  AlertCircle,
+  ArrowLeft,
+  Banknote,
+  CheckCircle2,
+  LoaderCircle,
+  QrCode,
+  ShoppingBag,
+  TicketPercent,
+  Truck,
+  X,
+} from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useCart } from "@/src/context/cartContext";
 import { getAllStore, StoreData } from "@/src/services/store.service";
@@ -84,6 +95,7 @@ export const CheckoutModal = () => {
 
   const discountAmount = appliedPromo?.valid ? appliedPromo.discountAmount : 0;
   const [testtime, setTestime] = useState<Date>();
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
 
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -203,6 +215,7 @@ export const CheckoutModal = () => {
           PROMOTION_USAGE_LIMIT_REACHED: "Mã khuyến mãi này đã hết lượt sử dụng.",
           PROMOTION_MAX_USAGE_PER_USER_REACHED: "Bạn đã sử dụng mã này quá số lần cho phép.",
           PROMOTION_NOT_REDEEMED: "Bạn cần đổi điểm để nhận mã này trước khi sử dụng.",
+          PROMOTION_REQUIRES_POINTS: "Mã này yêu cầu đổi điểm. Vui lòng đăng nhập để sử dụng.",
         };
         setPromoError(promoErrorMap[result.message || ""] || result.message || "Mã khuyến mãi không hợp lệ");
       }
@@ -299,6 +312,7 @@ export const CheckoutModal = () => {
       if (payment?.qrUrl) {
         setImgQr(payment.qrUrl);
         startPolling(payment.orderId || res._id);
+        // await clearCart(user?.id);
       } else {
         setImgQr("");
         startPolling(res._id);
@@ -311,6 +325,7 @@ export const CheckoutModal = () => {
         PROMOTION_USAGE_LIMIT_REACHED: "Mã khuyến mãi này đã hết lượt sử dụng.",
         PROMOTION_MAX_USAGE_PER_USER_REACHED: "Bạn đã sử dụng mã này quá số lần cho phép.",
         PROMOTION_NOT_REDEEMED: "Bạn cần đổi điểm để nhận mã này trước khi sử dụng.",
+        PROMOTION_REQUIRES_POINTS: "Mã này yêu cầu đổi điểm. Vui lòng đăng nhập để sử dụng.",
         MISSING_ORDER_INFO: "Thiếu thông tin đơn hàng.",
         PRODUCT_NOT_FOUND: "Sản phẩm không tồn tại.",
         SIZE_NOT_AVAILABLE: "Kích cỡ sản phẩm không khả dụng.",
@@ -355,12 +370,7 @@ export const CheckoutModal = () => {
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 m-0"
-      onClick={() => {
-        if (checkoutStep !== "success" && !imgQr) setCheckout(false);
-      }}
-    >
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 m-0">
       <div
         className="bg-card rounded-2xl w-full max-w-xl shadow-2xl max-h-[92vh] overflow-y-auto scrollbar-hide animate-fade-up animate-duration-300"
         onClick={e => e.stopPropagation()}
@@ -408,7 +418,7 @@ export const CheckoutModal = () => {
 
         {checkoutStep !== "success" && checkoutStep !== "failed" && (
           <>
-            <div className="flex items-center gap-3 p-5 border-b border-border">
+            <div className={` flex items-center gap-3 p-5 border-b border-border`}>
               <button
                 type="button"
                 onClick={() => {
@@ -423,7 +433,8 @@ export const CheckoutModal = () => {
                     setCheckout(false);
                   }
                 }}
-                className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground"
+                disabled={checkoutStep === "payment" && isPayment}
+                className={`${checkoutStep === "payment" && isPayment ? "hidden" : ""} p-1.5 rounded-lg hover:bg-muted text-muted-foreground`}
               >
                 <ArrowLeft size={18} />
               </button>
@@ -437,10 +448,7 @@ export const CheckoutModal = () => {
 
               <button
                 type="button"
-                onClick={() => {
-                  stopPolling();
-                  setCheckout(false);
-                }}
+                onClick={() => setShowExitConfirm(true)}
                 className="p-2 rounded-lg hover:bg-muted text-muted-foreground"
               >
                 <X size={18} />
@@ -831,6 +839,51 @@ export const CheckoutModal = () => {
           </div>
         )}
       </div>
+
+      {/* Exit confirmation modal */}
+      {showExitConfirm && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 m-0 p-4"
+          onClick={() => setShowExitConfirm(false)}
+        >
+          <div
+            className="bg-card rounded-2xl p-6 max-w-sm w-full shadow-xl border border-border"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center shrink-0">
+                <AlertCircle size={20} className="text-amber-500" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-foreground">Xác nhận thoát</h3>
+                <p className="text-sm text-muted-foreground">
+                  {isPayment
+                    ? "Bạn đang trong quá trình thanh toán. Nếu thoát, bạn có thể truy cập vào phần lịch sử và thanh toán lại trong vòng 10 phút!."
+                    : "Bạn có chắc muốn huỷ đơn hàng và thoát?"}
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setShowExitConfirm(false)}
+                className="px-4 py-2.5 rounded-xl border border-border hover:bg-muted/50 transition-colors text-sm"
+              >
+                Ở lại
+              </button>
+              <button
+                onClick={() => {
+                  setShowExitConfirm(false);
+                  stopPolling();
+                  setCheckout(false);
+                }}
+                className="px-4 py-2.5 rounded-xl bg-red-500 text-white hover:bg-red-600 transition-colors text-sm"
+              >
+                Thoát
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
