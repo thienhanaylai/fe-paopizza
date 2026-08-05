@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Image from "next/image";
-import { Plus, X } from "lucide-react";
+import { Plus, X, Camera } from "lucide-react";
 import { ImageInput } from "@/src/components/ui/input";
 import CurrencyInput from "@/src/components/ui/currencyInput";
 import type { RecipeItemPayload, VariantPayload } from "@/src/services/product.service";
@@ -102,7 +102,7 @@ const createEmptyVariant = (): VariantPayload => ({
   sku: "",
   size: "S",
   price: 0,
-  discountType: undefined,
+  discountType: "percent",
   discount: 0,
   crust: [],
   imageFile: undefined as any,
@@ -169,7 +169,13 @@ export default function ProductFormModal({
         name: editItem.name || "",
         category: editItem.category?._id || "",
         description: editItem.description || "",
-        launchDate: editItem.launchDate ? editItem.launchDate.split("T")[0] : "",
+        launchDate: editItem.launchDate
+          ? (() => {
+              const d = new Date(editItem.launchDate);
+              const pad = (n: number) => String(n).padStart(2, "0");
+              return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+            })()
+          : "",
       });
       const rawVariants = mapProductToVariants(editItem);
       const displayVariants = rawVariants.map(v => ({
@@ -298,7 +304,7 @@ export default function ProductFormModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 m-0!" onClick={onClose}>
       <div
-        className="bg-card rounded-2xl p-6 w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto scrollbar-hide"
+        className="bg-card rounded-2xl p-6 w-full max-w-3xl shadow-2xl max-h-[90vh] overflow-y-auto scrollbar-hide"
         onClick={e => e.stopPropagation()}
       >
         <h3 className="text-foreground mb-4">{editItem ? "Chỉnh sửa sản phẩm" : "Thêm sản phẩm mới"}</h3>
@@ -344,10 +350,11 @@ export default function ProductFormModal({
           </div>
 
           <div>
-            <label className="block text-sm mb-1">Ngày ra mắt</label>
+            <label className="block text-sm mb-1">Ngày giờ ra mắt</label>
             <input
-              type="date"
+              type="datetime-local"
               value={basicInfo.launchDate}
+              min={new Date().toISOString().slice(0, 16)}
               onChange={e => setBasicInfo({ ...basicInfo, launchDate: e.target.value })}
               className="w-full px-4 py-2.5 rounded-xl border border-border bg-background focus:border-primary outline-none"
             />
@@ -375,24 +382,55 @@ export default function ProductFormModal({
                   <div key={i} className="flex flex-col gap-2 bg-muted/30 rounded-xl p-3">
                     <div className="flex justify-between gap-2">
                       <div className="flex gap-2 items-center">
-                        {editItem && editItem.variants?.[i]?.image?.url && !variant.imageFile && (
-                          <Image
-                            src={editItem.variants[i].image.url}
-                            alt={`Ảnh hiện tại ${variant.size || ""}`.trim()}
-                            width={80}
-                            height={80}
-                            className="rounded-lg object-cover border border-border"
-                          />
-                        )}
-                        <ImageInput
-                          accept="image/*"
-                          className="h-20 w-20"
-                          required={!editItem || !editItem.variants?.[i]?.image?.url}
-                          onChange={e => {
-                            const file = e.target.files?.[0] || null;
-                            handleVariantChange(i, "imageFile", file);
-                          }}
-                        />
+                        {/* Ảnh variant: click vào để đổi, hover hiện icon */}
+                        <div className="relative h-20 w-20 flex-shrink-0">
+                          {variant.imageFile ? (
+                            <ImageInput
+                              accept="image/*"
+                              className="h-20 w-20"
+                              onChange={e => {
+                                const file = e.target.files?.[0] || null;
+                                handleVariantChange(i, "imageFile", file);
+                              }}
+                            />
+                          ) : editItem?.variants?.[i]?.image?.url ? (
+                            <>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                id={`variant-img-${i}`}
+                                className="hidden"
+                                onChange={e => {
+                                  const file = e.target.files?.[0] || null;
+                                  handleVariantChange(i, "imageFile", file);
+                                }}
+                              />
+                              <label htmlFor={`variant-img-${i}`} className="relative group cursor-pointer block w-full h-full">
+                                <Image
+                                  src={editItem.variants[i].image.url}
+                                  alt={`Ảnh ${variant.size || ""}`}
+                                  width={80}
+                                  height={80}
+                                  className="rounded-lg object-cover border border-border w-full h-full"
+                                />
+                                <div className="absolute inset-0 rounded-lg bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-0.5">
+                                  <Camera className="w-5 h-5 text-white" />
+                                  <span className="text-white text-[10px] font-medium">Đổi ảnh</span>
+                                </div>
+                              </label>
+                            </>
+                          ) : (
+                            <ImageInput
+                              accept="image/*"
+                              className="h-20 w-20"
+                              required
+                              onChange={e => {
+                                const file = e.target.files?.[0] || null;
+                                handleVariantChange(i, "imageFile", file);
+                              }}
+                            />
+                          )}
+                        </div>
                         <div>
                           <label className="block col-span-2 text-xs mb-1">Size *</label>
                           <select
@@ -417,6 +455,28 @@ export default function ProductFormModal({
                             onChange={(val: number) => handleVariantChange(i, "price", val)}
                             placeholder="170000"
                             className="w-30 px-3 py-2 rounded-xl border border-border bg-background focus:border-primary outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="block col-span-2 text-xs mb-1">Giảm giá</label>
+                          <select
+                            value={variant.discountType || "percent"}
+                            onChange={e => handleVariantChange(i, "discountType", e.target.value)}
+                            className="w-24 px-2 py-2 rounded-lg border border-border bg-background outline-none text-xs"
+                          >
+                            <option value="percent">%</option>
+                            <option value="amount">đ</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block col-span-2 text-xs mb-1">Giá trị giảm</label>
+                          <input
+                            type="number"
+                            min={0}
+                            value={variant.discount || 0}
+                            onChange={e => handleVariantChange(i, "discount", Number(e.target.value))}
+                            placeholder={variant.discountType === "percent" ? "10" : "20000"}
+                            className="w-24 px-2 py-2 rounded-lg border border-border bg-background outline-none text-sm"
                           />
                         </div>
                       </div>

@@ -26,6 +26,8 @@ export type RecipeIngredient = {
 export type ProductVariant = {
   sku: string;
   price: number;
+  disscountType?: "percent" | "amount";
+  discount?: number;
   crust: string[];
   size: string;
   image: ProductImage;
@@ -37,6 +39,7 @@ export type Product = {
   category: ProductCategory;
   name: string;
   description: string;
+  launchDate: string | null;
   isActive: boolean;
   variants: ProductVariant[];
   isDeleted: boolean;

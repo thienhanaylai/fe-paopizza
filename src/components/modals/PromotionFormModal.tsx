@@ -323,7 +323,7 @@ export default function PromotionFormModal({ open, onClose, editingPromo, stores
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">
               Áp dụng cho cửa hàng
-              <span className="text-muted-foreground font-normal ml-1">(để trống = tất cả cửa hàng)</span>
+              <span className="text-muted-foreground font-normal ml-1">(để trống = không áp dụng cho cửa hàng nào)</span>
             </label>
             {storesList.length === 0 ? (
               <p className="text-sm text-muted-foreground italic">Đang tải danh sách cửa hàng...</p>

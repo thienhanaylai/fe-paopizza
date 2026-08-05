@@ -30,6 +30,7 @@ import { formatVND } from "@/src/utils/formatVND";
 import { formatCrustLabel } from "@/src/utils/formatCrustLabel";
 import { getMenuByStoreId, MenuData, Product, Combo } from "@/src/services/menu.service";
 import { getAllIngredients } from "@/src/services/ingredient.service";
+import { getAllStore } from "@/src/services/store.service";
 import { parseCrustOptions } from "./utils";
 import type { MenuCategoryUI, ExtraTopping, ComboSlotSelection } from "./types";
 import SlotCard from "./components/SlotCard";
@@ -49,6 +50,7 @@ export default function IndexPage() {
 
   const [selectedStoreId, setSelectedStoreId] = useState<string>("");
   const prevStoreIdRef = useRef<string>("");
+  const [storeCount, setStoreCount] = useState<number>(0);
   const [selectedSize, setSelectedSize] = useState<string>("");
   const [selectedCrust, setSelectedCrust] = useState<string>("");
   const [extraToppings, setExtraToppings] = useState<ExtraTopping[]>([]);
@@ -288,6 +290,25 @@ export default function IndexPage() {
     return Number(selectedVariant.price || 0) + extraToppingTotal;
   }, [extraToppingTotal, selectedVariant]);
 
+  // Giá sau khi áp dụng discount của variant
+  const discountedPrice = useMemo(() => {
+    if (!selectedVariant) return unitPrice;
+    const discount = Number(selectedVariant.discount) || 0;
+    if (discount <= 0) return unitPrice;
+    if (selectedVariant.disscountType === "percent") {
+      return Math.round(unitPrice * (1 - discount / 100));
+    }
+    if (selectedVariant.disscountType === "amount") {
+      return Math.max(0, unitPrice - discount);
+    }
+    return unitPrice;
+  }, [unitPrice, selectedVariant]);
+
+  const hasDiscount =
+    selectedVariant &&
+    Number(selectedVariant.discount) > 0 &&
+    (selectedVariant.disscountType === "percent" || selectedVariant.disscountType === "amount");
+
   const isEditMode = useMemo(() => {
     if (!selectedVariant || !cart) return false;
     return cart.items.some(item => item.sku === selectedVariant.sku);
@@ -376,6 +397,19 @@ export default function IndexPage() {
     };
 
     fetchExtraToppings();
+  }, []);
+
+  // Lấy số lượng cửa hàng thực tế
+  useEffect(() => {
+    const fetchStoreCount = async () => {
+      try {
+        const res = await getAllStore(1, 1);
+        setStoreCount(res.pagination?.total ?? 0);
+      } catch {
+        setStoreCount(0);
+      }
+    };
+    fetchStoreCount();
   }, []);
 
   useEffect(() => {
@@ -943,24 +977,13 @@ export default function IndexPage() {
             <div className="relative">
               <div className="relative rounded-3xl overflow-hidden aspect-[4/3] shadow-2xl">
                 <Image
-                  src="https://images.unsplash.com/photo-1697376354276-18942b15de7e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwaXp6YSUyMHJlc3RhdXJhbnQlMjBraXRjaGVufGVufDF8fHx8MTc3MzYwMDU0N3ww&ixlib=rb-4.1.0&q=80&w=1080"
+                  src="https://res.cloudinary.com/dxrrdqgss/image/upload/v1785916423/ifw0bknrorstttxbslq5.jpg"
                   alt="PaoPizza"
                   fill
                   loading="eager"
                   sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                   className=" object-cover"
                 />
-              </div>
-              <div className="absolute -bottom-4 -left-4 bg-white rounded-2xl shadow-xl p-4 border border-border">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center">
-                    <Truck size={20} className="text-green-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-foreground">Miễn phí giao hàng</p>
-                    <p className="text-xs text-muted-foreground">Đơn từ 200.000đ</p>
-                  </div>
-                </div>
               </div>
             </div>
           </div>
@@ -1246,6 +1269,18 @@ export default function IndexPage() {
                                 className="object-cover group-hover:scale-105 transition-transform duration-500"
                                 onLoad={() => handleImageLoaded(item.variants[0].image.url)}
                               />
+                              {/* Discount badge: hiển thị % giảm cao nhất trong các variant */}
+                              {(() => {
+                                const maxDiscount = item.variants.reduce((max, v) => {
+                                  if (v.disscountType === "percent" && v.discount && v.discount > max) return v.discount;
+                                  return max;
+                                }, 0);
+                                return maxDiscount > 0 ? (
+                                  <span className="absolute top-3 right-3 px-2 py-0.5 bg-red-500 text-white text-xs font-bold rounded-full">
+                                    -{maxDiscount}%
+                                  </span>
+                                ) : null;
+                              })()}
                               <span className="absolute bottom-3 left-3 px-2 py-1 bg-black/60 text-white text-[10px] rounded-full capitalize">
                                 {categories.find(c => c.slug === item.category.slug)?.name}
                               </span>
@@ -1302,7 +1337,7 @@ export default function IndexPage() {
                   <p className="text-xs text-muted-foreground mt-1">Năm kinh nghiệm</p>
                 </div>
                 <div className="text-center p-4 bg-background rounded-xl">
-                  <p className="text-2xl text-primary">10</p>
+                  <p className="text-2xl text-primary">{storeCount || "..."}</p>
                   <p className="text-xs text-muted-foreground mt-1">Chi nhánh</p>
                 </div>
               </div>
@@ -1544,7 +1579,19 @@ export default function IndexPage() {
                                   <span className="flex items-center gap-2">
                                     <Plus size={18} /> {isEditMode ? "Cập nhật giỏ hàng" : "Thêm vào giỏ"}
                                   </span>
-                                  <span>{formatVND(unitPrice)}</span>
+                                  <span className="flex items-center gap-2">
+                                    {hasDiscount && (
+                                      <>
+                                        <span className="text-white/70 line-through text-sm">{formatVND(unitPrice)}</span>
+                                        <span className="bg-white/20 text-white text-xs px-1.5 py-0.5 rounded font-medium">
+                                          {selectedVariant.disscountType === "percent"
+                                            ? `-${selectedVariant.discount}%`
+                                            : `-${formatVND(selectedVariant.discount || 0)}`}
+                                        </span>
+                                      </>
+                                    )}
+                                    <span>{formatVND(discountedPrice)}</span>
+                                  </span>
                                 </button>
                               </div>
                             </>
