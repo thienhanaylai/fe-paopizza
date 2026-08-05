@@ -27,6 +27,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { getAllCategories } from "@/src/services/category.service";
 import { getAllProducts } from "@/src/services/product.service";
+import { getAllIngredients, IngredientData } from "@/src/services/ingredient.service";
 import { toast, Toaster } from "sonner";
 import { cancelOrder, createPosOrder, PosOrder, PaymentMethod, type OrderItem } from "@/src/services/order.service";
 import { checkPaymentStatus } from "@/src/services/payment.service";
@@ -69,6 +70,7 @@ interface CartItem {
   quantity: number;
   note: string;
   image: string;
+  added_topping?: string[];
   combo_selections?: ComboSlotSelection[];
 }
 
@@ -188,6 +190,19 @@ export default function POS() {
   const [storeInfo, setStoreInfo] = useState<StoreData | null>(null);
   const [isPrinting, setIsPrinting] = useState(false);
 
+  // Extra topping modal
+  const [showToppingModal, setShowToppingModal] = useState(false);
+  const [toppingList, setToppingList] = useState<IngredientData[]>([]);
+  const [selectedToppingIds, setSelectedToppingIds] = useState<string[]>([]);
+  const [pendingProduct, setPendingProduct] = useState<{
+    product: Product;
+    size: string;
+    crust?: string;
+    sku: string;
+    basePrice: number;
+    image: string;
+  } | null>(null);
+
   const pollingRef = useRef(null);
   const comboCounterRef = useRef(0);
   const stopPolling = () => {
@@ -287,6 +302,23 @@ export default function POS() {
     fectData();
   }, [user?.store_id]);
 
+  // Fetch extra toppings (ingredients)
+  useEffect(() => {
+    const fetchToppings = async () => {
+      try {
+        const { data } = await getAllIngredients();
+        setToppingList(
+          (data || []).filter(
+            ing => ing.isActive && !ing.isDeleted && ing.price > 0 && !["drink", "dough", "other"].includes(ing.category),
+          ),
+        );
+      } catch {
+        // bỏ qua lỗi
+      }
+    };
+    fetchToppings();
+  }, []);
+
   const filteredMenu = useMemo(() => {
     if (activeTab === "combos" || activeCategory === "combo") return [];
     let items = activeCategory === "all" ? products : products.filter(m => m?.category.slug === activeCategory);
@@ -372,8 +404,11 @@ export default function POS() {
   const handleSelectComboProduct = (ruleIndex: number, sku: string) => {
     const product = menuProducts.find(p => p.variants.some(v => v.sku === sku));
     const rule = selectedCombo?.rules[ruleIndex];
-    const variant = product?.variants.find(v => v.sku === sku) || product?.variants[0];
-    if (!variant || !product) return;
+    if (!rule || !product) return;
+    // Lọc variant theo applicableSizes của rule
+    const ruleVariants = getVariantsForRule(product, rule);
+    const variant = ruleVariants.find(v => v.sku === sku) || ruleVariants[0];
+    if (!variant) return;
 
     const selection: ComboSlotSelection = {
       productId: product._id,
@@ -559,13 +594,14 @@ export default function POS() {
           crust: item.crust,
           quantity: item.quantity,
           note: item.note,
+          added_topping: (item.added_topping ?? []).map(id => ({ ingredient: id, quantity: 1 })),
         };
       });
 
       const order: PosOrder = {
         orderType: orderType,
         paymentMethod: paymentMethod,
-        paymentStatus: "pending",
+        paymentStatus: orderType === "dine_in" && paymentMethod === "cash" ? "success" : "pending",
         contact_info: {
           full_name: customerName,
           phone: customerPhone,
@@ -732,7 +768,7 @@ export default function POS() {
                   <button
                     key={t}
                     onClick={() => setTableNumber(t)}
-                    className={`py-1.5 rounded-lg text-xs transition-all ${tableNumber === t ? "bg-primary text-white" : "bg-muted text-foreground hover:bg-primary/10"}`}
+                    className={`py-2 rounded-lg text-xs font-medium transition-all active:scale-95 ${tableNumber === t ? "bg-primary text-white" : "bg-muted text-foreground hover:bg-primary/10"}`}
                   >
                     {t}
                   </button>
@@ -754,25 +790,25 @@ export default function POS() {
           <div className="space-y-2">
             {cart.map((item, i) => {
               return (
-                <div key={item.sku} className="bg-muted/40 rounded-xl p-2.5 group">
-                  <div className="flex items-start gap-2">
-                    <div className="w-10 h-10 rounded-lg overflow-hidden bg-muted shrink-0">
+                <div key={item.sku} className="bg-muted/40 rounded-xl p-3 group">
+                  <div className="flex items-start gap-3">
+                    <div className="w-12 h-12 rounded-lg overflow-hidden bg-muted shrink-0">
                       {item.image ? (
                         <Image fill src={item.image} alt={item.sku} className="relative! w-full h-full" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
-                          <Pizza size={16} className="text-muted-foreground/30" />
+                          <Pizza size={20} className="text-muted-foreground/30" />
                         </div>
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-1">
                         <div className="min-w-0">
-                          <p className="text-xs text-foreground truncate flex items-center gap-1">
+                          <p className="text-sm text-foreground font-medium truncate flex items-center gap-1">
                             {item.name}{" "}
                             {item.item_type === "product" ? `- ${item.size}${item.crust ? ` (${item.crust})` : ""}` : ""}
                             {item.item_type === "combo" && (
-                              <span className="px-1 py-0.5 bg-orange-500 text-white text-[9px] font-semibold rounded-full shrink-0">
+                              <span className="px-1.5 py-0.5 bg-orange-500 text-white text-[10px] font-semibold rounded-full shrink-0">
                                 COMBO
                               </span>
                             )}
@@ -782,7 +818,7 @@ export default function POS() {
                               {item.combo_selections.map((sel, si) => {
                                 const selProduct = menuProducts.find(p => p._id === sel.productId);
                                 return (
-                                  <p key={si} className="text-[10px] text-muted-foreground flex items-center gap-1">
+                                  <p key={si} className="text-xs text-muted-foreground flex items-center gap-1">
                                     <span className="w-1 h-1 rounded-full bg-orange-400 shrink-0" />
                                     {selProduct?.name || sel.productId} - {sel.size}
                                     {sel.crust ? ` - ${sel.crust}` : ""}
@@ -794,25 +830,25 @@ export default function POS() {
                         </div>
                         <button
                           onClick={() => removeItem(i)}
-                          className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-500 transition-all p-0.5"
+                          className="text-red-400 hover:text-red-500 hover:bg-red-50 rounded-lg p-1.5 transition-all -mr-1"
                         >
-                          <Trash2 size={12} />
+                          <Trash2 size={16} />
                         </button>
                       </div>
-                      <div className="flex items-center justify-between mt-1">
-                        <div className="flex items-center gap-1.5">
+                      <div className="flex items-center justify-between mt-2">
+                        <div className="flex items-center gap-2">
                           <button
                             onClick={() => updateQty(i, -1)}
-                            className="w-6 h-6 rounded-md bg-card border border-border flex items-center justify-center hover:bg-primary/10 text-primary transition-colors"
+                            className="w-8 h-8 rounded-lg bg-card border border-border flex items-center justify-center hover:bg-primary/10 text-primary transition-colors active:scale-95"
                           >
-                            <Minus size={10} />
+                            <Minus size={14} />
                           </button>
-                          <span className="text-xs w-5 text-center text-foreground">{item.quantity}</span>
+                          <span className="text-sm w-6 text-center text-foreground font-medium">{item.quantity}</span>
                           <button
                             onClick={() => updateQty(i, 1)}
-                            className="w-6 h-6 rounded-md bg-primary text-white flex items-center justify-center hover:bg-primary/90 transition-colors"
+                            className="w-8 h-8 rounded-lg bg-primary text-white flex items-center justify-center hover:bg-primary/90 transition-colors active:scale-95"
                           >
-                            <Plus size={10} />
+                            <Plus size={14} />
                           </button>
                         </div>
                         {editNoteIndex === i ? (
@@ -824,18 +860,18 @@ export default function POS() {
                               onBlur={() => setEditNoteIndex(null)}
                               onKeyDown={e => e.key === "Enter" && setEditNoteIndex(null)}
                               placeholder="Ghi chú món..."
-                              className="flex-1 text-[11px] px-2 py-1 rounded border border-border bg-background outline-none focus:border-primary"
+                              className="flex-1 text-xs px-2 py-1.5 rounded border border-border bg-background outline-none focus:border-primary"
                             />
                           </div>
                         ) : (
                           <button
                             onClick={() => setEditNoteIndex(i)}
-                            className="text-[10px] text-muted-foreground mt-1 hover:text-primary transition-colors"
+                            className="text-xs text-muted-foreground mt-1 hover:text-primary transition-colors py-1"
                           >
                             {item.note ? `${item.note}` : "+ Ghi chú"}
                           </button>
                         )}
-                        <span className="text-xs text-primary">{formatVND(item.price * item.quantity)}</span>
+                        <span className="text-sm text-primary font-semibold">{formatVND(item.price * item.quantity)}</span>
                       </div>
                     </div>
                   </div>
@@ -1039,7 +1075,7 @@ export default function POS() {
                   setActiveTab("all");
                 }
               }}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 ${activeCategory === cat.slug ? "bg-primary text-white shadow-lg shadow-primary/25" : "bg-card border border-border text-muted-foreground hover:border-primary/30 hover:text-primary"}`}
+              className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg transition-all duration-200 active:scale-95 ${activeCategory === cat.slug ? "bg-primary text-white shadow-lg shadow-primary/25" : "bg-card border border-border text-muted-foreground hover:border-primary/30 hover:text-primary"}`}
             >
               <Image src={cat.icon || ""} width={18} height={18} alt={cat.name} />
               {!posCollapsed && <span className="text-sm truncate text-gray-800">{cat.name}</span>}
@@ -1172,9 +1208,21 @@ export default function POS() {
                         value.replace(/[_-]+/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase());
 
                       return (
-                        <div
+                        <button
                           key={`${item._id}-${size}`}
-                          className="bg-card rounded-xl border overflow-hidden hover:shadow-lg transition-all text-left group relative"
+                          onClick={() => {
+                            setPendingProduct({
+                              product: item,
+                              size,
+                              crust: isPizza ? selectedCrust : undefined,
+                              sku: matchedVariant.sku,
+                              basePrice: matchedVariant.price,
+                              image: displayVariant.image.url,
+                            });
+                            setSelectedToppingIds([]);
+                            setShowToppingModal(true);
+                          }}
+                          className="bg-card rounded-xl border overflow-hidden hover:shadow-lg transition-all text-left w-full active:scale-[0.98] cursor-pointer"
                         >
                           <div className="aspect-[4/3] bg-white relative overflow-hidden">
                             {displayVariant.image.url ? (
@@ -1184,69 +1232,48 @@ export default function POS() {
                                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                                 src={displayVariant.image.url}
                                 alt={item.name}
-                                className="object-contain"
+                                className="object-contain pointer-events-none"
                               />
                             ) : (
                               <div className="w-full h-full flex items-center justify-center">
-                                <Pizza size={28} className="text-muted-foreground/20" />
+                                <Pizza size={32} className="text-muted-foreground/20" />
                               </div>
                             )}
                           </div>
 
-                          <div className="p-2.5">
-                            <p className="text-xs text-foreground truncate">
-                              {item.name} - {size}
-                              {isPizza && selectedCrust ? ` (${formatCrustLabelPos(selectedCrust)})` : ""}
+                          <div className="p-3">
+                            <p className="text-sm text-foreground font-medium truncate">{item.name}</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              {size}
+                              {isPizza && selectedCrust ? ` - ${formatCrustLabelPos(selectedCrust)}` : ""}
                             </p>
-                            <div className="flex items-center gap-1.5 mt-1">
-                              <span className="text-xs text-primary">{formatVND(matchedVariant.price)}</span>
-                            </div>
+                            <p className="text-sm text-primary font-semibold mt-1">{formatVND(matchedVariant.price)}</p>
 
                             {isPizza && allCrusts.length > 1 && (
                               <div className="flex flex-wrap gap-1 mt-2" onClick={e => e.stopPropagation()}>
                                 {allCrusts.map(crust => {
                                   const isActive = crust === selectedCrust;
                                   return (
-                                    <button
+                                    <span
                                       key={crust}
-                                      type="button"
-                                      onClick={() => setSelectedCrustMap(prev => ({ ...prev, [sizeKey]: crust }))}
-                                      className={`px-1.5 py-0.5 rounded text-[10px] font-medium transition-all ${
+                                      onClick={e => {
+                                        e.stopPropagation();
+                                        setSelectedCrustMap(prev => ({ ...prev, [sizeKey]: crust }));
+                                      }}
+                                      className={`px-3 py-2 rounded-xl text-[11px] font-medium transition-all cursor-pointer ${
                                         isActive
                                           ? "bg-gray-800 text-white shadow-sm"
-                                          : "bg-muted text-muted-foreground hover:bg-gray-200"
+                                          : "bg-muted text-muted-foreground hover:bg-gray-200 active:bg-gray-300"
                                       }`}
                                     >
                                       {formatCrustLabelPos(crust)}
-                                    </button>
+                                    </span>
                                   );
                                 })}
                               </div>
                             )}
                           </div>
-
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const itemCart: CartItem = {
-                                item_type: "product",
-                                product_id: item._id,
-                                name: item.name,
-                                note: "",
-                                price: matchedVariant.price,
-                                quantity: 1,
-                                size: size,
-                                crust: isPizza ? selectedCrust : undefined,
-                                sku: matchedVariant.sku,
-                                image: displayVariant.image.url,
-                              };
-                              addToCart(itemCart);
-                            }}
-                            className="absolute bottom-2 right-2 w-7 h-7 rounded-lg bg-primary text-white flex items-center justify-center hover:bg-primary/90 transition-all opacity-0 group-hover:opacity-100 shadow-md"
-                          >
-                            <Plus size={14} />
-                          </button>
-                        </div>
+                        </button>
                       );
                     });
                   })}
@@ -1259,7 +1286,7 @@ export default function POS() {
                     <button
                       key={combo._id}
                       onClick={() => handleOpenCombo(combo)}
-                      className="bg-card rounded-xl border overflow-hidden hover:shadow-lg transition-all text-left group relative"
+                      className="bg-card rounded-xl border overflow-hidden hover:shadow-lg transition-all text-left w-full active:scale-[0.98] cursor-pointer"
                     >
                       <div className="aspect-[4/3] bg-muted relative overflow-hidden">
                         {combo.image ? (
@@ -1269,22 +1296,27 @@ export default function POS() {
                             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                             src={combo.image}
                             alt={combo.name}
+                            className="pointer-events-none"
                           />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center">
-                            <Pizza size={28} className="text-muted-foreground/20" />
+                            <Pizza size={32} className="text-muted-foreground/20" />
                           </div>
                         )}
-                      </div>
-                      <div className="p-2.5">
-                        <p className="text-xs text-foreground truncate">{combo.name}</p>
-                        <div className="flex items-center gap-1.5 mt-1">
-                          {combo.pricingType === "dynamic" ? (
-                            <span className="text-xs text-orange-500 font-medium">Giá động</span>
-                          ) : (
-                            <span className="text-xs text-primary">{formatVND(combo.price)}</span>
-                          )}
+                        {/* Badge COMBO */}
+                        <div className="absolute top-2 left-2 px-2 py-0.5 bg-orange-500 text-white text-[11px] font-semibold rounded-full shadow pointer-events-none">
+                          COMBO
                         </div>
+                      </div>
+                      <div className="p-3">
+                        <p className="text-sm text-foreground font-medium truncate">{combo.name}</p>
+                        <p className="text-sm text-primary font-semibold mt-1">
+                          {combo.pricingType === "dynamic" ? (
+                            <span className="text-orange-500 font-medium">Giá động</span>
+                          ) : (
+                            formatVND(combo.price)
+                          )}
+                        </p>
                       </div>
                     </button>
                   ))}
@@ -1651,6 +1683,111 @@ export default function POS() {
           </div>
         </div>
       )}
+
+      {/* Extra topping modal */}
+      {showToppingModal && pendingProduct && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 m-0"
+          onClick={() => setShowToppingModal(false)}
+        >
+          <div
+            className="bg-card rounded-2xl p-5 w-full max-w-md max-h-[80vh] overflow-y-auto shadow-2xl"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-foreground text-lg font-bold">{pendingProduct.product.name}</h3>
+                <p className="text-xs text-muted-foreground">
+                  {pendingProduct.size}
+                  {pendingProduct.crust ? ` - ${pendingProduct.crust}` : ""}
+                </p>
+              </div>
+              <button
+                onClick={() => setShowToppingModal(false)}
+                className="p-2 rounded-lg hover:bg-muted text-muted-foreground transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="mb-4">
+              <p className="text-sm font-semibold text-foreground mb-2">
+                Chọn extra topping ({selectedToppingIds.length} đã chọn)
+              </p>
+              {toppingList.length === 0 ? (
+                <p className="text-xs text-muted-foreground italic">Không có topping khả dụng</p>
+              ) : (
+                <div className="grid grid-cols-2 gap-2 max-h-64 overflow-y-auto">
+                  {toppingList.map(topping => {
+                    const isSelected = selectedToppingIds.includes(topping._id);
+                    return (
+                      <button
+                        key={topping._id}
+                        onClick={() =>
+                          setSelectedToppingIds(prev =>
+                            prev.includes(topping._id) ? prev.filter(id => id !== topping._id) : [...prev, topping._id],
+                          )
+                        }
+                        className={`px-3 py-3 rounded-lg border text-left transition-all active:scale-95 ${
+                          isSelected
+                            ? "border-primary bg-primary/10 text-primary"
+                            : "border-border bg-muted/50 text-muted-foreground hover:border-primary/40"
+                        }`}
+                      >
+                        <p className="text-sm font-medium truncate">{topping.name}</p>
+                        <p className="text-xs">+ {formatVND(topping.price)}</p>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div className="border-t border-border pt-3 flex items-center justify-between">
+              <span className="text-primary font-bold text-lg">
+                {formatVND(
+                  pendingProduct.basePrice +
+                    toppingList.filter(t => selectedToppingIds.includes(t._id)).reduce((sum, t) => sum + (t.price || 0), 0),
+                )}
+              </span>
+              <button
+                onClick={() => {
+                  const extraPrice = toppingList
+                    .filter(t => selectedToppingIds.includes(t._id))
+                    .reduce((sum, t) => sum + (t.price || 0), 0);
+                  const finalPrice = pendingProduct.basePrice + extraPrice;
+                  const toppingNote = toppingList
+                    .filter(t => selectedToppingIds.includes(t._id))
+                    .map(t => t.name)
+                    .join(", ");
+
+                  const itemCart: CartItem = {
+                    item_type: "product",
+                    product_id: pendingProduct.product._id,
+                    name: pendingProduct.product.name,
+                    note: toppingNote ? `Extra topping: ${toppingNote}` : "",
+                    price: finalPrice,
+                    quantity: 1,
+                    size: pendingProduct.size,
+                    crust: pendingProduct.crust,
+                    sku: pendingProduct.sku,
+                    image: pendingProduct.image,
+                    added_topping: selectedToppingIds,
+                  };
+                  addToCart(itemCart);
+                  setShowToppingModal(false);
+                  setPendingProduct(null);
+                  setSelectedToppingIds([]);
+                }}
+                className="px-6 py-2.5 rounded-xl bg-primary text-white hover:bg-primary/90 transition-all flex items-center gap-2 text-sm font-medium"
+              >
+                <Plus size={16} /> Thêm vào giỏ
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <Toaster position="top-right" richColors />
     </div>
   );
