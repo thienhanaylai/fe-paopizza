@@ -141,7 +141,6 @@ export const CheckoutModal = () => {
           setSavedAddresses(addresses || []);
           const defaultAddr = (addresses || []).find((a: CustomerAddress) => a.isDefault);
           if (defaultAddr && !custName && !custPhone) {
-            console.log(defaultAddr);
             setCustName(defaultAddr.name || "");
             setCustPhone(defaultAddr.phone || "");
             setCustAddress(defaultAddr.address || "");
@@ -293,7 +292,7 @@ export const CheckoutModal = () => {
 
       // chuyển step sang bước thanh toán
       setIdOrder(res._id);
-      setTestime(new Date(Date.now() + 3 * 60 * 1000));
+      setTestime(new Date(Date.now() + 3 * 60 * 1000)); // thời gian chờ thanh táon
       setCheckoutStep("payment");
       setIsPayment(true);
 

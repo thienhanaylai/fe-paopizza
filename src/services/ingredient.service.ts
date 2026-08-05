@@ -6,7 +6,9 @@ export type IngredientData = {
   unit: string;
   category: string;
   costPerUnit: number;
+  quantityExtra: number;
   price: number;
+  suppliers: string[];
   image?: string;
   isActive: boolean;
   isDeleted: boolean;
@@ -64,7 +66,9 @@ export const getUnitIngredient = async () => {
 export const addIngredient = async (payload: {
   name: string;
   costPerUnit: number;
+  quantityExtra?: number;
   price?: number;
+  suppliers?: string[];
   unit: string;
   category: string;
 }) => {
@@ -90,7 +94,9 @@ export const updateIngredient = async (payload: {
   unit: string;
   category: string;
   costPerUnit: number;
+  quantityExtra?: number;
   price?: number;
+  suppliers?: string[];
   isActive: boolean;
 }) => {
   const response = await http("/api/v1/ingredient/update", {

@@ -177,25 +177,25 @@ export default function IndexPage() {
   const handleCategoryClick = (categorySlug: string) => {
     setActiveCategory(categorySlug);
     // Không scroll ở đây — scroll sẽ được xử lý trong useEffect sau khi React re-render
-    if (categorySlug === "all" || categorySlug === "combo") {
+    if (categorySlug) {
       // Scroll lên đầu menu section khi chọn "Tất cả" hoặc "Combo"
       const menuSection = document.getElementById("menu");
       menuSection?.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   };
 
-  // Scroll đến category section sau khi re-render xong
-  useEffect(() => {
-    if (activeCategory === "all" || activeCategory === "combo") return;
-    // Đợi 1 tick để DOM đã cập nhật sau re-render
-    const timer = setTimeout(() => {
-      categoryRefsMap.current[activeCategory]?.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-      });
-    }, 50);
-    return () => clearTimeout(timer);
-  }, [activeCategory]);
+  // // Scroll đến category section sau khi re-render xong
+  // useEffect(() => {
+  //   if (activeCategory === "all" || activeCategory === "combo") return;
+  //   // Đợi 1 tick để DOM đã cập nhật sau re-render
+  //   const timer = setTimeout(() => {
+  //     categoryRefsMap.current[activeCategory]?.scrollIntoView({
+  //       behavior: "smooth",
+  //       block: "start",
+  //     });
+  //   }, 1000);
+  //   return () => clearTimeout(timer);
+  // }, [activeCategory]);
 
   const filteredMenu1 =
     activeCategory === "combo"
@@ -1230,7 +1230,8 @@ export default function IndexPage() {
             .filter(item => item.slug !== "all")
             .map(cat => {
               const categoryItems = filteredMenu1?.filter(item => item.category.slug === cat.slug);
-              if (categoryItems?.length === 0) return null;
+              const showSkeleton = isLoading || !filteredMenu1 || (!categoryItems?.length && !menu);
+              if (!showSkeleton && categoryItems?.length === 0) return null;
               return (
                 <div
                   ref={el => {
@@ -1246,64 +1247,76 @@ export default function IndexPage() {
                     <p className="text-xs sm:text-sm text-muted-foreground mt-1">{""}</p>
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">
-                    {" "}
-                    {categoryItems?.map(item => {
-                      if (item.isActive)
-                        return (
+                    {showSkeleton
+                      ? Array.from({ length: 5 }).map((_, i) => (
                           <div
-                            onClick={() => {
-                              hanldeProduct(item);
-                            }}
-                            key={item._id}
-                            className="bg-card rounded-2xl border border-border overflow-hidden hover:shadow-xl transition-all duration-300 group flex flex-col"
+                            key={`skel-${cat.slug}-${i}`}
+                            className="bg-card rounded-2xl border border-border overflow-hidden animate-pulse"
                           >
-                            <div className="relative aspect-square overflow-hidden">
-                              {!loadedImages.has(item.variants[0].image.url) && (
-                                <Skeleton className="absolute inset-0 z-10 rounded-none" />
-                              )}
-                              <Image
-                                src={item.variants[0].image.url}
-                                alt={item.name}
-                                fill
-                                sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 20vw"
-                                className="object-cover group-hover:scale-105 transition-transform duration-500"
-                                onLoad={() => handleImageLoaded(item.variants[0].image.url)}
-                              />
-                              {/* Discount badge: hiển thị % giảm cao nhất trong các variant */}
-                              {(() => {
-                                const maxDiscount = item.variants.reduce((max, v) => {
-                                  if (v.disscountType === "percent" && v.discount && v.discount > max) return v.discount;
-                                  return max;
-                                }, 0);
-                                return maxDiscount > 0 ? (
-                                  <span className="absolute top-3 right-3 px-2 py-0.5 bg-red-500 text-white text-xs font-bold rounded-full">
-                                    -{maxDiscount}%
-                                  </span>
-                                ) : null;
-                              })()}
-                              <span className="absolute bottom-3 left-3 px-2 py-1 bg-black/60 text-white text-[10px] rounded-full capitalize">
-                                {categories.find(c => c.slug === item.category.slug)?.name}
-                              </span>
-                            </div>
-                            <div className="p-5 flex flex-col flex-1">
-                              <h4 className="text-foreground mb-1 line-clamp-2">{item.name}</h4>
-
-                              <div className="flex items-center justify-center mt-auto pt-3">
-                                <button
-                                  onClick={() => {
-                                    hanldeProduct(item);
-                                  }}
-                                  className="flex items-center gap-1.5 px-4 py-2 text-black  rounded-lg font-bold text-sm hover:bg-primary hover:text-white transition-colors cursor-pointer"
-                                >
-                                  {item.variants.length > 1
-                                    ? `Chỉ từ ${formatVND(item.variants[0].price)}`
-                                    : `${formatVND(item.variants[0].price)}`}
-                                </button>
-                              </div>
+                            <div className="aspect-square bg-muted" />
+                            <div className="p-4 space-y-2">
+                              <div className="h-4 w-3/4 bg-muted rounded" />
+                              <div className="h-3 w-1/2 bg-muted rounded" />
                             </div>
                           </div>
-                        );
-                    })}
+                        ))
+                      : categoryItems?.map(item => {
+                          if (item.isActive)
+                            return (
+                              <div
+                                onClick={() => {
+                                  hanldeProduct(item);
+                                }}
+                                key={item._id}
+                                className="bg-card rounded-2xl border border-border overflow-hidden hover:shadow-xl transition-all duration-300 group flex flex-col"
+                              >
+                                <div className="relative aspect-square overflow-hidden">
+                                  {!loadedImages.has(item.variants[0].image.url) && (
+                                    <Skeleton className="absolute inset-0 z-10 rounded-none" />
+                                  )}
+                                  <Image
+                                    src={item.variants[0].image.url}
+                                    alt={item.name}
+                                    fill
+                                    sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 20vw"
+                                    className="object-cover group-hover:scale-105 transition-transform duration-500"
+                                    onLoad={() => handleImageLoaded(item.variants[0].image.url)}
+                                  />
+                                  {/* Discount badge: hiển thị % giảm cao nhất trong các variant */}
+                                  {(() => {
+                                    const maxDiscount = item.variants.reduce((max, v) => {
+                                      if (v.disscountType === "percent" && v.discount && v.discount > max) return v.discount;
+                                      return max;
+                                    }, 0);
+                                    return maxDiscount > 0 ? (
+                                      <span className="absolute top-3 right-3 px-2 py-0.5 bg-red-500 text-white text-xs font-bold rounded-full">
+                                        -{maxDiscount}%
+                                      </span>
+                                    ) : null;
+                                  })()}
+                                  <span className="absolute bottom-3 left-3 px-2 py-1 bg-black/60 text-white text-[10px] rounded-full capitalize">
+                                    {categories.find(c => c.slug === item.category.slug)?.name}
+                                  </span>
+                                </div>
+                                <div className="p-5 flex flex-col flex-1">
+                                  <h4 className="text-foreground mb-1 line-clamp-2">{item.name}</h4>
+
+                                  <div className="flex items-center justify-center mt-auto pt-3">
+                                    <button
+                                      onClick={() => {
+                                        hanldeProduct(item);
+                                      }}
+                                      className="flex items-center gap-1.5 px-4 py-2 text-black  rounded-lg font-bold text-sm hover:bg-primary hover:text-white transition-colors cursor-pointer"
+                                    >
+                                      {item.variants.length > 1
+                                        ? `Chỉ từ ${formatVND(item.variants[0].price)}`
+                                        : `${formatVND(item.variants[0].price)}`}
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                        })}
                   </div>
                 </div>
               );

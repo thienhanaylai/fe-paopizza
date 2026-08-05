@@ -45,7 +45,9 @@ interface Ingredient {
   unit: string;
   category: string;
   costPerUnit: number;
+  quantityExtra: number;
   price: number;
+  suppliers: string[];
   isActive: boolean;
   isDeleted: boolean;
 }
@@ -61,6 +63,7 @@ export default function IngredientCatalog() {
   const [fromName, setFromName] = useState("");
   const [fromUnit, setFromUnit] = useState("");
   const [fromCostPerUnit, setCostPerUnit] = useState(0);
+  const [fromQuantityExtra, setFromQuantityExtra] = useState(0);
   const [fromPrice, setFromPrice] = useState(0);
   const [fromCategory, setFromCategory] = useState("");
   const [fromIsActive, setFromIsActive] = useState("");
@@ -147,6 +150,7 @@ export default function IngredientCatalog() {
           unit: fromUnit,
           category: fromCategory,
           costPerUnit: fromCostPerUnit,
+          quantityExtra: fromQuantityExtra,
           price: fromPrice,
           isActive: fromIsActive === "true",
         });
@@ -160,6 +164,7 @@ export default function IngredientCatalog() {
         await addIngredient({
           name: fromName,
           costPerUnit: fromCostPerUnit,
+          quantityExtra: fromQuantityExtra,
           price: fromPrice,
           unit: fromUnit,
           category: fromCategory,
@@ -438,6 +443,7 @@ export default function IngredientCatalog() {
                               setFromCategory(item.category);
                               setFromUnit(item.unit);
                               setCostPerUnit(item.costPerUnit);
+                              setFromQuantityExtra(item.quantityExtra || 0);
                               setFromPrice(item.price || 0);
                               setFromIsActive(item.isActive.toString());
                             }}
@@ -516,7 +522,15 @@ export default function IngredientCatalog() {
                   <label className="block text-sm text-foreground mb-1.5">Danh mục</label>
                   <select
                     defaultValue={editItem?.category}
-                    onChange={e => setFromCategory(e.target.value)}
+                    onChange={e => {
+                      const cat = e.target.value;
+                      setFromCategory(cat);
+                      // Tự động reset giá bán & định lượng cho danh mục không làm extra topping
+                      if (["dough", "drink", "other"].includes(cat)) {
+                        setFromPrice(0);
+                        setFromQuantityExtra(0);
+                      }
+                    }}
                     className="w-full px-4 py-2.5 rounded-xl border border-border bg-background outline-none text-sm"
                   >
                     {categories
@@ -561,14 +575,39 @@ export default function IngredientCatalog() {
                 <input
                   defaultValue={editItem?.price || 0}
                   type="number"
+                  disabled={["dough", "drink", "other"].includes(fromCategory)}
                   onChange={e => {
                     const value = e.target.valueAsNumber;
                     setFromPrice(isNaN(value) ? 0 : value);
                   }}
                   placeholder="VD: 15000"
-                  className="w-full px-4 py-2.5 rounded-xl border border-border bg-background focus:border-primary outline-none text-sm"
+                  className="w-full px-4 py-2.5 rounded-xl border border-border bg-background focus:border-primary outline-none text-sm disabled:bg-muted/50 disabled:text-muted-foreground disabled:cursor-not-allowed"
                 />
-                <p className="text-xs text-muted-foreground mt-1">Để 0 nếu không bán làm extra topping</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {["dough", "drink", "other"].includes(fromCategory)
+                    ? "Danh mục này không áp dụng làm extra topping"
+                    : "Để 0 nếu không bán làm extra topping"}
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm text-foreground mb-1.5">Định lượng extra (quantityExtra)</label>
+                <input
+                  defaultValue={editItem?.quantityExtra || 0}
+                  type="number"
+                  min={0}
+                  disabled={["dough", "drink", "other"].includes(fromCategory)}
+                  onChange={e => {
+                    const value = e.target.valueAsNumber;
+                    setFromQuantityExtra(isNaN(value) ? 0 : value);
+                  }}
+                  placeholder="VD: 30"
+                  className="w-full px-4 py-2.5 rounded-xl border border-border bg-background focus:border-primary outline-none text-sm disabled:bg-muted/50 disabled:text-muted-foreground disabled:cursor-not-allowed"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  {["dough", "drink", "other"].includes(fromCategory)
+                    ? "Danh mục này không áp dụng làm extra topping"
+                    : "Lượng trừ kho mỗi lần thêm extra topping (kg → gam, lit → ml). VD: phô mai 30g thì nhập 30"}
+                </p>
               </div>
               <div>
                 <label className="block text-sm text-foreground mb-1.5">Trạng thái</label>

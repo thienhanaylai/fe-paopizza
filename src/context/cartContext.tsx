@@ -642,7 +642,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
       try {
         const prevCart = cartRef.current;
-        await syncGuestCartToServer(userId);
+        // Khi đăng nhập: xoá giỏ hàng guest ở localStorage, không gộp vào cart server
+        const emptyGuestCart = createEmptyGuestCart();
+        persistGuestCart(emptyGuestCart);
         const data = await getCart(userId);
 
         const normalized = data
