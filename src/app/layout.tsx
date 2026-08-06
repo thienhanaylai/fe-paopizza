@@ -9,6 +9,7 @@ const beVietnamPro = Be_Vietnam_Pro({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://pizza.pao.io.vn"),
   title: "PaoPizza",
   description: "PaoPizza - Pizza ngon, giao nhanh",
 
