@@ -15,11 +15,11 @@ export const metadata: Metadata = {
   openGraph: {
     title: "PaoPizza",
     description: "PaoPizza - Pizza ngon, giao nhanh",
-    url: "https://pizza.pao.io.vn", // Thay bằng domain chính thức của bạn
+    url: "https://pizza.pao.io.vn",
     siteName: "PaoPizza",
     images: [
       {
-        url: "/logopao.svg", // Hoặc đường dẫn đến ảnh thumbnail PNG/JPG dạng https://pizza.pao.io.vn/og-image.png (khuyên dùng PNG/JPG kích thước 1200x630)
+        url: "/logopao.svg",
         width: 1200,
         height: 630,
         alt: "PaoPizza Logo",
