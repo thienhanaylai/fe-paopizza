@@ -12,6 +12,23 @@ export const metadata: Metadata = {
   title: "PaoPizza",
   description: "PaoPizza - Pizza ngon, giao nhanh",
 
+  openGraph: {
+    title: "PaoPizza",
+    description: "PaoPizza - Pizza ngon, giao nhanh",
+    url: "https://pizza.pao.io.vn", // Thay bằng domain chính thức của bạn
+    siteName: "PaoPizza",
+    images: [
+      {
+        url: "/logopao.svg", // Hoặc đường dẫn đến ảnh thumbnail PNG/JPG dạng https://pizza.pao.io.vn/og-image.png (khuyên dùng PNG/JPG kích thước 1200x630)
+        width: 1200,
+        height: 630,
+        alt: "PaoPizza Logo",
+      },
+    ],
+    locale: "vi_VN",
+    type: "website",
+  },
+
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
