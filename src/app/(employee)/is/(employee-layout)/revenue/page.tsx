@@ -807,7 +807,14 @@ export default function Revenue() {
             <XAxis dataKey="label" tick={{ fill: "#6b7280", fontSize: 12 }} axisLine={false} tickLine={false} />
             <YAxis tick={{ fill: "#6b7280", fontSize: 12 }} axisLine={false} tickLine={false} tickFormatter={formatShort} />
             <Tooltip formatter={value => [formatVND(toFiniteNumber(value)), "Doanh thu"]} labelFormatter={label => `${label}`} />
-            <Area type="monotone" dataKey="revenue" stroke="#e85d04" strokeWidth={2.5} fill="url(#colorRevenue)" />
+            <Area
+              dot={{ r: 2, fill: "#ff7700" }}
+              type="monotone"
+              dataKey="revenue"
+              stroke="#e85d04"
+              strokeWidth={2.5}
+              fill="url(#colorRevenue)"
+            />
           </AreaChart>
         </ResponsiveContainer>
       </div>

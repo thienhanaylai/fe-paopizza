@@ -266,7 +266,14 @@ function StoreDashboard({
                 tickFormatter={v => `${(toNumber(v) / 1000000).toFixed(1)}M`}
               />
               <Tooltip formatter={v => [formatVND(toNumber(v)), "Doanh thu"]} />
-              <Area type="monotone" dataKey="value" stroke="#e85d04" strokeWidth={2.5} fill="url(#colorManagerRevenue)" />
+              <Area
+                type="monotone"
+                dot={{ r: 2, fill: "#ff7700" }}
+                dataKey="value"
+                stroke="#e85d04"
+                strokeWidth={2.5}
+                fill="url(#colorManagerRevenue)"
+              />
             </AreaChart>
           </ResponsiveContainer>
         </div>
@@ -449,7 +456,14 @@ function AdminDashboard({ userName, data, loading }: { userName: string; data: A
               tickFormatter={v => `${(toNumber(v) / 1000000).toFixed(1)}M`}
             />
             <Tooltip formatter={v => [formatVND(toNumber(v)), "Doanh thu"]} />
-            <Area type="monotone" dataKey="value" stroke="#e85d04" strokeWidth={2.5} fill="url(#colorAdminRevenue)" />
+            <Area
+              dot={{ r: 2, fill: "#ff7700" }}
+              type="monotone"
+              dataKey="value"
+              stroke="#e85d04"
+              strokeWidth={2.5}
+              fill="url(#colorAdminRevenue)"
+            />
           </AreaChart>
         </ResponsiveContainer>
       </div>

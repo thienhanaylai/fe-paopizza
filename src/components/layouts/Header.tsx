@@ -12,6 +12,7 @@ import {
   LogOut,
   MapPin,
   Menu,
+  PackageSearch,
   Phone,
   Pizza,
   ShoppingCart,
@@ -33,6 +34,10 @@ const NavMenu = [
   {
     name: "Menu",
     link: "/#menu",
+  },
+  {
+    name: "Tra cứu",
+    link: "/tracking",
   },
   {
     name: "Về chúng tôi",
@@ -227,6 +232,8 @@ export default function Header() {
                             <Home size={16} className="text-muted-foreground" />
                           ) : item.link.includes("#menu") ? (
                             <Pizza size={16} className="text-muted-foreground" />
+                          ) : item.link.includes("tracking") ? (
+                            <PackageSearch size={16} className="text-muted-foreground" />
                           ) : item.link.includes("#about") ? (
                             <Info size={16} className="text-muted-foreground" />
                           ) : item.link.includes("#contact") ? (

@@ -737,9 +737,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
         if (updatedCart) {
           const normalized = normalizeCart(updatedCart);
-          // Ensure combo info + price are preserved if API doesn't return them fully (dynamic pricing)
           if (item_type === "combo" && comboId) {
-            // Build the full combo object with pricing metadata once
             const builtCombo =
               comboInfo && typeof comboInfo === "object"
                 ? {
@@ -902,7 +900,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         persistGuestCart(nextGuestCart);
         setCart(nextGuestCart);
       } catch (error) {
-        console.error("Lỗi cập nhật giỏ hàng:", error);
+        console.error("Lỗi cập nhật giỏ hàng: ", error);
       }
     },
     [],

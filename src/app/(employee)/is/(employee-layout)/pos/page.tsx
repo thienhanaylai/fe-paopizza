@@ -313,7 +313,7 @@ export default function POS() {
           ),
         );
       } catch {
-        // bỏ qua lỗi
+        toast.error("Không tải được danh sách extra topping");
       }
     };
     fetchToppings();

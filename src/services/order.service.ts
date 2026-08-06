@@ -274,3 +274,20 @@ export const updatePaymentStatusOrder = async (order_id: string, typeUser: strin
     throw error;
   }
 };
+
+export const trackOrder = async (phone?: string, orderId?: string): Promise<OrderHistory[]> => {
+  try {
+    const params = new URLSearchParams();
+    if (phone) params.append("phone", phone);
+    if (orderId) params.append("orderId", orderId);
+
+    const response = await http(`/api/v1/orders/track?${params.toString()}`, { method: "GET" }, "customer", {
+      skipUnauthorized: true,
+    });
+
+    return (response as { data: OrderHistory[] }).data;
+  } catch (error) {
+    console.error("Lỗi fetch trackOrder:", error);
+    throw error;
+  }
+};

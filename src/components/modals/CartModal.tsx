@@ -80,7 +80,11 @@ export const CartModal = () => {
   }, [selectedStoreId, showCart]);
 
   const cartItems = useMemo(() => cart?.items || [], [cart?.items]);
-
+  const CRUST_LABELS: Record<string, string> = {
+    thin: "Mỏng",
+    medium: "Vừa",
+    thick: "Dày",
+  };
   const isItemUnavailable = useCallback(
     (item: (typeof cartItems)[number]): boolean => {
       if (!storeMenuSkus) return false;
