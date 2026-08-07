@@ -1,6 +1,21 @@
 "use client";
 
-import { X, Store, User, ShoppingBag, Receipt, MapPin, Phone, Mail } from "lucide-react";
+import {
+  X,
+  Store,
+  User,
+  ShoppingBag,
+  Receipt,
+  MapPin,
+  Phone,
+  Mail,
+  Check,
+  AlertCircle,
+  Truck,
+  ClipboardCheck,
+  Clock,
+  ChefHat,
+} from "lucide-react";
 import { OrderHistory, OrderItemHistory, ComboSelectionPopulated } from "@/src/services/order.service";
 import { formatVND } from "@/src/utils/formatVND";
 import { formatDateTime } from "@/src/utils/formatDateTime";
@@ -9,15 +24,6 @@ interface OrderDetailModalProps {
   order: OrderHistory;
   onClose: () => void;
 }
-
-const orderStatusConfig: Record<string, { label: string; color: string }> = {
-  pending: { label: "Chờ xử lý", color: "bg-yellow-100 text-yellow-700" },
-  confirmed: { label: "Đã xác nhận", color: "bg-teal-100 text-teal-700" },
-  preparing: { label: "Đang làm", color: "bg-blue-100 text-blue-700" },
-  delivering: { label: "Đang giao", color: "bg-purple-100 text-purple-700" },
-  completed: { label: "Hoàn thành", color: "bg-green-200 text-green-700" },
-  cancelled: { label: "Đã hủy", color: "bg-red-100 text-red-700" },
-};
 
 const paymentStatusConfig: Record<string, { label: string; color: string }> = {
   pending: { label: "Chờ thanh toán", color: "bg-yellow-100 text-yellow-700" },
@@ -109,8 +115,123 @@ function OrderItemRow({ item }: { item: OrderItemHistory }) {
   );
 }
 
+const stepColorMap: Record<string, { bg: string; light: string; text: string; ring: string; line: string }> = {
+  pending: {
+    bg: "bg-yellow-500",
+    light: "bg-yellow-100",
+    text: "text-yellow-700",
+    ring: "ring-yellow-500",
+    line: "bg-primary",
+  },
+  confirmed: {
+    bg: "bg-teal-500",
+    light: "bg-teal-100",
+    text: "text-teal-700",
+    ring: "ring-teal-500",
+    line: "bg-primary",
+  },
+  preparing: {
+    bg: "bg-blue-500",
+    light: "bg-blue-100",
+    text: "text-blue-700",
+    ring: "ring-blue-500",
+    line: "bg-primary",
+  },
+  delivering: {
+    bg: "bg-purple-500",
+    light: "bg-purple-100",
+    text: "text-purple-700",
+    ring: "ring-purple-500",
+    line: "bg-primary",
+  },
+  completed: {
+    bg: "bg-green-500",
+    light: "bg-green-100",
+    text: "text-green-700",
+    ring: "ring-green-500",
+    line: "bg-primary",
+  },
+};
+
+function OrderProgressBar({ status, orderType }: { status: string; orderType: string }) {
+  const allSteps = [
+    { key: "pending", label: "Chờ xử lý", Icon: Clock },
+    { key: "confirmed", label: "Đã xác nhận", Icon: ClipboardCheck },
+    { key: "preparing", label: "Đang làm", Icon: ChefHat },
+    { key: "delivering", label: "Đang giao", Icon: Truck },
+    { key: "completed", label: "Hoàn thành", Icon: Check },
+  ];
+
+  // Delivery orders have delivering step; carry_out / dine_in skip it
+  const steps = orderType === "delivery" ? allSteps : allSteps.filter(s => s.key !== "delivering");
+
+  const isCancelled = status === "cancelled";
+  const currentIdx = steps.findIndex(s => s.key === status);
+
+  if (isCancelled) {
+    return (
+      <div className="flex items-center justify-center gap-3 py-3 px-4 bg-red-50 rounded-xl border border-red-200">
+        <AlertCircle size={20} className="text-red-500 shrink-0" />
+        <div>
+          <p className="text-sm font-semibold text-red-700">Đơn hàng đã bị hủy</p>
+          <p className="text-xs text-red-500 mt-0.5">Đơn hàng này không còn hiệu lực</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (currentIdx === -1) return null;
+
+  return (
+    <div className="py-2">
+      <div className="flex items-start">
+        {steps.map((step, idx) => {
+          const StepIcon = step.Icon;
+          const isCompleted = idx < currentIdx;
+          const isCurrent = idx === currentIdx;
+          const colors = stepColorMap[step.key];
+
+          return (
+            <div key={step.key} className="flex items-start flex-1 last:flex-none">
+              {/* Step circle + label */}
+              <div className="flex flex-col items-center gap-1 shrink-0">
+                <div
+                  className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 ${
+                    isCompleted
+                      ? `${colors.bg} text-white`
+                      : isCurrent
+                        ? `${colors.light} ${colors.text} ring-2 ${colors.ring} ring-offset-2`
+                        : "bg-gray-100 text-gray-400"
+                  }`}
+                >
+                  {isCompleted ? <Check size={14} strokeWidth={3} /> : <StepIcon size={14} />}
+                </div>
+                <span
+                  className={`text-[10px] font-medium whitespace-nowrap transition-colors ${
+                    isCompleted ? colors.text : isCurrent ? colors.text : "text-muted-foreground"
+                  }`}
+                >
+                  {step.label}
+                </span>
+              </div>
+
+              {/* Connector line after (except last) */}
+              {idx < steps.length - 1 && (
+                <div className="flex-1 flex items-center justify-center px-1" style={{ paddingTop: "1rem" }}>
+                  <div
+                    className={`h-0.5 w-full rounded-full transition-colors duration-500 ${isCompleted ? colors.line : "bg-gray-200"}`}
+                  />
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function OrderDetailModal({ order, onClose }: OrderDetailModalProps) {
-  const st = orderStatusConfig[order.status];
   const pt = paymentStatusConfig[order.paymentStatus];
 
   return (
@@ -135,8 +256,9 @@ export default function OrderDetailModal({ order, onClose }: OrderDetailModalPro
         </div>
 
         <div className="p-5 overflow-y-auto flex-1 space-y-4">
+          <OrderProgressBar status={order.status} orderType={order.orderType} />
+
           <div className="flex items-center gap-2 flex-wrap">
-            <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${st.color}`}>{st.label}</span>
             <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${pt.color}`}>{pt.label}</span>
             <span className="px-2.5 py-1 rounded-full text-xs bg-muted text-foreground">{orderTypeLabels[order.orderType]}</span>
             <span className="px-2.5 py-1 rounded-full text-xs bg-muted text-foreground">

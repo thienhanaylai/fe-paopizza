@@ -58,10 +58,6 @@ export default function TrackingPage() {
       const orderId = isId ? trimmed : undefined;
       const result = await trackOrder(phone, orderId);
       setOrders(result);
-
-      if (result.length === 0) {
-        toast.info("Không tìm thấy đơn hàng nào trong vòng 24h gần nhất");
-      }
     } catch (error) {
       toast.error("Có lỗi xảy ra khi tra cứu. Vui lòng thử lại sau.");
       setOrders([]);

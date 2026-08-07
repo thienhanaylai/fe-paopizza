@@ -10,11 +10,12 @@ import { Skeleton } from "@/src/components/ui/skeleton";
 import { formatVND } from "@/src/utils/formatVND";
 import { getMenuByStoreId, MenuData, Product, Combo } from "@/src/services/menu.service";
 import { getAllIngredients } from "@/src/services/ingredient.service";
-import { getAllStore } from "@/src/services/store.service";
+import { getAllStore, StoreData } from "@/src/services/store.service";
 import { parseCrustOptions } from "./utils";
 import type { MenuCategoryUI, ExtraTopping, ComboSlotSelection } from "./types";
 import ProductDetailModal from "@/src/components/modals/ProductDetailModal";
 import ComboBuilderModal from "@/src/components/modals/ComboBuilderModal";
+import GoongMap from "@/src/components/layouts/GoongMap";
 
 export default function IndexPage() {
   const { user } = useCustomerAuth();
@@ -26,6 +27,7 @@ export default function IndexPage() {
 
   const [product, setProduct] = useState<Product | null>(null);
   const [menu, setMenu] = useState<MenuData>();
+  const [stores, setStores] = useState<StoreData[]>();
 
   const [selectedStoreId, setSelectedStoreId] = useState<string>("");
   const prevStoreIdRef = useRef<string>("");
@@ -175,6 +177,7 @@ export default function IndexPage() {
       try {
         setIsLoading(true);
         const { data: categories } = await getAllCategories();
+        const { data: stores } = await getAllStore();
         const menu = selectedStoreId ? await getMenuByStoreId(selectedStoreId) : null;
 
         const mappedCategories: MenuCategoryUI[] = categories
@@ -201,7 +204,7 @@ export default function IndexPage() {
           },
           ...mappedCategories,
         ];
-
+        setStores(stores);
         setCategories(finalCategories);
         setMenu(menu || undefined);
       } catch {
@@ -820,6 +823,9 @@ export default function IndexPage() {
                 <p className="text-sm text-muted-foreground">{c.value}</p>
               </div>
             ))}
+            <div className="col-span-full">
+              <GoongMap stores={stores} />
+            </div>
           </div>
         </div>
       </section>

@@ -45,6 +45,26 @@ export const getAllStore = async (page?: number, limit?: number) => {
   }
 };
 
+export type NearestStoreData = StoreData & { distanceMeters: number };
+
+export const getNearestStore = async (longitude: number, latitude: number, limit = 10) => {
+  try {
+    const params = new URLSearchParams();
+    params.append("longitude", String(longitude));
+    params.append("latitude", String(latitude));
+    params.append("limit", String(limit));
+
+    const response = await http(`/api/v1/stores/nearest?${params.toString()}`, {
+      method: "GET",
+    });
+
+    return response as { data: NearestStoreData[] };
+  } catch (error) {
+    console.error("Lỗi fetch nearest stores:", error);
+    throw error;
+  }
+};
+
 export const createStore = async (payload: {
   name: string;
   address: StoreAddress;
