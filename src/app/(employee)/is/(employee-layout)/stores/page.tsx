@@ -31,6 +31,7 @@ import Pagination from "@/src/components/ui/Pagination";
 import { toast, Toaster } from "sonner";
 import { getRevenue } from "@/src/services/revenue.service";
 import { formatVND } from "@/src/utils/formatVND";
+import StoreLocationPicker from "@/src/components/layouts/StoreLocationPicker";
 
 const statusConfig = {
   active: { label: "Hoạt động", color: "bg-green-100 text-green-700", icon: <CheckCircle2 size={14} /> },
@@ -174,11 +175,28 @@ export default function Stores() {
         phoneStore === "" ||
         emailStore === "" ||
         timeOpenStore === "" ||
-        timeCloseStore === ""
+        timeCloseStore === "" ||
+        latitude === "" ||
+        longitude === ""
       ) {
-        toast.warning("Vui lòng nhập đầy đủ thông tin !");
+        toast.warning("Vui lòng nhập đầy đủ thông tin và chọn vị trí cửa hàng trên bản đồ!");
         setIsLoading(false);
 
+        return;
+      }
+
+      const parsedLatitude = Number(latitude);
+      const parsedLongitude = Number(longitude);
+      if (
+        !Number.isFinite(parsedLatitude) ||
+        !Number.isFinite(parsedLongitude) ||
+        parsedLatitude < -90 ||
+        parsedLatitude > 90 ||
+        parsedLongitude < -180 ||
+        parsedLongitude > 180
+      ) {
+        toast.warning("Tọa độ cửa hàng không hợp lệ. Vui lòng chọn lại vị trí trên bản đồ!");
+        setIsLoading(false);
         return;
       }
 
@@ -188,10 +206,10 @@ export default function Stores() {
         city,
       };
 
-      const locationPayload =
-        latitude && longitude
-          ? { type: "Point" as const, coordinates: [parseFloat(longitude), parseFloat(latitude)] as [number, number] }
-          : undefined;
+      const locationPayload = {
+        type: "Point" as const,
+        coordinates: [parsedLongitude, parsedLatitude] as [number, number],
+      };
 
       if (editingStore) {
         const res = await updateStore({
@@ -680,7 +698,7 @@ export default function Stores() {
           }}
         >
           <div
-            className="bg-card rounded-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto scrollbar-hide"
+            className="bg-card rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto scrollbar-hide"
             onClick={e => {
               e.stopPropagation();
             }}
@@ -712,7 +730,21 @@ export default function Stores() {
               </div>
               <div>
                 <label className="text-sm text-foreground mb-1.5 block">Địa chỉ</label>
-                <div className="space-y-2">
+                <div className="space-y-3">
+                  <StoreLocationPicker
+                    address={{ streetNumber, district, city }}
+                    latitude={latitude}
+                    longitude={longitude}
+                    onAddressChange={address => {
+                      setStreetNumber(address.streetNumber);
+                      setDistrict(address.district);
+                      setCity(address.city);
+                    }}
+                    onLocationChange={({ lng, lat }) => {
+                      setLongitude(String(lng));
+                      setLatitude(String(lat));
+                    }}
+                  />
                   <input
                     type="text"
                     placeholder="Số nhà, tên đường"
@@ -755,27 +787,6 @@ export default function Stores() {
                   value={emailStore}
                   className="w-full px-4 py-2.5 rounded-xl border border-border bg-background text-sm outline-none focus:border-primary transition-colors"
                 />
-              </div>
-              <div>
-                <label className="text-sm text-foreground mb-1.5 block">Vị trí (tùy chọn)</label>
-                <div className="grid grid-cols-2 gap-2">
-                  <input
-                    type="number"
-                    step="any"
-                    placeholder="Vĩ độ (latitude)"
-                    value={latitude}
-                    onChange={e => setLatitude(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl border border-border bg-background text-sm outline-none focus:border-primary transition-colors"
-                  />
-                  <input
-                    type="number"
-                    step="any"
-                    placeholder="Kinh độ (longitude)"
-                    value={longitude}
-                    onChange={e => setLongitude(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl border border-border bg-background text-sm outline-none focus:border-primary transition-colors"
-                  />
-                </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>

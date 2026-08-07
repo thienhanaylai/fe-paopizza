@@ -1,5 +1,5 @@
 "use client";
-import { ArrowRight, Award, ChefHat, ChevronLeft, ChevronRight, Clock, MapPin, Phone, Star } from "lucide-react";
+import { ArrowRight, Award, ChefHat, ChevronLeft, ChevronRight, Clock, Phone, Star } from "lucide-react";
 import Image from "next/image";
 import { useEffect, useRef, useState, useCallback } from "react";
 import useEmblaCarousel from "embla-carousel-react";
@@ -10,12 +10,11 @@ import { Skeleton } from "@/src/components/ui/skeleton";
 import { formatVND } from "@/src/utils/formatVND";
 import { getMenuByStoreId, MenuData, Product, Combo } from "@/src/services/menu.service";
 import { getAllIngredients } from "@/src/services/ingredient.service";
-import { getAllStore, StoreData } from "@/src/services/store.service";
+import { getAllStore } from "@/src/services/store.service";
 import { parseCrustOptions } from "./utils";
 import type { MenuCategoryUI, ExtraTopping, ComboSlotSelection } from "./types";
 import ProductDetailModal from "@/src/components/modals/ProductDetailModal";
 import ComboBuilderModal from "@/src/components/modals/ComboBuilderModal";
-import GoongMap from "@/src/components/layouts/GoongMap";
 
 export default function IndexPage() {
   const { user } = useCustomerAuth();
@@ -27,8 +26,6 @@ export default function IndexPage() {
 
   const [product, setProduct] = useState<Product | null>(null);
   const [menu, setMenu] = useState<MenuData>();
-  const [stores, setStores] = useState<StoreData[]>();
-
   const [selectedStoreId, setSelectedStoreId] = useState<string>("");
   const prevStoreIdRef = useRef<string>("");
   const [storeCount, setStoreCount] = useState<number>(0);
@@ -177,7 +174,6 @@ export default function IndexPage() {
       try {
         setIsLoading(true);
         const { data: categories } = await getAllCategories();
-        const { data: stores } = await getAllStore();
         const menu = selectedStoreId ? await getMenuByStoreId(selectedStoreId) : null;
 
         const mappedCategories: MenuCategoryUI[] = categories
@@ -204,7 +200,6 @@ export default function IndexPage() {
           },
           ...mappedCategories,
         ];
-        setStores(stores);
         setCategories(finalCategories);
         setMenu(menu || undefined);
       } catch {
@@ -790,41 +785,6 @@ export default function IndexPage() {
                   <p className="text-xs text-muted-foreground mt-1">Chi nhánh</p>
                 </div>
               </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section id="contact" className="py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl text-foreground mb-3">Liên hệ với chúng tôi</h2>
-            <p className="text-muted-foreground">Đặt hàng hoặc cần hỗ trợ? Liên hệ ngay!</p>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-4xl mx-auto">
-            {[
-              { icon: <Phone size={22} />, label: "Hotline", value: menu?.store.phone || "1900 0860" },
-              {
-                icon: <MapPin size={22} />,
-                label: "Địa chỉ",
-                value: `${menu?.store.address.streetNumber || ""}, ${menu?.store.address.district || ""}, ${menu?.store.address.city || ""}`,
-              },
-              {
-                icon: <Clock size={22} />,
-                label: "Giờ mở cửa",
-                value: `${menu?.store.time_open || ""} - ${menu?.store.time_close || ""}`,
-              },
-            ].map(c => (
-              <div key={c.label} className="bg-card rounded-2xl border border-border p-6 text-center">
-                <div className="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center mx-auto mb-3">
-                  {c.icon}
-                </div>
-                <p className="text-foreground mb-1">{c.label}</p>
-                <p className="text-sm text-muted-foreground">{c.value}</p>
-              </div>
-            ))}
-            <div className="col-span-full">
-              <GoongMap stores={stores} />
             </div>
           </div>
         </div>

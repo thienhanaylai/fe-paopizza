@@ -41,7 +41,7 @@ const NavMenu = [
   },
   {
     name: "Liên hệ",
-    link: "/#contact",
+    link: "/contact",
   },
 ];
 const tierBadges: Record<string, React.ReactNode> = {
@@ -147,9 +147,6 @@ export default function Header() {
                   <Link
                     key={item.link}
                     href={item.link}
-                    onClick={() => {
-                      window.location.hash = item.link;
-                    }}
                     className={`hover:text-primary font-medium transition-colors`}
                   >
                     {item.name}
@@ -185,7 +182,6 @@ export default function Header() {
                           href={item.link}
                           onClick={() => {
                             setShowMobileMenu(false);
-                            window.location.hash = item.link;
                           }}
                           className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-foreground hover:bg-muted text-left"
                         >
@@ -197,7 +193,7 @@ export default function Header() {
                             <PackageSearch size={16} className="text-muted-foreground" />
                           ) : item.link.includes("#about") ? (
                             <Info size={16} className="text-muted-foreground" />
-                          ) : item.link.includes("#contact") ? (
+                          ) : item.link.includes("contact") ? (
                             <Phone size={16} className="text-muted-foreground" />
                           ) : (
                             <ChevronDown size={16} className="text-muted-foreground" />
@@ -357,10 +353,7 @@ export default function Header() {
         </div>
       </header>
       {(showInitialStoreModal || showStorePicker) && (
-        <SelectStoreModal
-          isOpen
-          onClose={showInitialStoreModal ? handleStoreSelected : handleStorePickerSelected}
-        />
+        <SelectStoreModal isOpen onClose={showInitialStoreModal ? handleStoreSelected : handleStorePickerSelected} />
       )}
     </>
   );

@@ -42,18 +42,29 @@ function getAddress(store: StoreData) {
   return [store.address?.streetNumber, store.address?.district, store.address?.city].filter(Boolean).join(", ");
 }
 
-export default function GoongMap({ stores = [] }: { stores?: StoreData[] }) {
+interface GoongMapProps {
+  stores?: StoreData[];
+  onStoreSelect?: (storeId: string) => void;
+}
+
+export default function GoongMap({ stores = [], onStoreSelect }: GoongMapProps) {
   const mapContainer = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<GoongMapInstance | null>(null);
   const storesKeyRef = useRef("");
   const markerRefs = useRef(new Map<string, MarkerEntry>());
   const pendingStoreIdRef = useRef<string | null>(null);
+  const onStoreSelectRef = useRef(onStoreSelect);
   const [activeStoreId, setActiveStoreId] = useState<string | null>(null);
+
+  useEffect(() => {
+    onStoreSelectRef.current = onStoreSelect;
+  }, [onStoreSelect]);
 
   const focusStore = useCallback((storeId: string) => {
     const selectedMarker = markerRefs.current.get(storeId);
     const map = mapRef.current;
     setActiveStoreId(storeId);
+    onStoreSelectRef.current?.(storeId);
     if (!selectedMarker || !map) {
       // Người dùng có thể click danh sách trong lúc bản đồ còn đang khởi tạo.
       // Giữ lựa chọn này để flyTo ngay khi marker đã sẵn sàng.
@@ -133,11 +144,25 @@ export default function GoongMap({ stores = [] }: { stores?: StoreData[] }) {
 
           const marker = new goongjs.Marker({ element, anchor: "bottom" })
             .setLngLat(coords)
-            .setPopup(new goongjs.Popup({ offset: 25 }).setHTML(renderToString(popupContent)))
+            .setPopup(
+              new goongjs.Popup({
+                offset: 25,
+                closeOnClick: false,
+                // Goong mặc định focus nút đóng khi mở popup, khiến trình duyệt
+                // tự cuộn cả trang để đưa phần tử được focus vào viewport.
+                focusAfterOpen: false,
+              }).setHTML(renderToString(popupContent)),
+            )
             .addTo(map) as GoongMarker;
 
           markers.set(store._id, { marker, coords });
-          element.addEventListener("click", () => focusStore(store._id));
+          element.addEventListener("click", event => {
+            // Không để click đi tiếp vào handler toggle mặc định của Marker;
+            // nếu không popup sẽ được mở rồi đóng ngay trong cùng một lần click.
+            event.preventDefault();
+            event.stopPropagation();
+            focusStore(store._id);
+          });
         });
 
         if (pendingStoreIdRef.current) {
@@ -157,7 +182,7 @@ export default function GoongMap({ stores = [] }: { stores?: StoreData[] }) {
   const storesWithLocation = stores.filter(store => normalizeCoords(store.location?.coordinates));
 
   return (
-    <div className="relative h-[480px] w-full overflow-hidden rounded-lg shadow-md">
+    <div className="relative h-[480px] w-full overscroll-contain overflow-hidden rounded-lg shadow-md">
       <div ref={mapContainer} className="h-full w-full" />
 
       <aside className="absolute top-3 left-3 z-10 w-[calc(100%-1.5rem)] max-w-72 overflow-hidden rounded-xl border border-border bg-card/95 shadow-lg backdrop-blur sm:w-72">
@@ -166,7 +191,7 @@ export default function GoongMap({ stores = [] }: { stores?: StoreData[] }) {
           <p className="text-[11px] text-muted-foreground">Chọn cửa hàng để xem vị trí trên bản đồ</p>
         </div>
 
-        <div className="max-h-60 overflow-y-auto p-1.5">
+        <div className="max-h-60 overscroll-contain overflow-y-auto p-1.5">
           {storesWithLocation.length === 0 ? (
             <p className="px-2 py-3 text-xs text-muted-foreground">Chưa có cửa hàng có vị trí trên bản đồ.</p>
           ) : (
@@ -178,7 +203,11 @@ export default function GoongMap({ stores = [] }: { stores?: StoreData[] }) {
                 <button
                   key={store._id}
                   type="button"
-                  onClick={() => focusStore(store._id)}
+                  onMouseDown={event => event.preventDefault()}
+                  onClick={event => {
+                    event.stopPropagation();
+                    focusStore(store._id);
+                  }}
                   className={`w-full rounded-lg px-2.5 py-2 text-left transition-colors ${
                     isActive ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-muted"
                   }`}

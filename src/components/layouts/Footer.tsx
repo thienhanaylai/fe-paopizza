@@ -7,15 +7,15 @@ const NavMenu = [
   },
   {
     name: "Menu",
-    link: "#menu",
+    link: "/#menu",
   },
   {
     name: "Về chúng tôi",
-    link: "#about",
+    link: "/#about",
   },
   {
     name: "Liên hệ",
-    link: "#contact",
+    link: "/contact",
   },
   {
     name: "Pao IS",
