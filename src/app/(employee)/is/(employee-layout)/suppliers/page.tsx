@@ -361,7 +361,7 @@ export default function Suppliers() {
               <tbody>
                 {Array.from({ length: 5 }).map((_, i) => (
                   <tr key={i} className="border-b border-border last:border-b-0">
-                    {Array.from({ length: 7 }).map((_, j) => (
+                    {Array.from({ length: 8 }).map((_, j) => (
                       <td key={j} className="px-5 py-3.5">
                         <div className="h-4 bg-muted animate-pulse rounded" style={{ width: `${50 + j * 10}%` }} />
                       </td>
@@ -418,6 +418,9 @@ export default function Suppliers() {
                     onSort={toggleSupplierSort}
                     className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70 hidden lg:table-cell"
                   />
+                  <th className="text-center px-5 py-3.5 text-sm font-semibold text-foreground/70 hidden md:table-cell">
+                    Nguyên liệu cung cấp
+                  </th>
                   <SortableHeader
                     label="Trạng thái"
                     sortKey="isActive"
@@ -431,7 +434,7 @@ export default function Suppliers() {
               <tbody>
                 {sortedSuppliers.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-5 py-16 text-center text-muted-foreground">
+                    <td colSpan={8} className="px-5 py-16 text-center text-muted-foreground">
                       <Truck size={40} className="mx-auto mb-3 text-muted-foreground/20" />
                       <p className="text-sm">Không tìm thấy nhà cung cấp nào</p>
                     </td>
@@ -440,6 +443,7 @@ export default function Suppliers() {
                   paginatedSuppliers.map(sup => {
                     const supplierId = sup._id || sup.id || "";
                     const isSelected = selectedIds.has(supplierId);
+                    const ingredientCount = sup.supplierIngredients?.length ?? 0;
                     return (
                       <tr
                         key={supplierId}
@@ -461,7 +465,7 @@ export default function Suppliers() {
                             <div className="min-w-0">
                               <p className="text-sm font-semibold text-foreground truncate">{sup.name}</p>
                               <p className="text-xs text-muted-foreground md:hidden mt-0.5">
-                                {supplierCategoryLabels[sup.supplier_category] || sup.supplier_category}
+                                {supplierCategoryLabels[sup.supplier_category] || sup.supplier_category} · {ingredientCount} nguyên liệu
                               </p>
                             </div>
                           </div>
@@ -482,6 +486,12 @@ export default function Suppliers() {
                             <Mail size={13} />
                             <span className="truncate max-w-[180px]">{sup.email || "-"}</span>
                           </div>
+                        </td>
+                        <td className="px-5 py-3.5 text-center hidden md:table-cell">
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
+                            <Package size={13} />
+                            {ingredientCount}
+                          </span>
                         </td>
                         <td className="px-5 py-3.5 text-center">
                           <span

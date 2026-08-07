@@ -1,5 +1,5 @@
 "use client";
-import React, { createContext, useContext, useMemo, useState, ReactNode } from "react";
+import React, { createContext, useContext, useState, ReactNode } from "react";
 import { http } from "../utils/config.api";
 import { useRouter } from "next/navigation";
 
@@ -68,7 +68,7 @@ function clearStoredAuth() {
 interface AuthContextType {
   user: Customer | null;
   accessToken: string | null;
-  customerRegister: (fullname: string, phone: string, password: string) => Promise<{ success: boolean; message?: string }>;
+  customerRegister: (fullname: string, phone: string, password: string, email?: string) => Promise<{ success: boolean; message?: string }>;
   customerLogin: (phone: string, password: string) => Promise<{ success: boolean; message?: string }>;
   getInfo: () => Promise<{
     success: boolean;
@@ -93,14 +93,14 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
 
   const router = useRouter();
 
-  const customerRegister = async (fullname: string, phone: string, password: string) => {
+  const customerRegister = async (fullname: string, phone: string, password: string, email?: string) => {
     const endpoint = "/customers/register";
     try {
       const data = await http(
         `/api/v1${endpoint}`,
         {
           method: "POST",
-          body: JSON.stringify({ name: fullname, phone, password }),
+          body: JSON.stringify({ name: fullname, phone, password, email }),
         },
         "customer",
         { skipUnauthorized: true },
@@ -271,20 +271,17 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
     router.push("/");
   };
 
-  const value = useMemo(
-    () => ({
-      user,
-      accessToken,
-      authMode,
-      setAuthMode,
-      customerLogin,
-      customerRegister,
-      getInfo,
-      logout,
-      isAuthenticated: !!user,
-    }),
-    [user, accessToken, authMode],
-  );
+  const value = {
+    user,
+    accessToken,
+    authMode,
+    setAuthMode,
+    customerLogin,
+    customerRegister,
+    getInfo,
+    logout,
+    isAuthenticated: !!user,
+  };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

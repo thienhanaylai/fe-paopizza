@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { X, Eye, EyeOff } from "lucide-react";
 import { useCustomerAuth } from "@/src/context/authCustomerContext";
+import { PasswordResetForm } from "@/src/components/auth/PasswordResetForm";
 
 export const AuthModal = () => {
   const { authMode, setAuthMode, customerLogin, customerRegister } = useCustomerAuth();
@@ -10,10 +11,12 @@ export const AuthModal = () => {
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [fullname, setFullname] = useState("");
+  const [email, setEmail] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [isPasswordReset, setIsPasswordReset] = useState(false);
 
   const clearNotice = () => {
     setError("");
@@ -26,6 +29,8 @@ export const AuthModal = () => {
     setPhone("");
     setPassword("");
     setFullname("");
+    setEmail("");
+    setIsPasswordReset(false);
   };
 
   const handleAuth = async (e: React.FormEvent) => {
@@ -42,9 +47,13 @@ export const AuthModal = () => {
         setError("Vui lòng nhập họ tên");
         return;
       }
+      if (!email.trim()) {
+        setError("Vui lòng nhập email để có thể khôi phục mật khẩu.");
+        return;
+      }
 
       setIsSubmitting(true);
-      const res = await customerRegister(fullname, phone, password);
+      const res = await customerRegister(fullname, phone, password, email);
       setIsSubmitting(false);
 
       if (!res.success) {
@@ -82,9 +91,15 @@ export const AuthModal = () => {
       <div className="bg-card rounded-2xl p-6 w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h3 className="text-foreground text-xl font-semibold">{authMode === "login" ? "Đăng nhập" : "Đăng ký tài khoản"}</h3>
+            <h3 className="text-foreground text-xl font-semibold">
+              {isPasswordReset ? "Quên mật khẩu" : authMode === "login" ? "Đăng nhập" : "Đăng ký tài khoản"}
+            </h3>
             <p className="text-sm text-muted-foreground mt-0.5">
-              {authMode === "login" ? "Đăng nhập để đặt hàng ngay" : "Tạo tài khoản mới"}
+              {isPasswordReset
+                ? "Xác thực email để tạo mật khẩu mới"
+                : authMode === "login"
+                  ? "Đăng nhập để đặt hàng ngay"
+                  : "Tạo tài khoản mới"}
             </p>
           </div>
           <button
@@ -95,23 +110,43 @@ export const AuthModal = () => {
           </button>
         </div>
 
+        {isPasswordReset ? (
+          <PasswordResetForm userType="Customer" onBack={() => setIsPasswordReset(false)} />
+        ) : (
+          <>
         <form onSubmit={handleAuth} className="space-y-4 ">
           {error && <div className="bg-red-50 text-red-600 px-4 py-3 rounded-lg text-sm">{error}</div>}
           {success && <div className="bg-green-50 text-green-600 px-4 py-3 rounded-lg text-sm">{success}</div>}
 
           {authMode === "register" && (
-            <div>
-              <label className="block text-sm mb-1.5 font-medium">Họ tên</label>
-              <input
-                value={fullname}
-                onChange={e => {
-                  setFullname(e.target.value);
-                  setError("");
-                }}
-                placeholder="Nguyễn Văn A"
-                className="w-full px-4 py-2.5 rounded-xl border border-border bg-background focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
-              />
-            </div>
+            <>
+              <div>
+                <label className="block text-sm mb-1.5 font-medium">Họ tên</label>
+                <input
+                  value={fullname}
+                  onChange={e => {
+                    setFullname(e.target.value);
+                    setError("");
+                  }}
+                  placeholder="Nguyễn Văn A"
+                  className="w-full px-4 py-2.5 rounded-xl border border-border bg-background focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                />
+              </div>
+              <div>
+                <label className="block text-sm mb-1.5 font-medium">Email <span className="text-muted-foreground">(để khôi phục mật khẩu)</span></label>
+                <input
+                  type="email"
+                  value={email}
+                  required
+                  onChange={e => {
+                    setEmail(e.target.value);
+                    setError("");
+                  }}
+                  placeholder="email@example.com"
+                  className="w-full px-4 py-2.5 rounded-xl border border-border bg-background focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                />
+              </div>
+            </>
           )}
 
           <div>
@@ -161,6 +196,19 @@ export const AuthModal = () => {
           </button>
         </form>
 
+        {authMode === "login" && (
+          <button
+            type="button"
+            onClick={() => {
+              clearNotice();
+              setIsPasswordReset(true);
+            }}
+            className="mt-4 w-full text-right text-sm font-medium text-primary hover:underline"
+          >
+            Quên mật khẩu?
+          </button>
+        )}
+
         <p className="text-center text-muted-foreground text-sm mt-6 ">
           {authMode === "login" ? (
             <>
@@ -192,6 +240,8 @@ export const AuthModal = () => {
             </>
           )}
         </p>
+          </>
+        )}
       </div>
     </div>
   );

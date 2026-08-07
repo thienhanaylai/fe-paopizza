@@ -6,6 +6,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Toaster } from "sonner";
+import { PasswordResetForm } from "@/src/components/auth/PasswordResetForm";
 
 export type EmployeeRole = "admin" | "manager" | "staff";
 
@@ -23,6 +24,7 @@ export default function IndexPage() {
   const [selectedRole, setSelectedRole] = useState<EmployeeRole>("staff");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
+  const [isPasswordReset, setIsPasswordReset] = useState(false);
 
   const router = useRouter();
   const handleSubmit = async (e: React.FormEvent) => {
@@ -36,7 +38,7 @@ export default function IndexPage() {
       router.push("/is/dashboard");
       router.refresh();
     } else {
-      setError(res.message);
+      setError(res.message || "Đăng nhập thất bại. Vui lòng thử lại.");
     }
   };
 
@@ -44,7 +46,7 @@ export default function IndexPage() {
     if (isAuthenticated) {
       router.push("/is/dashboard");
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, router]);
 
   return (
     <div className="min-h-screen flex">
@@ -86,11 +88,13 @@ export default function IndexPage() {
           </div>
 
           <div className="mb-8">
-            <h2 className="text-2xl text-foreground mb-1">Đăng nhập quản trị</h2>
-            <p className="text-muted-foreground">Dành cho nhân viên và quản lý nhà hàng</p>
+            <h2 className="text-2xl text-foreground mb-1">{isPasswordReset ? "Quên mật khẩu" : "Đăng nhập quản trị"}</h2>
+            <p className="text-muted-foreground">
+              {isPasswordReset ? "Xác thực email để tạo mật khẩu mới" : "Dành cho nhân viên và quản lý nhà hàng"}
+            </p>
           </div>
 
-          <div className="grid grid-cols-3 gap-2 mb-6">
+          {!isPasswordReset && <div className="grid grid-cols-3 gap-2 mb-6">
             {roleOptions.map(opt => (
               <button
                 key={opt.role}
@@ -109,8 +113,12 @@ export default function IndexPage() {
                 </div>
               </button>
             ))}
-          </div>
+          </div>}
 
+          {isPasswordReset ? (
+            <PasswordResetForm userType="Employee" onBack={() => setIsPasswordReset(false)} />
+          ) : (
+            <>
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && <div className="bg-red-50 text-red-600 px-4 py-3 rounded-lg text-sm">{error}</div>}
 
@@ -158,6 +166,18 @@ export default function IndexPage() {
               Đăng nhập
             </button>
           </form>
+          <button
+            type="button"
+            onClick={() => {
+              setError("");
+              setIsPasswordReset(true);
+            }}
+            className="mt-4 w-full text-right text-sm font-medium text-primary hover:underline"
+          >
+            Quên mật khẩu?
+          </button>
+            </>
+          )}
         </div>
       </div>
       <Toaster position="top-right" richColors />
