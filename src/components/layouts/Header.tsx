@@ -110,6 +110,15 @@ export default function Header() {
     setIsMounted(true);
     fectData();
   }, []);
+
+  useEffect(() => {
+    const syncStoreFromSelection = () => {
+      fectData();
+    };
+
+    window.addEventListener("selected-store-changed", syncStoreFromSelection);
+    return () => window.removeEventListener("selected-store-changed", syncStoreFromSelection);
+  }, []);
   const handleCart = () => {
     setShowCart(true);
   };

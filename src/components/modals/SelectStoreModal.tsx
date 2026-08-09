@@ -130,7 +130,6 @@ export default function SelectStoreModal({ isOpen, onClose }: SelectStoreModalPr
     );
   }, [isCurrentRequest, loadNearestStores, loadAllStores]);
 
-  // ── Autocomplete địa chỉ ──────────────────────────────────────────
   const handleAddressInput = useCallback((value: string) => {
     setAddressInput(value);
     setSearchAddress(value);

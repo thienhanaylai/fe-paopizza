@@ -10,11 +10,12 @@ import { Skeleton } from "@/src/components/ui/skeleton";
 import { formatVND } from "@/src/utils/formatVND";
 import { getMenuByStoreId, MenuData, Product, Combo } from "@/src/services/menu.service";
 import { getAllIngredients } from "@/src/services/ingredient.service";
-import { getAllStore } from "@/src/services/store.service";
+import { getAllStore, StoreData } from "@/src/services/store.service";
 import { parseCrustOptions } from "./utils";
 import type { MenuCategoryUI, ExtraTopping, ComboSlotSelection } from "./types";
 import ProductDetailModal from "@/src/components/modals/ProductDetailModal";
 import ComboBuilderModal from "@/src/components/modals/ComboBuilderModal";
+import SelectStoreModal from "@/src/components/modals/SelectStoreModal";
 
 export default function IndexPage() {
   const { user } = useCustomerAuth();
@@ -27,6 +28,7 @@ export default function IndexPage() {
   const [product, setProduct] = useState<Product | null>(null);
   const [menu, setMenu] = useState<MenuData>();
   const [selectedStoreId, setSelectedStoreId] = useState<string>("");
+  const [showMissingMenuStorePicker, setShowMissingMenuStorePicker] = useState(false);
   const prevStoreIdRef = useRef<string>("");
   const [storeCount, setStoreCount] = useState<number>(0);
   const [extraToppings, setExtraToppings] = useState<ExtraTopping[]>([]);
@@ -141,6 +143,13 @@ export default function IndexPage() {
         ? menu?.products
         : menu?.products.filter(m => m?.category.slug === activeCategory);
 
+  const handleMissingMenuStoreSelected = (store: StoreData) => {
+    localStorage.setItem("selected_store", store._id);
+    setSelectedStoreId(store._id);
+    setShowMissingMenuStorePicker(false);
+    window.dispatchEvent(new CustomEvent("selected-store-changed", { detail: { storeId: store._id } }));
+  };
+
   useEffect(() => {
     const syncSelectedStore = () => {
       const currentStoreId = localStorage.getItem("selected_store") || "";
@@ -173,6 +182,8 @@ export default function IndexPage() {
     const fectData = async () => {
       try {
         setIsLoading(true);
+        setMenu(undefined);
+        setShowMissingMenuStorePicker(false);
         const { data: categories } = await getAllCategories();
         const menu = selectedStoreId ? await getMenuByStoreId(selectedStoreId) : null;
 
@@ -202,7 +213,9 @@ export default function IndexPage() {
         ];
         setCategories(finalCategories);
         setMenu(menu || undefined);
+        setShowMissingMenuStorePicker(Boolean(selectedStoreId && !menu));
       } catch {
+        setShowMissingMenuStorePicker(Boolean(selectedStoreId));
       } finally {
         setIsLoading(false);
       }
@@ -808,6 +821,10 @@ export default function IndexPage() {
           editOldSku={editComboOldSku}
           onClose={() => setSelectedCombo(null)}
         />
+      )}
+
+      {showMissingMenuStorePicker && (
+        <SelectStoreModal isOpen onClose={handleMissingMenuStoreSelected} />
       )}
     </>
   );
