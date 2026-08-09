@@ -14,7 +14,7 @@ import { formatVND } from "@/src/utils/formatVND";
 import { parseCrustOptions } from "@/src/app/(customer)/utils";
 import type { ComboSlotSelection } from "@/src/app/(customer)/types";
 import type { Product, Combo } from "@/src/services/menu.service";
-import SlotCard from "@/src/app/(customer)/components/SlotCard";
+import SlotCard from "@/src/components/ui/SlotCard";
 
 interface ComboBuilderModalProps {
   combo: Combo;

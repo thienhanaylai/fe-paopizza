@@ -37,7 +37,7 @@ const NavMenu = [
   },
   {
     name: "Về chúng tôi",
-    link: "/#about",
+    link: "/about",
   },
   {
     name: "Liên hệ",
@@ -200,7 +200,7 @@ export default function Header() {
                             <Pizza size={16} className="text-muted-foreground" />
                           ) : item.link.includes("tracking") ? (
                             <PackageSearch size={16} className="text-muted-foreground" />
-                          ) : item.link.includes("#about") ? (
+                          ) : item.link.includes("about") ? (
                             <Info size={16} className="text-muted-foreground" />
                           ) : item.link.includes("contact") ? (
                             <Phone size={16} className="text-muted-foreground" />

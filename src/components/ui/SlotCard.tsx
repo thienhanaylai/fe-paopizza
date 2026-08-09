@@ -1,11 +1,9 @@
 "use client";
 
 import Image from "next/image";
-import { parseCrustOptions } from "../utils";
+import { parseCrustOptions } from "../../app/(customer)/utils";
 import { formatCrustLabel } from "@/src/utils/formatCrustLabel";
 import type { Product } from "@/src/services/menu.service";
-import type { ComboSlotSelection } from "../types";
-
 interface SlotCardProps {
   product: Product;
   variant: Product["variants"][number];

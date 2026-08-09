@@ -11,7 +11,7 @@ const NavMenu = [
   },
   {
     name: "Về chúng tôi",
-    link: "/#about",
+    link: "/about",
   },
   {
     name: "Liên hệ",

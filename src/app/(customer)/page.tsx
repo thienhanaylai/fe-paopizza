@@ -10,7 +10,6 @@ import { Skeleton } from "@/src/components/ui/skeleton";
 import { formatVND } from "@/src/utils/formatVND";
 import { getMenuByStoreId, MenuData, Product, Combo } from "@/src/services/menu.service";
 import { getAllIngredients } from "@/src/services/ingredient.service";
-import { getAllStore, StoreData } from "@/src/services/store.service";
 import { parseCrustOptions } from "./utils";
 import type { MenuCategoryUI, ExtraTopping, ComboSlotSelection } from "./types";
 import ProductDetailModal from "@/src/components/modals/ProductDetailModal";
@@ -30,7 +29,6 @@ export default function IndexPage() {
   const [selectedStoreId, setSelectedStoreId] = useState<string>("");
   const [showMissingMenuStorePicker, setShowMissingMenuStorePicker] = useState(false);
   const prevStoreIdRef = useRef<string>("");
-  const [storeCount, setStoreCount] = useState<number>(0);
   const [extraToppings, setExtraToppings] = useState<ExtraTopping[]>([]);
 
   const [selectedCombo, setSelectedCombo] = useState<Combo | null>(null);
@@ -239,18 +237,6 @@ export default function IndexPage() {
   }, []);
 
   // Lấy số lượng cửa hàng thực tế
-  useEffect(() => {
-    const fetchStoreCount = async () => {
-      try {
-        const res = await getAllStore(1, 1);
-        setStoreCount(res.pagination?.total ?? 0);
-      } catch {
-        setStoreCount(0);
-      }
-    };
-    fetchStoreCount();
-  }, []);
-
   useEffect(() => {
     if (!editingSku || !menu) return;
 
@@ -767,42 +753,6 @@ export default function IndexPage() {
             })}
         </div>
       </section>
-      <section id="about" className="py-16 bg-card border-y border-border">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-            <div className="relative rounded-3xl overflow-hidden shadow-lg">
-              <Image
-                src="https://images.unsplash.com/photo-1594394206170-4ed1c3564417?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwaXp6YSUyMGNoZWYlMjBjb29raW5nJTIwb3ZlbnxlbnwxfHx8fDE3NzM2NDcwNDh8MA&ixlib=rb-4.1.0&q=80&w=1080"
-                alt="Kitchen"
-                fill
-                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                loading="eager"
-                className="relative!"
-              />
-            </div>
-            <div>
-              <h2 className="text-3xl text-foreground mb-4">Câu chuyện PaoPizza</h2>
-              <p className="text-muted-foreground mb-4">
-                Được thành lập vào năm 2020, PaoPizza mang đến hương vị pizza Ý đích thực giữa lòng Việt Nam.
-              </p>
-              <p className="text-muted-foreground mb-6">
-                Với đội ngũ đầu bếp được đào tạo tại Naples, mỗi chiếc pizza đều là một tác phẩm nghệ thuật ẩm thực.
-              </p>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="text-center p-4 bg-background rounded-xl">
-                  <p className="text-2xl text-primary">3+</p>
-                  <p className="text-xs text-muted-foreground mt-1">Năm kinh nghiệm</p>
-                </div>
-                <div className="text-center p-4 bg-background rounded-xl">
-                  <p className="text-2xl text-primary">{storeCount || "..."}</p>
-                  <p className="text-xs text-muted-foreground mt-1">Chi nhánh</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {product && (
         <ProductDetailModal
           products={filteredMenu1 ?? []}
