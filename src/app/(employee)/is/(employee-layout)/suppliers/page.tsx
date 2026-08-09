@@ -419,7 +419,7 @@ export default function Suppliers() {
                     className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70 hidden lg:table-cell"
                   />
                   <th className="text-center px-5 py-3.5 text-sm font-semibold text-foreground/70 hidden md:table-cell">
-                    Nguyên liệu cung cấp
+                    Số nguyên liệu cung cấp
                   </th>
                   <SortableHeader
                     label="Trạng thái"
@@ -465,7 +465,8 @@ export default function Suppliers() {
                             <div className="min-w-0">
                               <p className="text-sm font-semibold text-foreground truncate">{sup.name}</p>
                               <p className="text-xs text-muted-foreground md:hidden mt-0.5">
-                                {supplierCategoryLabels[sup.supplier_category] || sup.supplier_category} · {ingredientCount} nguyên liệu
+                                {supplierCategoryLabels[sup.supplier_category] || sup.supplier_category} · {ingredientCount}{" "}
+                                nguyên liệu
                               </p>
                             </div>
                           </div>
@@ -618,7 +619,6 @@ export default function Suppliers() {
                 </select>
               </div>
 
-              {/* Chọn nguyên liệu cung cấp */}
               <div>
                 <label className="block text-sm mb-1">Nguyên liệu cung cấp ({formIngredients.length} đã chọn)</label>
                 <div className="relative" ref={ingredientDropdownRef}>

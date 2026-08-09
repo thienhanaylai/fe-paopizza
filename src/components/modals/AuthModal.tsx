@@ -114,132 +114,131 @@ export const AuthModal = () => {
           <PasswordResetForm userType="Customer" onBack={() => setIsPasswordReset(false)} />
         ) : (
           <>
-        <form onSubmit={handleAuth} className="space-y-4 ">
-          {error && <div className="bg-red-50 text-red-600 px-4 py-3 rounded-lg text-sm">{error}</div>}
-          {success && <div className="bg-green-50 text-green-600 px-4 py-3 rounded-lg text-sm">{success}</div>}
+            <form onSubmit={handleAuth} className="space-y-4 ">
+              {error && <div className="bg-red-50 text-red-600 px-4 py-3 rounded-lg text-sm">{error}</div>}
+              {success && <div className="bg-green-50 text-green-600 px-4 py-3 rounded-lg text-sm">{success}</div>}
 
-          {authMode === "register" && (
-            <>
+              {authMode === "register" && (
+                <>
+                  <div>
+                    <label className="block text-sm mb-1.5 font-medium">Họ tên</label>
+                    <input
+                      value={fullname}
+                      onChange={e => {
+                        setFullname(e.target.value);
+                        setError("");
+                      }}
+                      placeholder="Nguyễn Văn A"
+                      className="w-full px-4 py-2.5 rounded-xl border border-border bg-background focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm mb-1.5 font-medium">Email</label>
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={e => {
+                        setEmail(e.target.value);
+                        setError("");
+                      }}
+                      placeholder="email@example.com"
+                      className="w-full px-4 py-2.5 rounded-xl border border-border bg-background focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                    />
+                  </div>
+                </>
+              )}
+
               <div>
-                <label className="block text-sm mb-1.5 font-medium">Họ tên</label>
+                <label className="block text-sm mb-1.5 font-medium">Số điện thoại</label>
                 <input
-                  value={fullname}
+                  type="text"
+                  value={phone}
+                  inputMode="numeric"
                   onChange={e => {
-                    setFullname(e.target.value);
+                    setPhone(e.target.value);
                     setError("");
                   }}
-                  placeholder="Nguyễn Văn A"
+                  placeholder="Nhập số điện thoại"
                   className="w-full px-4 py-2.5 rounded-xl border border-border bg-background focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
                 />
               </div>
+
               <div>
-                <label className="block text-sm mb-1.5 font-medium">Email <span className="text-muted-foreground">(để khôi phục mật khẩu)</span></label>
-                <input
-                  type="email"
-                  value={email}
-                  required
-                  onChange={e => {
-                    setEmail(e.target.value);
-                    setError("");
-                  }}
-                  placeholder="email@example.com"
-                  className="w-full px-4 py-2.5 rounded-xl border border-border bg-background focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
-                />
+                <label className="block text-sm mb-1.5 font-medium">Mật khẩu</label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={e => {
+                      setPassword(e.target.value);
+                      setError("");
+                    }}
+                    placeholder="Nhập mật khẩu"
+                    className="w-full px-4 py-2.5 rounded-xl border border-border bg-background focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none pr-12 transition-all"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute  right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
               </div>
-            </>
-          )}
 
-          <div>
-            <label className="block text-sm mb-1.5 font-medium">Số điện thoại</label>
-            <input
-              type="text"
-              value={phone}
-              inputMode="numeric"
-              onChange={e => {
-                setPhone(e.target.value);
-                setError("");
-              }}
-              placeholder="Nhập số điện thoại"
-              className="w-full px-4 py-2.5 rounded-xl border border-border bg-background focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm mb-1.5 font-medium">Mật khẩu</label>
-            <div className="relative">
-              <input
-                type={showPassword ? "text" : "password"}
-                value={password}
-                onChange={e => {
-                  setPassword(e.target.value);
-                  setError("");
-                }}
-                placeholder="Nhập mật khẩu"
-                className="w-full px-4 py-2.5 rounded-xl border border-border bg-background focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none pr-12 transition-all"
-              />
               <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute  right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full cursor-pointer bg-primary text-white py-3 rounded-xl hover:bg-primary/90 transition-colors shadow-lg shadow-primary/25 font-semibold mt-2 disabled:opacity-70"
               >
-                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                {isSubmitting ? "Đang xử lý..." : authMode === "login" ? "Đăng nhập" : "Đăng ký"}
               </button>
-            </div>
-          </div>
+            </form>
 
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full cursor-pointer bg-primary text-white py-3 rounded-xl hover:bg-primary/90 transition-colors shadow-lg shadow-primary/25 font-semibold mt-2 disabled:opacity-70"
-          >
-            {isSubmitting ? "Đang xử lý..." : authMode === "login" ? "Đăng nhập" : "Đăng ký"}
-          </button>
-        </form>
-
-        {authMode === "login" && (
-          <button
-            type="button"
-            onClick={() => {
-              clearNotice();
-              setIsPasswordReset(true);
-            }}
-            className="mt-4 w-full text-right text-sm font-medium text-primary hover:underline"
-          >
-            Quên mật khẩu?
-          </button>
-        )}
-
-        <p className="text-center text-muted-foreground text-sm mt-6 ">
-          {authMode === "login" ? (
-            <>
-              Chưa có tài khoản?{" "}
+            {authMode === "login" && (
               <button
                 type="button"
                 onClick={() => {
-                  setAuthMode("register");
                   clearNotice();
+                  setIsPasswordReset(true);
                 }}
-                className="text-primary hover:underline font-medium cursor-pointer"
+                className="mt-4 w-full text-right text-sm font-medium text-primary hover:underline"
               >
-                Đăng ký ngay
+                Quên mật khẩu?
               </button>
-            </>
-          ) : (
-            <>
-              Đã có tài khoản?{" "}
-              <button
-                type="button"
-                onClick={() => {
-                  setAuthMode("login");
-                  clearNotice();
-                }}
-                className="text-primary hover:underline font-medium cursor-pointer"
-              >
-                Đăng nhập
-              </button>
-            </>
-          )}
-        </p>
+            )}
+
+            <p className="text-center text-muted-foreground text-sm mt-6 ">
+              {authMode === "login" ? (
+                <>
+                  Chưa có tài khoản?{" "}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAuthMode("register");
+                      clearNotice();
+                    }}
+                    className="text-primary hover:underline font-medium cursor-pointer"
+                  >
+                    Đăng ký ngay
+                  </button>
+                </>
+              ) : (
+                <>
+                  Đã có tài khoản?{" "}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAuthMode("login");
+                      clearNotice();
+                    }}
+                    className="text-primary hover:underline font-medium cursor-pointer"
+                  >
+                    Đăng nhập
+                  </button>
+                </>
+              )}
+            </p>
           </>
         )}
       </div>

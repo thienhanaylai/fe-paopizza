@@ -141,10 +141,14 @@ export const setDefaultAddress = async (payload: UpdateCustomerAddressPayload, t
 
 export const updateCustomer = async (payload: UpdateCustomerInfo) => {
   try {
-    const response = await http("/api/v1/customers/update", {
-      method: "POST",
-      body: JSON.stringify(payload),
-    });
+    const response = await http(
+      "/api/v1/customers/update",
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+      "customer",
+    );
     return response.data;
   } catch (error) {
     console.error("Lỗi update customer:", error);

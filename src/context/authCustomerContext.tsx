@@ -121,9 +121,14 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
         };
       }
       if (status === 400) {
+        const registerErrorMessages: Record<string, string> = {
+          ACCOUNT_ALREADY_EXISTS: "Số điện thoại này đã được đăng ký.",
+          PHONE_ALREADY_EXISTS: "Số điện thoại này đã được đăng ký.",
+          EMAIL_ALREADY_EXISTS: "Email này đã được đăng ký.",
+        };
         return {
           success: false,
-          message: errData?.message === "ACCOUNT_ALREADY_EXISTS" ? "Tài khoản đã tồn tại" : "Lỗi đăng ký!",
+          message: registerErrorMessages[errData?.message || ""] || errData?.message || "Lỗi đăng ký!",
         };
       }
       return {

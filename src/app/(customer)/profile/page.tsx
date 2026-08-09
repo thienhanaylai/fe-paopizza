@@ -77,6 +77,16 @@ function formatVND(n: number) {
   return new Intl.NumberFormat("vi-VN").format(n) + "đ";
 }
 
+function getCustomerUpdateErrorMessage(error: unknown) {
+  const message = error instanceof Error ? error.message : "";
+  const errorMessages: Record<string, string> = {
+    PHONE_ALREADY_EXISTS: "Số điện thoại này đã được sử dụng bởi tài khoản khác.",
+    EMAIL_ALREADY_EXISTS: "Email này đã được sử dụng bởi tài khoản khác.",
+  };
+
+  return errorMessages[message] || message || "Lỗi khi cập nhật thông tin";
+}
+
 export default function Profile() {
   const { user, getInfo } = useCustomerAuth();
 
@@ -306,7 +316,6 @@ export default function Profile() {
                   ) : (
                     <button
                       onClick={async () => {
-                        setEditing(false);
                         try {
                           await updateCustomer({
                             user_id: user.id,
@@ -317,10 +326,11 @@ export default function Profile() {
                             birthday: birthday || undefined,
                           });
 
-                          showSaved("Đã lưu thông tin");
                           await getInfo();
-                        } catch {
-                          toast.error("Lỗi khi cập nhật thông tin");
+                          setEditing(false);
+                          showSaved("Đã lưu thông tin");
+                        } catch (updateError) {
+                          toast.error(getCustomerUpdateErrorMessage(updateError));
                         }
                       }}
                       className="flex items-center gap-1.5 text-sm bg-primary text-white px-3 py-1.5 rounded-lg hover:bg-primary/90"
@@ -343,6 +353,7 @@ export default function Profile() {
                     <div>
                       <label className="block text-xs text-muted-foreground mb-1.5">Email</label>
                       <input
+                        type="email"
                         value={email || ""}
                         onChange={e => setEmail(e.target.value)}
                         disabled={!editing}
