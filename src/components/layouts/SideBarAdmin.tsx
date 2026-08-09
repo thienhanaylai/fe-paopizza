@@ -24,6 +24,7 @@ import {
   Package,
   MenuIcon,
   Tag,
+  Crown,
 } from "lucide-react";
 import { useState } from "react";
 import Link from "next/link";
@@ -43,6 +44,7 @@ const navItems: NavItem[] = [
   { label: "Quản lý sản phẩm", path: "/is/products", icon: <Pizza size={20} />, roles: ["admin"] },
   { label: "Quản lý thực đơn", path: "/is/menu", icon: <MenuIcon size={20} />, roles: ["admin"] },
   { label: "Quản lý khuyến mãi", path: "/is/promotions", icon: <Tag size={20} />, roles: ["admin"] },
+  { label: "Khách hàng thân thiết", path: "/is/loyalty-customers", icon: <Crown size={20} />, roles: ["admin"] },
   { label: "Danh mục nguyên liệu", path: "/is/ingredient-catalog", icon: <Warehouse size={20} />, roles: ["admin"] },
   { label: "Nhà cung cấp", path: "/is/suppliers", icon: <Truck size={20} />, roles: ["admin"] },
   { label: "Kho nguyên liệu", path: "/is/inventory", icon: <Package size={20} />, roles: ["manager"] },

@@ -40,6 +40,78 @@ export interface DeleteCustomerAddressPayload {
   address_id: string;
 }
 
+export type LoyaltyTier = "member" | "silver" | "gold" | "diamond";
+
+export interface LoyaltyCustomer {
+  _id: string;
+  name: string;
+  phone?: string;
+  email?: string;
+  currentPoint: number;
+  totalPoint: number;
+  tier: LoyaltyTier;
+  completedOrderCount: number;
+  totalItemsPurchased: number;
+  totalSpent: number;
+  lastOrderAt?: string;
+  createdAt: string;
+}
+
+export interface LoyaltySummary {
+  totalCustomers: number;
+  totalCompletedOrders: number;
+  totalItemsPurchased: number;
+  totalSpent: number;
+  tierCounts: Record<LoyaltyTier, number>;
+}
+
+export interface LoyaltyCustomersResponse {
+  data: LoyaltyCustomer[];
+  summary: LoyaltySummary;
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
+export interface LoyaltyCustomersQuery {
+  page?: number;
+  limit?: number;
+  search?: string;
+  tier?: LoyaltyTier | "all";
+  sortBy?: keyof Pick<
+    LoyaltyCustomer,
+    | "name"
+    | "currentPoint"
+    | "totalPoint"
+    | "tier"
+    | "completedOrderCount"
+    | "totalItemsPurchased"
+    | "totalSpent"
+    | "lastOrderAt"
+    | "createdAt"
+  >;
+  sortOrder?: "asc" | "desc";
+}
+
+export const getLoyaltyCustomers = async (
+  query: LoyaltyCustomersQuery = {},
+): Promise<LoyaltyCustomersResponse> => {
+  const params = new URLSearchParams();
+
+  Object.entries(query).forEach(([key, value]) => {
+    if (value !== undefined && value !== "") {
+      params.set(key, String(value));
+    }
+  });
+
+  return http(`/api/v1/customers/loyalty?${params.toString()}`, {
+    method: "GET",
+  });
+};
+
 export const getAllEmployee = async (payload: UpdateCustomerInfo) => {
   try {
     const response = await http("/api/v1/customers/update", {

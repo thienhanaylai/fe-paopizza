@@ -292,7 +292,10 @@ export default function PromotionsPage() {
           </div>
           <div>
             <p className="text-muted-foreground text-sm">Tổng</p>
-            <p className="text-foreground text-xl">{stats.total}</p>
+            <div className="flex items-end">
+              <p className="text-foreground text-xl">{stats.total}</p>
+              <p className="ml-1 truncate text-xs text-muted-foreground"> Mã</p>
+            </div>
           </div>
         </div>
         <div className="bg-card rounded-2xl p-4 border border-border flex items-center gap-3">
@@ -301,7 +304,10 @@ export default function PromotionsPage() {
           </div>
           <div>
             <p className="text-muted-foreground text-sm">Đang hoạt động</p>
-            <p className="text-foreground text-xl">{stats.active}</p>
+            <div className="flex items-end">
+              <p className="text-foreground text-xl">{stats.active}</p>
+              <p className="ml-1 truncate text-xs text-muted-foreground"> Mã</p>
+            </div>
           </div>
         </div>
         <div className="bg-card rounded-2xl p-4 border border-border flex items-center gap-3">
@@ -310,7 +316,10 @@ export default function PromotionsPage() {
           </div>
           <div>
             <p className="text-muted-foreground text-sm">Bản nháp</p>
-            <p className="text-foreground text-xl">{stats.draft}</p>
+            <div className="flex items-end">
+              <p className="text-foreground text-xl">{stats.draft}</p>
+              <p className="ml-1 truncate text-xs text-muted-foreground"> Mã</p>
+            </div>
           </div>
         </div>
         <div className="bg-card rounded-2xl p-4 border border-border flex items-center gap-3">
@@ -319,7 +328,10 @@ export default function PromotionsPage() {
           </div>
           <div>
             <p className="text-muted-foreground text-sm">Hết hạn</p>
-            <p className="text-foreground text-xl">{stats.expired}</p>
+            <div className="flex items-end">
+              <p className="text-foreground text-xl">{stats.expired}</p>
+              <p className="ml-1 truncate text-xs text-muted-foreground"> Mã</p>
+            </div>
           </div>
         </div>
       </div>
