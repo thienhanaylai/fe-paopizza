@@ -774,7 +774,7 @@ export default function IndexPage() {
       )}
 
       {showMissingMenuStorePicker && (
-        <SelectStoreModal isOpen onClose={handleMissingMenuStoreSelected} />
+        <SelectStoreModal isOpen onClose={handleMissingMenuStoreSelected} onDismiss={() => setShowMissingMenuStorePicker(false)} />
       )}
     </>
   );

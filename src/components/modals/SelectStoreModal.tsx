@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, Check, Clock, Loader2, MapPin, Navigation, Search, StoreIcon } from "lucide-react";
+import { ArrowRight, Check, Clock, Loader2, MapPin, Navigation, Search, StoreIcon, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getAllStore, getNearestStore, NearestStoreData, StoreData } from "@/src/services/store.service";
 import { autocomplete, placeDetail } from "@/src/services/map.service";
@@ -14,6 +14,7 @@ const AUTOCOMPLETE_CACHE_LIMIT = 50;
 interface SelectStoreModalProps {
   isOpen: boolean;
   onClose: (selectedStore: StoreData) => void;
+  onDismiss?: () => void;
 }
 
 function formatDistance(meters: number): string {
@@ -23,7 +24,7 @@ function formatDistance(meters: number): string {
   return `${(meters / 1000).toFixed(1)} km`;
 }
 
-export default function SelectStoreModal({ isOpen, onClose }: SelectStoreModalProps) {
+export default function SelectStoreModal({ isOpen, onClose, onDismiss }: SelectStoreModalProps) {
   const [listStore, setListStore] = useState<StoreItem[]>([]);
   const [selectedStore, setSelectedStore] = useState<StoreData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -269,6 +270,8 @@ export default function SelectStoreModal({ isOpen, onClose }: SelectStoreModalPr
     onClose(selectedStore);
   };
 
+  const canDismiss = typeof window !== "undefined" && Boolean(localStorage.getItem("selected_store"));
+
   // Lọc cửa hàng theo địa chỉ tìm kiếm
   const filteredStores = searchAddress.trim()
     ? listStore.filter(s => {
@@ -302,6 +305,17 @@ export default function SelectStoreModal({ isOpen, onClose }: SelectStoreModalPr
               </p>
             </div>
           </div>
+          {canDismiss && onDismiss && (
+            <button
+              type="button"
+              onClick={onDismiss}
+              className="ml-3 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-muted hover:text-foreground cursor-pointer"
+              aria-label="Đóng chọn cửa hàng"
+              title="Đóng"
+            >
+              <X size={18} />
+            </button>
+          )}
         </div>
 
         {/* Body */}

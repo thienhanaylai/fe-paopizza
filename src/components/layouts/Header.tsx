@@ -362,7 +362,11 @@ export default function Header() {
         </div>
       </header>
       {(showInitialStoreModal || showStorePicker) && (
-        <SelectStoreModal isOpen onClose={showInitialStoreModal ? handleStoreSelected : handleStorePickerSelected} />
+        <SelectStoreModal
+          isOpen
+          onClose={showInitialStoreModal ? handleStoreSelected : handleStorePickerSelected}
+          onDismiss={showInitialStoreModal ? undefined : () => setShowStorePicker(false)}
+        />
       )}
     </>
   );
