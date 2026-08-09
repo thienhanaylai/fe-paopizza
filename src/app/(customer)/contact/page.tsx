@@ -94,7 +94,7 @@ export default function ContactPage() {
                   {
                     icon: <Clock size={21} />,
                     label: "Giờ mở cửa",
-                    value: selectedStore ? `${selectedStore.time_open} - ${selectedStore.time_close}` : "Đang cập nhật",
+                    value: selectedStore ? `${selectedStore.timeOpen} - ${selectedStore.timeClose}` : "Đang cập nhật",
                   },
                 ].map(item => (
                   <div key={item.label} className="rounded-2xl border border-border bg-card p-5 text-center">

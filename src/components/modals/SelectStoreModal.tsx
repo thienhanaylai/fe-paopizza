@@ -461,7 +461,7 @@ export default function SelectStoreModal({ isOpen, onClose }: SelectStoreModalPr
 
                         <div className="flex items-center gap-3 mt-1.5 flex-wrap text-[10px]">
                           <span className="text-muted-foreground flex items-center gap-1">
-                            <Clock size={10} /> {s.time_open} - {s.time_close}
+                            <Clock size={10} /> {s.timeOpen} - {s.timeClose}
                           </span>
                         </div>
                       </div>

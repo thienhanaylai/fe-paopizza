@@ -9,12 +9,18 @@ export interface Supplier {
   name: string;
   email: string;
   phone: string;
-  supplier_category: SupplierCategory;
+  supplierCategory: SupplierCategory;
   supplierIngredients: IngredientData[];
   isActive: boolean;
   isDeleted: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface SupplierOption {
+  _id: string;
+  name: string;
+  supplierIngredients: Array<Pick<IngredientData, "_id" | "name" | "unit" | "category"> | string>;
 }
 
 export interface SupplierListResponse {
@@ -26,14 +32,14 @@ export interface SupplierResponse {
 }
 
 export interface SupplierCategoryResponse {
-  supplier_category: SupplierCategory[];
+  supplierCategory: SupplierCategory[];
 }
 
 export interface CreateSupplierPayload {
   name: string;
   email?: string;
   phone?: string;
-  supplier_category: SupplierCategory;
+  supplierCategory: SupplierCategory;
   isActive?: boolean;
   supplierIngredients?: string[];
 }
@@ -43,7 +49,7 @@ export interface UpdateSupplierPayload {
   name?: string;
   email?: string;
   phone?: string;
-  supplier_category?: SupplierCategory;
+  supplierCategory?: SupplierCategory;
   isActive?: boolean;
   supplierIngredients?: string[];
 }
@@ -71,12 +77,24 @@ export const getAllSupplier = async (page?: number, limit?: number) => {
   }
 };
 
+export const getSupplierOptions = async () => {
+  try {
+    const response = await http("/api/v1/supplier/options", {
+      method: "GET",
+    });
+    return response as { data: SupplierOption[] };
+  } catch (error) {
+    console.error("Lỗi fetch :", error);
+    throw error;
+  }
+};
+
 export const getSupplierCategories = async () => {
   try {
     const response = await http("/api/v1/supplier/categories", {
       method: "GET",
     });
-    return response.supplier_category;
+    return response.supplierCategory;
   } catch (error) {
     console.error("Lỗi fetch :", error);
     throw error;

@@ -142,7 +142,7 @@ export default function Suppliers() {
     setFormName(supplier.name || "");
     setFormEmail(supplier.email || "");
     setFormPhone(supplier.phone || "");
-    setFormCategory(supplier.supplier_category || "dough");
+    setFormCategory(supplier.supplierCategory || "dough");
     setFormIsActive(Boolean(supplier.isActive));
     setFormIngredients((supplier.supplierIngredients || []).map((ing: IngredientData) => ing._id));
     setShowModal(true);
@@ -174,7 +174,7 @@ export default function Suppliers() {
           name: formName,
           email: formEmail,
           phone: formPhone,
-          supplier_category: formCategory,
+          supplierCategory: formCategory,
           isActive: formIsActive,
           supplierIngredients: formIngredients,
         });
@@ -184,7 +184,7 @@ export default function Suppliers() {
           name: formName,
           email: formEmail,
           phone: formPhone,
-          supplier_category: formCategory,
+          supplierCategory: formCategory,
           isActive: formIsActive,
           supplierIngredients: formIngredients,
         });
@@ -232,7 +232,7 @@ export default function Suppliers() {
   const rawFiltered = listSuppliers.filter(
     s =>
       s.name.toLowerCase().includes(search.toLowerCase()) ||
-      supplierCategoryLabels[s.supplier_category].toLowerCase().includes(search.toLowerCase()) ||
+      supplierCategoryLabels[s.supplierCategory].toLowerCase().includes(search.toLowerCase()) ||
       s.email.toLowerCase().includes(search.toLowerCase()) ||
       s.phone.toLowerCase().includes(search.toLowerCase()),
   );
@@ -399,7 +399,7 @@ export default function Suppliers() {
                   />
                   <SortableHeader
                     label="Danh mục"
-                    sortKey="supplier_category"
+                    sortKey="supplierCategory"
                     sortConfig={supplierSortConfig}
                     onSort={toggleSupplierSort}
                     className="text-left px-5 py-3.5 text-sm font-semibold text-foreground/70 hidden md:table-cell"
@@ -465,15 +465,15 @@ export default function Suppliers() {
                             <div className="min-w-0">
                               <p className="text-sm font-semibold text-foreground truncate">{sup.name}</p>
                               <p className="text-xs text-muted-foreground md:hidden mt-0.5">
-                                {supplierCategoryLabels[sup.supplier_category] || sup.supplier_category} · {ingredientCount}{" "}
-                                nguyên liệu
+                                {supplierCategoryLabels[sup.supplierCategory] || sup.supplierCategory} · {ingredientCount} nguyên
+                                liệu
                               </p>
                             </div>
                           </div>
                         </td>
                         <td className="px-5 py-3.5 hidden md:table-cell">
                           <span className="text-sm text-foreground/80">
-                            {supplierCategoryLabels[sup.supplier_category] || sup.supplier_category}
+                            {supplierCategoryLabels[sup.supplierCategory] || sup.supplierCategory}
                           </span>
                         </td>
                         <td className="px-5 py-3.5 hidden lg:table-cell">

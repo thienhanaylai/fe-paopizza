@@ -157,8 +157,8 @@ export default function Stores() {
     setLongitude(store.location?.coordinates?.[0]?.toString() || "");
     setPhoneStore(store.phone || "");
     setEmailStore(store.email || "");
-    setTimeOpenStore(store.time_open || "10:00");
-    setTimeCloseStore(store.time_close || "22:00");
+    setTimeOpenStore(store.timeOpen || "10:00");
+    setTimeCloseStore(store.timeClose || "22:00");
     setManagerStore(store.manager_by?._id || "");
     setStatusStore(store.status || "active");
     setShowForm(true);
@@ -218,8 +218,8 @@ export default function Stores() {
           address: addressPayload,
           phone: phoneStore,
           email: emailStore,
-          time_open: timeOpenStore,
-          time_close: timeCloseStore,
+          timeOpen: timeOpenStore,
+          timeClose: timeCloseStore,
           manager_by: managerStore,
           status: statusStore,
           location: locationPayload,
@@ -237,8 +237,8 @@ export default function Stores() {
           address: addressPayload,
           phone: phoneStore,
           email: emailStore,
-          time_open: timeOpenStore,
-          time_close: timeCloseStore,
+          timeOpen: timeOpenStore,
+          timeClose: timeCloseStore,
           manager_by: managerStore,
           location: locationPayload,
         });
@@ -623,7 +623,7 @@ export default function Stores() {
                   {
                     icon: <Clock size={16} />,
                     label: "Giờ mở cửa",
-                    value: `${selectedStore.time_open} - ${selectedStore.time_close}`,
+                    value: `${selectedStore.timeOpen} - ${selectedStore.timeClose}`,
                   },
                   { icon: <Users size={16} />, label: "Quản lý", value: selectedStore.manager_by?.name },
                   { icon: <Users size={16} />, label: "Số nhân viên", value: `${selectedStore.employee_count} người` },

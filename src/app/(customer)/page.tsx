@@ -716,7 +716,7 @@ export default function IndexPage() {
                                   {/* Discount badge: hiển thị % giảm cao nhất trong các variant */}
                                   {(() => {
                                     const maxDiscount = item.variants.reduce((max, v) => {
-                                      if (v.disscountType === "percent" && v.discount && v.discount > max) return v.discount;
+                                      if (v.discountType === "percent" && v.discount && v.discount > max) return v.discount;
                                       return max;
                                     }, 0);
                                     return maxDiscount > 0 ? (

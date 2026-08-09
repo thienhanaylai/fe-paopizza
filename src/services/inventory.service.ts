@@ -8,11 +8,24 @@ export interface InventoryIngredientRef {
   costPerUnit: number;
 }
 
+export interface InventorySupplierRef {
+  _id: string;
+  name: string;
+}
+
+export interface InventoryBatch {
+  _id: string;
+  supplier_id: InventorySupplierRef | string | null;
+  expiry_date: string;
+  quantity: number;
+}
+
 export interface InventoryIngredientItem {
   _id: string;
   ingredient_id: InventoryIngredientRef;
   current_stock: number;
   min_stock_level: number;
+  batches?: InventoryBatch[];
 }
 
 export interface InventoryStoreRef {
@@ -37,16 +50,23 @@ export interface InventoryResponse {
 export interface UpdateInventoryPayload {
   store_id: string;
   ingredient_id: string;
-  current_stock: number;
+  current_stock?: number;
   min_stock_level?: number;
 }
 
-export interface UpdateInventoryStockPayload {
+interface InventoryStockPayloadBase {
   store_id: string;
   ingredient_id: string;
   quantity: number;
-  type?: "add" | "subtract";
+  min_stock_level?: number;
 }
+
+export type UpdateInventoryStockPayload = InventoryStockPayloadBase &
+  (
+    | { type: "add"; supplier_id: string; expiry_date: string }
+    | { type: "subtract"; supplier_id?: never; expiry_date?: never }
+    | { type: "set"; supplier_id?: never; expiry_date?: never }
+  );
 
 export interface SummaryShiftItemPayload {
   ingredient_id?: string;

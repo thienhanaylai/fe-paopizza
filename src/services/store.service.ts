@@ -12,8 +12,8 @@ export type StoreData = {
   employee_count: number;
   phone: string;
   email: string;
-  time_open: string;
-  time_close: string;
+  timeOpen: string;
+  timeClose: string;
   location: StoreLocation | null;
   manager_by: { _id: string; name: string; email: string; phone: string; station: string } | null;
   status: store_status;
@@ -70,8 +70,8 @@ export const createStore = async (payload: {
   address: StoreAddress;
   phone: string;
   email: string;
-  time_open: string;
-  time_close: string;
+  timeOpen: string;
+  timeClose: string;
   manager_by: string;
   location?: StoreLocation;
   status?: store_status;
@@ -100,8 +100,8 @@ export const updateStore = async (payload: {
   address: StoreAddress;
   phone: string;
   email: string;
-  time_open: string;
-  time_close: string;
+  timeOpen: string;
+  timeClose: string;
   manager_by: string;
   status?: store_status;
   location?: StoreLocation;

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import "@goongmaps/goong-js/dist/goong-js.css";
-import { MapPin, Phone, Store } from "lucide-react";
+import { ChevronRight, MapPin, Phone, Store } from "lucide-react";
 import { renderToString } from "react-dom/server";
 import type { StoreData } from "@/src/services/store.service";
 
@@ -55,6 +55,7 @@ export default function GoongMap({ stores = [], onStoreSelect }: GoongMapProps) 
   const pendingStoreIdRef = useRef<string | null>(null);
   const onStoreSelectRef = useRef(onStoreSelect);
   const [activeStoreId, setActiveStoreId] = useState<string | null>(null);
+  const [isStoreListOpen, setIsStoreListOpen] = useState(false);
 
   useEffect(() => {
     onStoreSelectRef.current = onStoreSelect;
@@ -186,12 +187,32 @@ export default function GoongMap({ stores = [], onStoreSelect }: GoongMapProps) 
       <div ref={mapContainer} className="h-full w-full" />
 
       <aside className="absolute top-3 left-3 z-10 w-[calc(100%-1.5rem)] max-w-72 overflow-hidden rounded-xl border border-border bg-card/95 shadow-lg backdrop-blur sm:w-72">
-        <div className="border-b border-border px-3 py-2.5">
-          <p className="text-sm font-bold text-foreground">Cửa hàng PaoPizza</p>
-          <p className="text-[11px] text-muted-foreground">Chọn cửa hàng để xem vị trí trên bản đồ</p>
+        <div className="flex items-center justify-between px-3 py-2.5">
+          <div>
+            <p className="text-sm font-bold text-foreground">Cửa hàng PaoPizza</p>
+            <p className="text-[11px] text-muted-foreground">Chọn cửa hàng để xem vị trí trên bản đồ</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsStoreListOpen(isOpen => !isOpen)}
+            aria-expanded={isStoreListOpen}
+            aria-controls="goong-map-store-list"
+            aria-label={isStoreListOpen ? "Thu gọn danh sách cửa hàng" : "Mở danh sách cửa hàng"}
+            className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <ChevronRight
+              size={18}
+              aria-hidden="true"
+              className={`transition-transform ${isStoreListOpen ? "rotate-90" : ""}`}
+            />
+          </button>
         </div>
 
-        <div className="max-h-60 overscroll-contain overflow-y-auto p-1.5">
+        {isStoreListOpen && (
+          <div
+            id="goong-map-store-list"
+            className="max-h-60 overscroll-contain overflow-y-auto border-t border-border p-1.5"
+          >
           {storesWithLocation.length === 0 ? (
             <p className="px-2 py-3 text-xs text-muted-foreground">Chưa có cửa hàng có vị trí trên bản đồ.</p>
           ) : (
@@ -227,7 +248,8 @@ export default function GoongMap({ stores = [], onStoreSelect }: GoongMapProps) 
               );
             })
           )}
-        </div>
+          </div>
+        )}
       </aside>
     </div>
   );

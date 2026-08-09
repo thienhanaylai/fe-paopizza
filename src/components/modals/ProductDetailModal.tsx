@@ -231,10 +231,10 @@ export default function ProductDetailModal({
     if (!selectedVariant) return unitPrice;
     const discount = Number(selectedVariant.discount) || 0;
     if (discount <= 0) return unitPrice;
-    if (selectedVariant.disscountType === "percent") {
+    if (selectedVariant.discountType === "percent") {
       return Math.round(unitPrice * (1 - discount / 100));
     }
-    if (selectedVariant.disscountType === "amount") {
+    if (selectedVariant.discountType === "amount") {
       return Math.max(0, unitPrice - discount);
     }
     return unitPrice;
@@ -243,7 +243,7 @@ export default function ProductDetailModal({
   const hasDiscount =
     selectedVariant &&
     Number(selectedVariant.discount) > 0 &&
-    (selectedVariant.disscountType === "percent" || selectedVariant.disscountType === "amount");
+    (selectedVariant.discountType === "percent" || selectedVariant.discountType === "amount");
 
   const isEditMode = useMemo(() => {
     if (!selectedVariant || !cart) return false;
@@ -579,7 +579,7 @@ export default function ProductDetailModal({
                                   <>
                                     <span className="text-white/70 line-through text-sm">{formatVND(unitPrice)}</span>
                                     <span className="bg-white/20 text-white text-xs px-1.5 py-0.5 rounded font-medium">
-                                      {selectedVariant.disscountType === "percent"
+                                      {selectedVariant.discountType === "percent"
                                         ? `-${selectedVariant.discount}%`
                                         : `-${formatVND(selectedVariant.discount || 0)}`}
                                     </span>
