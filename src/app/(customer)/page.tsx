@@ -359,17 +359,17 @@ export default function IndexPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 lg:py-24">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div>
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-primary/10 rounded-full text-primary text-sm mb-6">
+              {/* <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-primary/10 rounded-full text-primary text-sm mb-6">
                 <Award size={16} /> #1 Pizza tại Việt Nam
-              </div>
+              </div> */}
               <h1 className="text-4xl lg:text-5xl text-foreground leading-tight mb-6">
-                Pizza tươi ngon,
+                PaoPizza - Pizza tươi ngon,
                 <br />
                 <span className="text-primary">giao tận tay bạn</span>
               </h1>
               <p className="text-muted-foreground text-lg mb-8 max-w-lg">
-                Thưởng thức pizza thủ công với nguyên liệu tươi nhất, nướng trong lò gạch truyền thống. Giao hàng nhanh trong 30
-                phút.
+                Thưởng thức pizza thủ công tại PaoPizza, làm từ nguyên liệu tươi ngon và nướng trong lò gạch truyền thống. Giao
+                hàng nhanh trong 30 phút.
               </p>
               <div className="flex flex-col sm:flex-row gap-3">
                 <a
@@ -774,7 +774,11 @@ export default function IndexPage() {
       )}
 
       {showMissingMenuStorePicker && (
-        <SelectStoreModal isOpen onClose={handleMissingMenuStoreSelected} onDismiss={() => setShowMissingMenuStorePicker(false)} />
+        <SelectStoreModal
+          isOpen
+          onClose={handleMissingMenuStoreSelected}
+          onDismiss={() => setShowMissingMenuStorePicker(false)}
+        />
       )}
     </>
   );

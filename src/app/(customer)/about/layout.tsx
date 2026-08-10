@@ -1,7 +1,7 @@
 import { createSeoMetadata } from "@/src/config/seo";
 
 export const metadata = createSeoMetadata({
-  title: "Về chúng tôi",
+  title: "Câu chuyện thương hiệu",
   description: "Khám phá câu chuyện, giá trị và hành trình tạo nên những chiếc pizza thủ công của PaoPizza.",
   path: "/about",
 });

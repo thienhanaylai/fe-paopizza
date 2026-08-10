@@ -66,7 +66,7 @@ export default function AboutPage() {
               <Sparkles size={14} /> Câu chuyện của PaoPizza
             </div>
             <h1 className="max-w-xl text-4xl font-bold leading-tight text-foreground sm:text-5xl">
-              Một chiếc pizza ngon bắt đầu từ mong muốn được quây quần.
+              Câu chuyện PaoPizza bắt đầu từ mong muốn được quây quần.
             </h1>
             <p className="mt-6 max-w-xl text-base leading-7 text-muted-foreground sm:text-lg">
               PaoPizza là nơi chúng tôi gửi gắm tình yêu với những bữa ăn ấm áp: một chiếc bánh vừa ra lò, một bàn ăn đầy tiếng

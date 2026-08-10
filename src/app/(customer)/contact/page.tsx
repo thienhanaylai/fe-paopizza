@@ -62,7 +62,7 @@ export default function ContactPage() {
     <div className="flex-1 bg-background">
       <section className="border-b border-border bg-card py-12 sm:py-16">
         <div className="mx-auto max-w-7xl px-4 text-center sm:px-6 lg:px-8">
-          <h1 className="mb-3 text-3xl font-bold text-foreground sm:text-4xl">Liên hệ với chúng tôi</h1>
+          <h1 className="mb-3 text-3xl font-bold text-foreground sm:text-4xl">Cửa hàng PaoPizza - Địa chỉ và liên hệ</h1>
           <p className="mx-auto max-w-2xl text-muted-foreground">
             Chọn một chi nhánh trên bản đồ để xem vị trí, số điện thoại và thời gian hoạt động.
           </p>

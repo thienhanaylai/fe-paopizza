@@ -11,11 +11,11 @@ const NavMenu = [
     link: "/#menu",
   },
   {
-    name: "Về chúng tôi",
+    name: "Về PaoPizza",
     link: "/about",
   },
   {
-    name: "Liên hệ",
+    name: "Cửa hàng PaoPizza",
     link: "/contact",
   },
   {
@@ -32,7 +32,7 @@ export default function Footer() {
     ...(process.env.NEXT_PUBLIC_INSTAGRAM_URL
       ? [{ label: "Instagram", href: process.env.NEXT_PUBLIC_INSTAGRAM_URL, icon: Instagram, external: true }]
       : []),
-    { label: "Liên hệ", href: "/contact", icon: Mail, external: false },
+    { label: "Liên hệ PaoPizza", href: "/contact", icon: Mail, external: false },
   ];
 
   return (

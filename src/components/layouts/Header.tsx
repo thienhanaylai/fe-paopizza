@@ -36,11 +36,11 @@ const NavMenu = [
     link: "/tracking",
   },
   {
-    name: "Về chúng tôi",
+    name: "Về PaoPizza",
     link: "/about",
   },
   {
-    name: "Liên hệ",
+    name: "Cửa hàng PaoPizza",
     link: "/contact",
   },
 ];
