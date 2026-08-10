@@ -1,5 +1,6 @@
 import { Pizza, Mail, Facebook, Instagram } from "lucide-react";
 import Link from "next/link";
+
 const NavMenu = [
   {
     name: "Trang chủ",
@@ -22,7 +23,18 @@ const NavMenu = [
     link: "/is",
   },
 ];
+
 export default function Footer() {
+  const socialLinks = [
+    ...(process.env.NEXT_PUBLIC_FACEBOOK_URL
+      ? [{ label: "Facebook", href: process.env.NEXT_PUBLIC_FACEBOOK_URL, icon: Facebook, external: true }]
+      : []),
+    ...(process.env.NEXT_PUBLIC_INSTAGRAM_URL
+      ? [{ label: "Instagram", href: process.env.NEXT_PUBLIC_INSTAGRAM_URL, icon: Instagram, external: true }]
+      : []),
+    { label: "Liên hệ", href: "/contact", icon: Mail, external: false },
+  ];
+
   return (
     <footer className="bg-sidebar text-sidebar-foreground py-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -36,13 +48,18 @@ export default function Footer() {
             </div>
             <p className="text-sidebar-foreground/60 text-sm max-w-sm">Pizza Ý đích thực, giao hàng tận nơi.</p>
             <div className="flex items-center gap-3 mt-4">
-              {[Facebook, Instagram, Mail].map((Icon, i) => (
-                <button
-                  key={i}
+              {socialLinks.map(({ label, href, icon: Icon, external }) => (
+                <a
+                  key={label}
+                  href={href}
+                  aria-label={label}
+                  title={label}
+                  target={external ? "_blank" : undefined}
+                  rel={external ? "noopener noreferrer" : undefined}
                   className="w-9 h-9 rounded-lg bg-sidebar-accent flex items-center justify-center text-sidebar-foreground/60 hover:text-white transition-colors"
                 >
                   <Icon size={16} />
-                </button>
+                </a>
               ))}
             </div>
           </div>
@@ -60,9 +77,13 @@ export default function Footer() {
           </div>
           <div>
             <h4 className="text-white mb-3">Chính sách</h4>
-            <div className="space-y-2 text-sm text-sidebar-foreground/60">
-              <p className="hover:text-white cursor-pointer transition-colors">Chính sách bảo mật</p>
-              <p className="hover:text-white cursor-pointer transition-colors">Điều khoản sử dụng</p>
+            <div className="space-y-2 text-sm text-sidebar-foreground/60 flex flex-col">
+              <Link href="/privacy" className="hover:text-white transition-colors">
+                Chính sách bảo mật
+              </Link>
+              <Link href="/terms" className="hover:text-white transition-colors">
+                Điều khoản sử dụng
+              </Link>
             </div>
           </div>
         </div>

@@ -7,8 +7,13 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
   images: {
-    unoptimized: true,
     remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "res.cloudinary.com",
+        port: "",
+        pathname: "/**",
+      },
       {
         protocol: "https",
         hostname: "images.unsplash.com",

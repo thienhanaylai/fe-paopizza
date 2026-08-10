@@ -752,7 +752,6 @@ export function CartProvider({ children }: { children: ReactNode }) {
             normalized.items = normalized.items.map(item => {
               if (item.item_type !== "combo") return item;
               const itemComboId = resolveComboId(item.combo);
-              // Match by combo ID + selections (more reliable than sku since API may generate its own sku)
               if (itemComboId !== comboId) return item;
               if (!areComboSelectionsEqual(item.combo_selections, combo_selections)) return item;
               // Preserve combo pricing metadata
@@ -769,7 +768,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      const quantityToAdd = Math.max(1, Math.trunc(quantity ?? 1));
+      //const quantityToAdd = Math.max(1, Math.trunc(quantity ?? 1));
       const currentGuestCart = readGuestCart();
       const nextItems = [...currentGuestCart.items];
       const existingItemIndex = findLocalItemIndex(nextItems, {
@@ -785,7 +784,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         nextItems[existingItemIndex] = {
           ...existingItem,
           crust: crust ?? existingItem.crust,
-          quantity: existingItem.quantity + quantityToAdd,
+          quantity: existingItem.quantity,
           note: note ?? existingItem.note,
           added_topping: added_topping ?? existingItem.added_topping,
         };

@@ -1,21 +1,18 @@
-"use client";
+import EmployeeProviders from "./EmployeeProviders";
+import { createSeoMetadata } from "@/src/config/seo";
 
-import { EmployeeAuthProvider } from "@/src/context/authEmployeeContext";
-import { CartProvider } from "@/src/context/cartContext";
-import { Providers } from "./providers";
+export const metadata = createSeoMetadata({
+  title: "Đăng nhập nhân viên",
+  description: "Đăng nhập hệ thống quản lý nội bộ PaoPizza dành cho nhân viên.",
+  path: "/is",
+});
 
-export default function CustomerLayout({
+export default function EmployeeLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
-    <>
-      <Providers>
-        <CartProvider>
-          <EmployeeAuthProvider>{children}</EmployeeAuthProvider>
-        </CartProvider>
-      </Providers>
-    </>
+    <EmployeeProviders>{children}</EmployeeProviders>
   );
 }

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Be_Vietnam_Pro } from "next/font/google";
 import "@/src/app/styles/index.css";
+import { DEFAULT_DESCRIPTION, SITE_NAME, SITE_URL, SOCIAL_IMAGE } from "@/src/config/seo";
 
 const beVietnamPro = Be_Vietnam_Pro({
   subsets: ["latin", "vietnamese"],
@@ -9,31 +10,39 @@ const beVietnamPro = Be_Vietnam_Pro({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://pizza.pao.io.vn"),
-  title: "PaoPizza",
-  description: "PaoPizza - Pizza ngon, giao nhanh",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: SITE_NAME,
+    template: `%s | ${SITE_NAME}`,
+  },
+  description: DEFAULT_DESCRIPTION,
 
   openGraph: {
-    title: "PaoPizza",
-    description: "PaoPizza - Pizza ngon, giao nhanh",
-    url: "https://pizza.pao.io.vn",
-    siteName: "PaoPizza",
+    title: SITE_NAME,
+    description: DEFAULT_DESCRIPTION,
+    url: SITE_URL,
+    siteName: SITE_NAME,
     images: [
       {
-        url: "/logopao.svg",
-        width: 1200,
-        height: 630,
-        alt: "PaoPizza Logo",
+        url: SOCIAL_IMAGE,
+        alt: `${SITE_NAME} Logo`,
       },
     ],
     locale: "vi_VN",
     type: "website",
   },
 
+  twitter: {
+    card: "summary_large_image",
+    title: SITE_NAME,
+    description: DEFAULT_DESCRIPTION,
+    images: [SOCIAL_IMAGE],
+  },
+
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "PaoPizza",
+    title: SITE_NAME,
   },
 
   icons: {
