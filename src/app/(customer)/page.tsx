@@ -363,13 +363,13 @@ export default function IndexPage() {
                 <Award size={16} /> #1 Pizza tại Việt Nam
               </div> */}
               <h1 className="text-4xl lg:text-5xl text-foreground leading-tight mb-6">
-                PaoPizza - Pizza tươi ngon,
+                PaoPizza - Pizza thủ công,
                 <br />
                 <span className="text-primary">giao tận tay bạn</span>
               </h1>
               <p className="text-muted-foreground text-lg mb-8 max-w-lg">
-                Thưởng thức pizza thủ công tại PaoPizza, làm từ nguyên liệu tươi ngon và nướng trong lò gạch truyền thống. Giao
-                hàng nhanh trong 30 phút.
+                PaoPizza, còn được khách hàng tìm với tên Pao Pizza hoặc Pizza Pao, mang đến pizza thủ công làm từ nguyên liệu
+                tươi ngon và nướng trong lò gạch truyền thống. Đặt pizza giao tận nơi nhanh trong 30 phút.
               </p>
               <div className="flex flex-col sm:flex-row gap-3">
                 <a
@@ -408,7 +408,7 @@ export default function IndexPage() {
               <div className="relative rounded-3xl overflow-hidden aspect-[4/3] shadow-2xl">
                 <Image
                   src="https://res.cloudinary.com/dxrrdqgss/image/upload/v1785916423/ifw0bknrorstttxbslq5.jpg"
-                  alt="PaoPizza"
+                  alt="Pizza thủ công PaoPizza vừa ra lò"
                   fill
                   loading="eager"
                   sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
@@ -443,9 +443,9 @@ export default function IndexPage() {
       <section id="menu" className="py-16">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
           <div className="text-center mb-8">
-            <h2 className="text-3xl text-foreground mb-3">Thực đơn của chúng tôi</h2>
+            <h2 className="text-3xl text-foreground mb-3">Thực đơn Pizza PaoPizza</h2>
             <p className="text-muted-foreground max-w-md mx-auto">
-              Khám phá bộ sưu tập món ăn thủ công với nguyên liệu tươi ngon nhất
+              Khám phá các món pizza thủ công PaoPizza với nguyên liệu tươi ngon nhất
             </p>
           </div>
           <div className="sticky top-[72px] w-full z-20 bg-white/90 backdrop-blur-md py-2 px-3 sm:px-2 border border-border/80 shadow-sm rounded-2xl sm:rounded-[24px]  sm:mx-auto max-w-7xl transition-all duration-300">

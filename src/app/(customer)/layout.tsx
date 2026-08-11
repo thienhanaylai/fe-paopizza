@@ -4,8 +4,9 @@ import StructuredData from "@/src/components/seo/StructuredData";
 import { createSeoMetadata, SITE_NAME, SITE_URL } from "@/src/config/seo";
 
 export const metadata = createSeoMetadata({
-  title: "Pizza thủ công, giao tận nơi",
-  description: "Thưởng thức pizza thủ công thơm ngon tại PaoPizza, đặt món nhanh và giao tận nơi.",
+  title: "Pizza thủ công giao tận nơi",
+  description:
+    "PaoPizza (Pao Pizza) phục vụ pizza thủ công nóng hổi, nguyên liệu tươi ngon và giao tận nơi nhanh. Xem thực đơn và đặt pizza online.",
   path: "/",
 });
 
@@ -15,6 +16,7 @@ const websiteStructuredData = [
     "@type": "Organization",
     "@id": `${SITE_URL}/#organization`,
     name: SITE_NAME,
+    alternateName: ["Pao Pizza", "Pizza Pao"],
     url: SITE_URL,
     logo: `${SITE_URL}/logopao.svg`,
   },
@@ -23,7 +25,7 @@ const websiteStructuredData = [
     "@type": "WebSite",
     "@id": `${SITE_URL}/#website`,
     name: SITE_NAME,
-    alternateName: "Pao Pizza",
+    alternateName: ["Pao Pizza", "Pizza Pao"],
     url: SITE_URL,
     inLanguage: "vi-VN",
     publisher: {
