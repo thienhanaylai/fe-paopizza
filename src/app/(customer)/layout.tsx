@@ -1,7 +1,7 @@
 import { Providers } from "./providers";
 import CustomerLayoutContent from "./CustomerLayoutContent";
 import StructuredData from "@/src/components/seo/StructuredData";
-import { createSeoMetadata, SITE_NAME, SITE_URL } from "@/src/config/seo";
+import { createSeoMetadata, HOMEPAGE_FAQS, SITE_NAME, SITE_URL } from "@/src/config/seo";
 
 export const metadata = createSeoMetadata({
   title: "Pizza thủ công giao tận nơi",
@@ -31,6 +31,19 @@ const websiteStructuredData = [
     publisher: {
       "@id": `${SITE_URL}/#organization`,
     },
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "@id": `${SITE_URL}/#faq`,
+    mainEntity: HOMEPAGE_FAQS.map(faq => ({
+      "@type": "Question",
+      name: faq.question,
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: faq.answer,
+      },
+    })),
   },
 ];
 

@@ -1,6 +1,20 @@
 "use client";
-import { ArrowRight, Award, ChefHat, ChevronLeft, ChevronRight, Clock, Phone, Star } from "lucide-react";
+import {
+  ArrowRight,
+  Award,
+  ChefHat,
+  ChevronLeft,
+  ChevronRight,
+  CircleHelp,
+  Clock,
+  Clock3,
+  MapPin,
+  Phone,
+  ShieldCheck,
+  Star,
+} from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 import { useEffect, useRef, useState, useCallback } from "react";
 import useEmblaCarousel from "embla-carousel-react";
 import { getAllCategories } from "@/src/services/category.service";
@@ -15,6 +29,20 @@ import type { MenuCategoryUI, ExtraTopping, ComboSlotSelection } from "./types";
 import ProductDetailModal from "@/src/components/modals/ProductDetailModal";
 import ComboBuilderModal from "@/src/components/modals/ComboBuilderModal";
 import SelectStoreModal from "@/src/components/modals/SelectStoreModal";
+import { HOMEPAGE_FAQS } from "@/src/config/seo";
+
+function formatMenuUpdatedAt(value?: string) {
+  if (!value) return null;
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+
+  return new Intl.DateTimeFormat("vi-VN", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(date);
+}
 
 export default function IndexPage() {
   const { user } = useCustomerAuth();
@@ -443,7 +471,7 @@ export default function IndexPage() {
       <section id="menu" className="py-16">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
           <div className="text-center mb-8">
-            <h2 className="text-3xl text-foreground mb-3">Thực đơn Pizza PaoPizza</h2>
+            <h2 className="text-3xl text-foreground mb-3">Thực đơn Pizza - PaoPizza</h2>
             <p className="text-muted-foreground max-w-md mx-auto">
               Khám phá các món pizza thủ công PaoPizza với nguyên liệu tươi ngon nhất
             </p>
@@ -751,6 +779,91 @@ export default function IndexPage() {
                 </div>
               );
             })}
+        </div>
+      </section>
+      <section className="border-y border-border bg-card py-14 sm:py-18">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-3xl text-center">
+            <p className="text-sm font-semibold uppercase tracking-[0.16em] text-primary">Thực đơn PaoPizza</p>
+            <h2 className="mt-3 text-3xl font-bold text-foreground sm:text-4xl">Pizza thủ công cho những bữa ăn quây quần</h2>
+            <p className="mt-4 leading-7 text-muted-foreground">
+              PaoPizza mang đến thực đơn pizza thủ công với các lựa chọn phù hợp cho bữa ăn hằng ngày, cuộc hẹn bạn bè và những
+              dịp quây quần. Chọn cửa hàng để xem món đang phục vụ, giá bán và ưu đãi áp dụng tại khu vực của bạn.
+            </p>
+          </div>
+
+          <div className="mt-10 grid gap-4 md:grid-cols-3">
+            <article className="rounded-2xl border border-border bg-background p-5">
+              <Clock3 className="text-primary" size={24} aria-hidden="true" />
+              <h3 className="mt-4 text-lg font-semibold text-foreground">Thông tin thực đơn cập nhật</h3>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                {formatMenuUpdatedAt(menu?.updatedAt)
+                  ? `Thực đơn của cửa hàng đã chọn được cập nhật lần cuối ngày ${formatMenuUpdatedAt(menu?.updatedAt)}.`
+                  : "Thực đơn, giá và tình trạng phục vụ được hiển thị theo cửa hàng bạn chọn."}
+              </p>
+            </article>
+            <article className="rounded-2xl border border-border bg-background p-5">
+              <MapPin className="text-primary" size={24} aria-hidden="true" />
+              <h3 className="mt-4 text-lg font-semibold text-foreground">Thông tin cửa hàng rõ ràng</h3>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                Xem địa chỉ, hotline và giờ hoạt động của các chi nhánh trước khi đặt pizza.
+              </p>
+              <Link href="/contact" className="mt-3 inline-flex text-sm font-semibold text-primary hover:underline">
+                Tìm cửa hàng PaoPizza
+              </Link>
+            </article>
+            <article className="rounded-2xl border border-border bg-background p-5">
+              <ShieldCheck className="text-primary" size={24} aria-hidden="true" />
+              <h3 className="mt-4 text-lg font-semibold text-foreground">Chính sách minh bạch</h3>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                Điều khoản đặt món, giao hàng và bảo mật thông tin được công khai để bạn dễ kiểm tra.
+              </p>
+              <div className="mt-3 flex gap-4">
+                <Link href="/terms" className="text-sm font-semibold text-primary hover:underline">
+                  Điều khoản
+                </Link>
+                <Link href="/privacy" className="text-sm font-semibold text-primary hover:underline">
+                  Bảo mật
+                </Link>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+      <section className="bg-background py-16 sm:py-20" aria-labelledby="pizza-faq-heading">
+        <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
+          <div className="text-center">
+            <div className="inline-flex items-center gap-2 text-primary">
+              <CircleHelp size={18} aria-hidden="true" />
+              <span className="text-sm font-semibold uppercase tracking-[0.16em]">Hỗ trợ đặt pizza</span>
+            </div>
+            <h2 id="pizza-faq-heading" className="mt-3 text-3xl font-bold text-foreground sm:text-4xl">
+              Câu hỏi thường gặp về PaoPizza
+            </h2>
+          </div>
+          <div className="mt-8 divide-y divide-border rounded-2xl border border-border bg-card px-5 sm:px-6">
+            {HOMEPAGE_FAQS.map(faq => (
+              <details key={faq.question} className="group py-5">
+                <summary className="cursor-pointer list-none pr-8 text-base font-semibold text-foreground marker:hidden">
+                  {faq.question}
+                  <span
+                    className="float-right -mr-8 text-xl text-primary transition-transform group-open:rotate-45"
+                    aria-hidden="true"
+                  >
+                    +
+                  </span>
+                </summary>
+                <p className="pt-3 leading-7 text-muted-foreground">{faq.answer}</p>
+              </details>
+            ))}
+          </div>
+          <p className="mt-6 text-center text-sm text-muted-foreground">
+            Cần hỗ trợ thêm?{" "}
+            <Link href="/contact" className="font-semibold text-primary hover:underline">
+              Liên hệ PaoPizza
+            </Link>{" "}
+            để được tư vấn.
+          </p>
         </div>
       </section>
       {product && (
