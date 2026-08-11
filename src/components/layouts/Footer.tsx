@@ -26,9 +26,7 @@ const NavMenu = [
 
 export default function Footer() {
   const socialLinks = [
-    ...(process.env.NEXT_PUBLIC_FACEBOOK_URL
-      ? [{ label: "Facebook", href: process.env.NEXT_PUBLIC_FACEBOOK_URL, icon: Facebook, external: true }]
-      : []),
+    ...[{ label: "Facebook", href: "https://www.facebook.com/paopizza/", icon: Facebook, external: true }],
     ...(process.env.NEXT_PUBLIC_INSTAGRAM_URL
       ? [{ label: "Instagram", href: process.env.NEXT_PUBLIC_INSTAGRAM_URL, icon: Instagram, external: true }]
       : []),
