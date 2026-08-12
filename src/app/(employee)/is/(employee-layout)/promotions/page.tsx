@@ -292,7 +292,7 @@ export default function PromotionsPage() {
           </div>
           <div>
             <p className="text-muted-foreground text-sm">Tổng</p>
-            <div className="flex items-end">
+            <div className="flex items-baseline">
               <p className="text-foreground text-xl">{stats.total}</p>
               <p className="ml-1 truncate text-xs text-muted-foreground"> Mã</p>
             </div>
@@ -304,7 +304,7 @@ export default function PromotionsPage() {
           </div>
           <div>
             <p className="text-muted-foreground text-sm">Đang hoạt động</p>
-            <div className="flex items-end">
+            <div className="flex items-baseline">
               <p className="text-foreground text-xl">{stats.active}</p>
               <p className="ml-1 truncate text-xs text-muted-foreground"> Mã</p>
             </div>
@@ -316,7 +316,7 @@ export default function PromotionsPage() {
           </div>
           <div>
             <p className="text-muted-foreground text-sm">Bản nháp</p>
-            <div className="flex items-end">
+            <div className="flex items-baseline">
               <p className="text-foreground text-xl">{stats.draft}</p>
               <p className="ml-1 truncate text-xs text-muted-foreground"> Mã</p>
             </div>
@@ -328,7 +328,7 @@ export default function PromotionsPage() {
           </div>
           <div>
             <p className="text-muted-foreground text-sm">Hết hạn</p>
-            <div className="flex items-end">
+            <div className="flex items-baseline">
               <p className="text-foreground text-xl">{stats.expired}</p>
               <p className="ml-1 truncate text-xs text-muted-foreground"> Mã</p>
             </div>
