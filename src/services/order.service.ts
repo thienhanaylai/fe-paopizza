@@ -5,6 +5,12 @@ export type PaymentMethod = "cash" | "qrCode" | "card" | "ewallet";
 export type OrderStatus = "pending" | "confirmed" | "preparing" | "completed" | "cancelled" | "delivering";
 export type paymentStatus = "pending" | "success" | "failed";
 
+export const DELIVERY_FEE = 25_000;
+export const FREE_DELIVERY_MIN_SUBTOTAL = 200_000;
+
+export const calculateDeliveryFee = (orderType: OrderMethod, subTotal: number) =>
+  orderType === "delivery" && subTotal < FREE_DELIVERY_MIN_SUBTOTAL ? DELIVERY_FEE : 0;
+
 export interface OrderItemTopping {
   ingredient: string;
   quantity: number;
@@ -90,12 +96,9 @@ export interface Order {
   promotion_code?: string;
   total?: number;
   note?: string;
-  customer_id?: string | null;
 }
 
-export interface PosOrder extends Order {
-  employee_id: string;
-}
+export type PosOrder = Order;
 
 export interface OrderHistory {
   _id: string;
@@ -117,6 +120,7 @@ export interface OrderHistory {
   };
   items: OrderItemHistory[];
   subTotal: number;
+  deliveryFee?: number;
   discount_amount: number;
   total: number;
   status: OrderStatus;

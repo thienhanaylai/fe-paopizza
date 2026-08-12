@@ -9,8 +9,7 @@ import { formatVND } from "@/src/utils/formatVND";
 import { formatDateTime } from "@/src/utils/formatDateTime";
 import OrderDetailModal from "@/src/components/modals/OrderDetailModal";
 import PaymentQRModal from "@/src/components/modals/PaymentQRModal";
-
-const PAYMENT_TIMEOUT_MINUTES = 15;
+import { PAYMENT_TIMEOUT_MS } from "@/src/services/payment.service";
 
 const orderStatusConfig: Record<string, { label: string; color: string }> = {
   pending: { label: "Chờ xử lý", color: "bg-yellow-100 text-yellow-700" },
@@ -66,7 +65,7 @@ export default function Orders() {
   };
 
   const isPaymentExpired = (order: OrderHistory) => {
-    const expiredAt = new Date(new Date(order.createdAt).getTime() + PAYMENT_TIMEOUT_MINUTES * 60 * 1000);
+    const expiredAt = new Date(new Date(order.createdAt).getTime() + PAYMENT_TIMEOUT_MS);
     return Date.now() > expiredAt.getTime();
   };
 

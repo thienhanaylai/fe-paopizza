@@ -327,6 +327,12 @@ export default function OrderDetailModal({ order, onClose }: OrderDetailModalPro
               <span className="text-muted-foreground">Tạm tính</span>
               <span className="text-foreground">{formatVND(order.subTotal)}</span>
             </div>
+            {(order.deliveryFee ?? 0) > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Phí giao hàng</span>
+                <span className="text-foreground">{formatVND(order.deliveryFee ?? 0)}</span>
+              </div>
+            )}
             {order.discount_amount > 0 && (
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Giảm giá</span>

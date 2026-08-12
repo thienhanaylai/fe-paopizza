@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Search,
   Filter,
@@ -34,6 +34,14 @@ import { useEmployeeAuth } from "@/src/context/authEmployeeContext";
 import { Skeleton } from "@/src/components/ui/skeleton";
 import { formatVND } from "@/src/utils/formatVND";
 import Pagination from "@/src/components/ui/Pagination";
+
+const ORDER_POLLING_INTERVAL_MS = 10_000;
+
+interface FetchOrdersOptions {
+  showLoading?: boolean;
+  resetPage?: boolean;
+  showErrorToast?: boolean;
+}
 
 const statusConfig: Record<OrderStatus, { label: string; color: string; icon: React.ReactNode }> = {
   pending: { label: "Chờ xử lý", color: "bg-yellow-100 text-yellow-700", icon: <Clock size={14} /> },
@@ -125,26 +133,43 @@ export default function Orders() {
     completed: 5,
     cancelled: 6,
   };
-  const fecthData = async () => {
-    setIsLoading(true);
-    try {
-      const info = await getInfo();
-      if (info?.ref_id?.store_id) {
-        const res = await getAllOrder(`store_id=${info.ref_id.store_id}`, "", 1, 999);
-        setAllOrders(res.data || []);
-        setPage(1);
+  const fecthData = useCallback(
+    async ({ showLoading = true, resetPage = true, showErrorToast = true }: FetchOrdersOptions = {}) => {
+      if (showLoading) setIsLoading(true);
+      try {
+        const info = await getInfo();
+        if (info?.ref_id?.store_id) {
+          const res = await getAllOrder(`store_id=${info.ref_id.store_id}`, "", 1, 999);
+          setAllOrders(res.data || []);
+          if (resetPage) setPage(1);
+        }
+      } catch (error) {
+        console.error("Lỗi khi tải đơn hàng:", error);
+        if (showErrorToast) toast.error("Không thể tải danh sách đơn hàng");
+      } finally {
+        if (showLoading) setIsLoading(false);
       }
-    } catch (error) {
-      console.error("Lỗi khi tải đơn hàng:", error);
-      toast.error("Không thể tải danh sách đơn hàng");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    },
+    [getInfo],
+  );
 
   useEffect(() => {
-    fecthData();
-  }, []);
+    void fecthData();
+
+    let isPolling = false;
+    const pollingId = window.setInterval(async () => {
+      if (isPolling) return;
+
+      isPolling = true;
+      try {
+        await fecthData({ showLoading: false, resetPage: false, showErrorToast: false });
+      } finally {
+        isPolling = false;
+      }
+    }, ORDER_POLLING_INTERVAL_MS);
+
+    return () => window.clearInterval(pollingId);
+  }, [fecthData]);
 
   // Reset về page 1 khi thay đổi bộ lọc
   useEffect(() => {
@@ -729,6 +754,12 @@ export default function Orders() {
                   <span>Tạm tính:</span>
                   <span>{formatVND(selectedOrder.subTotal)}</span>
                 </div>
+                {(selectedOrder.deliveryFee ?? 0) > 0 && (
+                  <div className="flex justify-between text-sm text-muted-foreground">
+                    <span>Phí giao hàng:</span>
+                    <span>{formatVND(selectedOrder.deliveryFee ?? 0)}</span>
+                  </div>
+                )}
                 {(selectedOrder.discount_amount ?? 0) > 0 && (
                   <div className="flex justify-between text-sm text-red-500">
                     <span>Giảm giá:</span>

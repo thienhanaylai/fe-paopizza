@@ -31,8 +31,15 @@ import { getAllCategories } from "@/src/services/category.service";
 import { getAllProducts } from "@/src/services/product.service";
 import { getAllIngredients, IngredientData } from "@/src/services/ingredient.service";
 import { toast, Toaster } from "sonner";
-import { cancelOrder, createPosOrder, PosOrder, PaymentMethod, type OrderItem } from "@/src/services/order.service";
-import { checkPaymentStatus } from "@/src/services/payment.service";
+import {
+  calculateDeliveryFee,
+  cancelOrder,
+  createPosOrder,
+  PosOrder,
+  PaymentMethod,
+  type OrderItem,
+} from "@/src/services/order.service";
+import { checkPaymentStatus, PAYMENT_TIMEOUT_MS } from "@/src/services/payment.service";
 import { formatVND } from "@/src/utils/formatVND";
 import { generateInvoicePDF, type InvoiceData, type InvoiceItem } from "@/src/utils/generateInvoicePDF";
 import { getAllStore, type StoreData } from "@/src/services/store.service";
@@ -225,7 +232,7 @@ export default function POS() {
       try {
         const res = await checkPaymentStatus(orderId);
 
-        if (res.data.paymentStatus === "success") {
+        if (res.paymentStatus === "success") {
           stopPolling();
           setShowSuccess(true);
         }
@@ -642,7 +649,7 @@ export default function POS() {
 
   const cartCount = cart.reduce((s, c) => s + c.quantity, 0);
   const subtotal = cart.reduce((s, c) => s + c.price * c.quantity, 0);
-  const deliveryFee = orderType === "delivery" && subtotal < 200000 ? 25000 : 0;
+  const deliveryFee = calculateDeliveryFee(orderType, subtotal);
   const discountAmount = appliedPromo?.valid ? Math.min(appliedPromo.discountAmount, subtotal) : 0;
   const total = Math.max(0, subtotal + deliveryFee - discountAmount);
   const cashReceivedNum = parseInt(cashReceived) || 0;
@@ -786,8 +793,6 @@ export default function POS() {
         },
         store_id: emp.ref_id.store_id,
         note: `${tableNumber} ${orderNote != "" ? `- ${orderNote}` : ``}`,
-        customer_id: null,
-        employee_id: emp._id,
         items: listItem,
         promotion_code: appliedPromo?.valid ? appliedPromo.code : undefined,
         discount_amount: discountAmount,
@@ -796,7 +801,7 @@ export default function POS() {
       const res = result.data;
       const payment = result.payment;
       if (res.paymentMethod != "cash" && res.paymentStatus != "success") {
-        setTestime(new Date(Date.now() + 5 * 60 * 1000));
+        setTestime(new Date(new Date(res.createdAt).getTime() + PAYMENT_TIMEOUT_MS));
         startPolling(payment.orderId);
         setOder(result);
         setLastOrderId(result.data._id);
@@ -896,7 +901,7 @@ export default function POS() {
         customerAddress: orderType === "delivery" ? customerAddress : undefined,
         items: invoiceItems,
         subtotal,
-        deliveryFee: orderType === "delivery" && subtotal < 200000 ? 25000 : 0,
+        deliveryFee,
         discountAmount,
         promotionCode: appliedPromo?.valid ? appliedPromo.code : undefined,
         total,

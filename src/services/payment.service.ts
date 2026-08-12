@@ -1,5 +1,7 @@
 import { http } from "../utils/config.api";
 
+export const PAYMENT_TIMEOUT_MS = 10 * 60 * 1000;
+
 export interface PaymentRequestData {
   orderId: string;
   qrUrl: string;

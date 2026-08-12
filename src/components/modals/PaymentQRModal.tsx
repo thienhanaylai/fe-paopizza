@@ -4,7 +4,12 @@ import { useEffect, useState, useRef } from "react";
 import { X, Clock, Copy, CheckCircle2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { OrderHistory } from "@/src/services/order.service";
-import { createPaymentRequest, checkPaymentStatus, PaymentRequestData } from "@/src/services/payment.service";
+import {
+  createPaymentRequest,
+  checkPaymentStatus,
+  PaymentRequestData,
+  PAYMENT_TIMEOUT_MS,
+} from "@/src/services/payment.service";
 import { formatVND } from "@/src/utils/formatVND";
 
 interface PaymentQRModalProps {
@@ -12,9 +17,6 @@ interface PaymentQRModalProps {
   onClose: () => void;
   onPaymentSuccess?: () => void;
 }
-
-// Thời gian timeout thanh toán (phút)
-const PAYMENT_TIMEOUT_MINUTES = 10;
 
 export default function PaymentQRModal({ order, onClose, onPaymentSuccess }: PaymentQRModalProps) {
   const [paymentData, setPaymentData] = useState<PaymentRequestData | null>(null);
@@ -32,7 +34,7 @@ export default function PaymentQRModal({ order, onClose, onPaymentSuccess }: Pay
   onPaymentSuccessRef.current = onPaymentSuccess;
 
   // Tính thời gian hết hạn dựa trên createdAt + timeout
-  const expiredAt = new Date(new Date(order.createdAt).getTime() + PAYMENT_TIMEOUT_MINUTES * 60 * 1000);
+  const expiredAt = new Date(new Date(order.createdAt).getTime() + PAYMENT_TIMEOUT_MS);
 
   // Format thời gian còn lại
   const formatTimeLeft = (seconds: number) => {

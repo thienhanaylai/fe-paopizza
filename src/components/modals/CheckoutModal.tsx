@@ -15,11 +15,11 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { useCart } from "@/src/context/cartContext";
 import { getAllStore, StoreData } from "@/src/services/store.service";
-import { Order, createOrder, PaymentMethod } from "@/src/services/order.service";
+import { calculateDeliveryFee, Order, createOrder, PaymentMethod } from "@/src/services/order.service";
 import { useCustomerAuth } from "@/src/context/authCustomerContext";
 import { toast } from "sonner";
 import Image from "next/image";
-import { checkPaymentStatus } from "@/src/services/payment.service";
+import { checkPaymentStatus, PAYMENT_TIMEOUT_MS } from "@/src/services/payment.service";
 import { applyPromoCode, PromoCodeResult } from "@/src/services/promotion.service";
 import { getCustomerAddresses, CustomerAddress } from "@/src/services/customer.service";
 import { formatVND } from "@/src/utils/formatVND";
@@ -232,11 +232,6 @@ export const CheckoutModal = () => {
     setIsSubmitting(true);
 
     try {
-      let customer = null;
-      if (user) {
-        customer = user?.id ? await getInfo() : null;
-      }
-
       const currentStoreId = localStorage.getItem("selected_store") || storeId;
 
       const order: Order = {
@@ -277,7 +272,6 @@ export const CheckoutModal = () => {
         note: custNote,
         promotion_code: appliedPromo?.valid ? appliedPromo.code : undefined,
         discount_amount: appliedPromo?.valid ? discountAmount : 0,
-        customer_id: customer?.ref_id?._id || null,
       };
 
       if (!custName || !custPhone || !currentStoreId) {
@@ -305,7 +299,7 @@ export const CheckoutModal = () => {
 
       // chuyển step sang bước thanh toán
       setIdOrder(res._id);
-      setTestime(new Date(Date.now() + 3 * 60 * 1000)); // thời gian chờ thanh táon
+      setTestime(new Date(new Date(res.createdAt).getTime() + PAYMENT_TIMEOUT_MS));
       setCheckoutStep("payment");
       setIsPayment(true);
 
@@ -353,7 +347,7 @@ export const CheckoutModal = () => {
     }
   };
 
-  const deliveryFee = orderMethod === "delivery" && cartTotal < 200000 ? 25000 : 0;
+  const deliveryFee = calculateDeliveryFee(orderMethod, cartTotal);
   const grandTotal = Math.max(0, cartTotal + deliveryFee - discountAmount);
 
   const paymentOptions: { key: PaymentMethod; label: string; icon: React.ReactNode; desc: string }[] = [
