@@ -912,7 +912,7 @@ export default function IndexPage() {
             <button
               type="button"
               onClick={() => setShowCart(true)}
-              className="fixed inset-x-0 bottom-0 z-[9999] flex h-13 md:h-10 w-screen cursor-pointer items-center justify-center gap-2 bg-primary px-4 text-sm font-semibold text-white shadow-[0_-4px_16px_rgba(0,0,0,0.18)] transition-colors hover:bg-primary/90 active:bg-primary/80 sm:hidden"
+              className="fixed inset-x-0 bottom-0 z-[9999] flex h-[calc(3.25rem+env(safe-area-inset-bottom,0px))] w-full cursor-pointer items-center justify-center gap-2 bg-primary pt-0 pr-[max(1rem,env(safe-area-inset-right,0px))] pb-[env(safe-area-inset-bottom,0px)] pl-[max(1rem,env(safe-area-inset-left,0px))] text-sm font-semibold text-white shadow-[0_-4px_16px_rgba(0,0,0,0.18)] transition-colors hover:bg-primary/90 active:bg-primary/80 sm:hidden"
               aria-label={`Tiến hành thanh toán, giỏ hàng có ${cartCount} sản phẩm`}
             >
               <ShoppingBag size={18} aria-hidden="true" />
@@ -925,7 +925,7 @@ export default function IndexPage() {
           <button
             type="button"
             onClick={() => setShowCart(true)}
-            className={`fixed bottom-4 right-4 z-[9999] h-14 cursor-pointer items-center justify-center gap-2 rounded-full bg-primary px-5 text-white shadow-xl shadow-primary/30 transition-all hover:bg-primary/90 active:scale-95 sm:bottom-6 sm:right-6 ${product ? "hidden sm:flex" : "flex"}`}
+            className={`fixed bottom-[calc(1rem+env(safe-area-inset-bottom,0px))] right-[max(1rem,env(safe-area-inset-right,0px))] z-[9999] h-14 cursor-pointer items-center justify-center gap-2 rounded-full bg-primary px-5 text-white shadow-xl shadow-primary/30 transition-all hover:bg-primary/90 active:scale-95 sm:bottom-6 sm:right-6 ${product ? "hidden sm:flex" : "flex"}`}
             aria-label={`Mở giỏ hàng, có ${cartCount} sản phẩm`}
           >
             <ShoppingBag size={24} aria-hidden="true" />

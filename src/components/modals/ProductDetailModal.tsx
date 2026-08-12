@@ -353,7 +353,10 @@ export default function ProductDetailModal({
   if (!selectedProduct || !selectedVariant) return null;
 
   return (
-    <div className="fixed inset-0 z-50 m-0 flex items-center justify-center bg-black/50 px-2 pb-24 pt-2 sm:p-4" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-50 m-0 flex items-center justify-center bg-black/50 pt-[max(0.5rem,env(safe-area-inset-top,0px))] pr-[max(0.5rem,env(safe-area-inset-right,0px))] pb-[calc(6rem+env(safe-area-inset-bottom,0px))] pl-[max(0.5rem,env(safe-area-inset-left,0px))] sm:p-4"
+      onClick={onClose}
+    >
       <div className="flex items-center gap-2 sm:gap-4 w-full max-w-[calc(100vw-0.5rem)] sm:max-w-[calc(100vw-7rem)] justify-center">
         {/* Prev button - desktop */}
         <div className="hidden sm:block w-10 h-10 shrink-0">
@@ -621,7 +624,7 @@ export default function ProductDetailModal({
       </div>
 
       {/* Mobile navigation */}
-      <div className="sm:hidden fixed bottom-16 left-1/2 -translate-x-1/2 flex items-center gap-3 z-[60]">
+      <div className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom,0px))] left-1/2 z-[60] flex -translate-x-1/2 items-center gap-3 sm:hidden">
         {(products ?? []).length > 1 && (
           <>
             <button

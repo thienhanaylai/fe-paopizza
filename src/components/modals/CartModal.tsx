@@ -120,7 +120,7 @@ export const CartModal = () => {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex justify-end bg-black/50 backdrop-blur-sm transition-all animate-fade-left animate-duration-300"
+      className="fixed inset-0 z-50 flex justify-end bg-black/50 pt-[env(safe-area-inset-top,0px)] pr-[env(safe-area-inset-right,0px)] pb-[env(safe-area-inset-bottom,0px)] pl-[env(safe-area-inset-left,0px)] backdrop-blur-sm transition-all animate-fade-left animate-duration-300"
       onClick={() => setShowCart(false)}
     >
       <div className="w-full max-w-md h-full bg-card shadow-2xl flex flex-col" onClick={e => e.stopPropagation()}>

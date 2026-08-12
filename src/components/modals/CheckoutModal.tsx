@@ -357,14 +357,14 @@ export const CheckoutModal = () => {
 
   if (!listStore || listStore.length === 0) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 m-0 p-4">
+      <div className="fixed inset-0 z-50 m-0 flex items-center justify-center bg-black/50 pt-[max(1rem,env(safe-area-inset-top,0px))] pr-[max(1rem,env(safe-area-inset-right,0px))] pb-[max(1rem,env(safe-area-inset-bottom,0px))] pl-[max(1rem,env(safe-area-inset-left,0px))]">
         <LoaderCircle className="animate-spin text-white" size={32} />
       </div>
     );
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 m-0">
+    <div className="fixed inset-0 z-50 m-0 flex items-center justify-center bg-black/50 pt-[max(1rem,env(safe-area-inset-top,0px))] pr-[max(1rem,env(safe-area-inset-right,0px))] pb-[max(1rem,env(safe-area-inset-bottom,0px))] pl-[max(1rem,env(safe-area-inset-left,0px))]">
       <div
         className="bg-card rounded-2xl w-full max-w-xl shadow-2xl max-h-[92vh] overflow-y-auto scrollbar-hide animate-fade-up animate-duration-300"
         onClick={e => e.stopPropagation()}
@@ -837,7 +837,7 @@ export const CheckoutModal = () => {
       {/* Exit confirmation modal */}
       {showExitConfirm && (
         <div
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 m-0 p-4"
+          className="fixed inset-0 z-[60] m-0 flex items-center justify-center bg-black/50 pt-[max(1rem,env(safe-area-inset-top,0px))] pr-[max(1rem,env(safe-area-inset-right,0px))] pb-[max(1rem,env(safe-area-inset-bottom,0px))] pl-[max(1rem,env(safe-area-inset-left,0px))]"
           onClick={() => setShowExitConfirm(false)}
         >
           <div

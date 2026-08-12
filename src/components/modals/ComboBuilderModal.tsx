@@ -325,7 +325,7 @@ export default function ComboBuilderModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 m-0"
+      className="fixed inset-0 z-50 m-0 flex items-center justify-center bg-black/50 pt-[max(1rem,env(safe-area-inset-top,0px))] pr-[max(1rem,env(safe-area-inset-right,0px))] pb-[max(1rem,env(safe-area-inset-bottom,0px))] pl-[max(1rem,env(safe-area-inset-left,0px))]"
       onClick={() => {
         onClose();
       }}
