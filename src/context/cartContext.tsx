@@ -768,7 +768,6 @@ export function CartProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      //const quantityToAdd = Math.max(1, Math.trunc(quantity ?? 1));
       const currentGuestCart = readGuestCart();
       const nextItems = [...currentGuestCart.items];
       const existingItemIndex = findLocalItemIndex(nextItems, {
@@ -800,7 +799,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
           size,
           sku,
           crust: crust || "",
-          quantity: quantityToAdd,
+          quantity: 1,
           note: note ?? "",
         });
       }
