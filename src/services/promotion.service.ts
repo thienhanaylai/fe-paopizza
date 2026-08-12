@@ -169,7 +169,12 @@ export const deletePromotion = async (promotion_id: string): Promise<Promotion> 
 };
 
 // Áp dụng mã khuyến mãi (phía khách hàng)
-export const applyPromoCode = async (code: string, orderTotal: number, storeId: string): Promise<PromoCodeResult> => {
+export const applyPromoCode = async (
+  code: string,
+  orderTotal: number,
+  storeId: string,
+  typeUser: string | null = "customer",
+): Promise<PromoCodeResult> => {
   try {
     const response = await http(
       "/api/v1/promotions/apply",
@@ -181,7 +186,7 @@ export const applyPromoCode = async (code: string, orderTotal: number, storeId: 
           storeId,
         }),
       },
-      "customer",
+      typeUser,
     );
 
     if (response?.data) {

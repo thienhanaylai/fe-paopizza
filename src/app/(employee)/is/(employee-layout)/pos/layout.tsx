@@ -1,7 +1,7 @@
 import { createPrivateMetadata } from "@/src/config/seo";
 
 export const metadata = createPrivateMetadata({
-  title: "Bán hàng tại quầy",
+  title: "POS",
   description: "Màn hình bán hàng tại quầy dành cho nhân viên PaoPizza.",
   path: "/is/pos",
 });

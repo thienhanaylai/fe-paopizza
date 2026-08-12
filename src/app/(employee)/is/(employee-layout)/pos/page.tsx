@@ -21,6 +21,8 @@ import {
   Printer,
   ArrowLeft,
   Clock,
+  LoaderCircle,
+  TicketPercent,
 } from "lucide-react";
 import { getRoleLabel, getRoleColor, useEmployeeAuth } from "@/src/context/authEmployeeContext";
 import Link from "next/link";
@@ -34,6 +36,7 @@ import { checkPaymentStatus } from "@/src/services/payment.service";
 import { formatVND } from "@/src/utils/formatVND";
 import { generateInvoicePDF, type InvoiceData, type InvoiceItem } from "@/src/utils/generateInvoicePDF";
 import { getAllStore, type StoreData } from "@/src/services/store.service";
+import { applyPromoCode, type PromoCodeResult } from "@/src/services/promotion.service";
 import { http } from "@/src/utils/config.api";
 import type {
   ComboRule,
@@ -53,12 +56,14 @@ type MenuCategoryUI = {
   icon: string;
 };
 
-type MenuTab = "all" | "products" | "combos";
+type MenuTab = "all" | "products" | "combos" | "toppings";
+type PosStep = "order" | "pricing" | "payment";
 
 export type { ProductCategory, ProductImage, Ingredient, RecipeIngredient, ProductVariant };
 export type { Product };
 
 interface CartItem {
+  cart_line_id: string;
   item_type: "product" | "combo";
   product_id?: string;
   combo_id?: string;
@@ -70,6 +75,8 @@ interface CartItem {
   quantity: number;
   note: string;
   image: string;
+  base_price?: number;
+  is_pizza?: boolean;
   added_topping?: string[];
   combo_selections?: ComboSlotSelection[];
 }
@@ -160,6 +167,11 @@ export default function POS() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
   const [cashReceived, setCashReceived] = useState("");
   const [orderNote, setOrderNote] = useState("");
+  const [promoCode, setPromoCode] = useState("");
+  const [promoError, setPromoError] = useState("");
+  const [appliedPromo, setAppliedPromo] = useState<PromoCodeResult | null>(null);
+  const [isApplyingPromo, setIsApplyingPromo] = useState(false);
+  const [promoSubtotal, setPromoSubtotal] = useState<number | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
   const [lastOrderId, setLastOrderId] = useState("");
   const [editNoteIndex, setEditNoteIndex] = useState<number | null>(null);
@@ -180,7 +192,9 @@ export default function POS() {
   const [cart, setCart] = useState<CartItem[]>([]);
   // Theo dõi loại đế (crust) đã chọn theo key "productId-size"
   const [selectedCrustMap, setSelectedCrustMap] = useState<Record<string, string>>({});
-  const [hideTable, setHideTable] = useState(false);
+  const [hideTable, setHideTable] = useState(true);
+  const [posStep, setPosStep] = useState<PosStep>("order");
+  const [createValidationAttempted, setCreateValidationAttempted] = useState(false);
   const [tableNumber, setTableNumber] = useState("");
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
@@ -190,21 +204,13 @@ export default function POS() {
   const [storeInfo, setStoreInfo] = useState<StoreData | null>(null);
   const [isPrinting, setIsPrinting] = useState(false);
 
-  // Extra topping modal
-  const [showToppingModal, setShowToppingModal] = useState(false);
+  // Extra topping is edited for the currently selected pizza cart line.
   const [toppingList, setToppingList] = useState<IngredientData[]>([]);
-  const [selectedToppingIds, setSelectedToppingIds] = useState<string[]>([]);
-  const [pendingProduct, setPendingProduct] = useState<{
-    product: Product;
-    size: string;
-    crust?: string;
-    sku: string;
-    basePrice: number;
-    image: string;
-  } | null>(null);
+  const [selectedCartLineId, setSelectedCartLineId] = useState<string | null>(null);
 
   const pollingRef = useRef(null);
   const comboCounterRef = useRef(0);
+  const cartLineCounterRef = useRef(0);
   const stopPolling = () => {
     if (pollingRef.current) {
       clearInterval(pollingRef.current);
@@ -273,10 +279,11 @@ export default function POS() {
             // Lưu sản phẩm riêng để dùng cho việc chọn combo
             if (menu?.products) setMenuProducts(menu.products);
             if (menu?.combos) {
-              const mapped: ComboDisplay[] = menu.combos.map((entry: any) => {
+              const comboEntries = menu.combos as Array<Partial<ComboDisplay> & { combo?: Partial<ComboDisplay> }>;
+              const mapped: ComboDisplay[] = comboEntries.map(entry => {
                 const c = entry.combo ?? entry;
                 return {
-                  _id: c._id ?? entry._id,
+                  _id: c._id ?? entry._id ?? "",
                   name: c.name ?? "",
                   description: c.description,
                   image: c.image,
@@ -320,7 +327,7 @@ export default function POS() {
   }, []);
 
   const filteredMenu = useMemo(() => {
-    if (activeTab === "combos" || activeCategory === "combo") return [];
+    if (activeTab === "combos" || activeTab === "toppings" || activeCategory === "combo") return [];
     let items = activeCategory === "all" ? products : products.filter(m => m?.category.slug === activeCategory);
     if (search) items = items.filter(m => m.name.toLowerCase().includes(search.toLowerCase()));
     // Sắp xếp theo thứ tự danh mục ở sidebar
@@ -334,12 +341,30 @@ export default function POS() {
   }, [products, activeCategory, search, activeTab, categories]);
 
   const filteredCombos = useMemo(() => {
-    if (activeTab === "products") return [];
+    if (activeTab === "products" || activeTab === "toppings") return [];
     let items = activeCategory === "combo" || activeCategory === "all" ? combos : [];
     if (activeCategory !== "all" && activeCategory !== "combo") items = [];
     if (search) items = items.filter(c => c.name.toLowerCase().includes(search.toLowerCase()));
     return items;
   }, [combos, search, activeCategory, activeTab]);
+
+  const filteredToppings = useMemo(() => {
+    if (!search) return toppingList;
+    const normalizedSearch = search.trim().toLowerCase();
+    return toppingList.filter(topping => topping.name.toLowerCase().includes(normalizedSearch));
+  }, [search, toppingList]);
+
+  const createCartLineId = (prefix: string) => {
+    cartLineCounterRef.current += 1;
+    return `${prefix}-${cartLineCounterRef.current}`;
+  };
+
+  const haveSameToppings = (a: string[] = [], b: string[] = []) => {
+    if (a.length !== b.length) return false;
+    const aIds = [...a].sort();
+    const bIds = [...b].sort();
+    return aIds.every((id, index) => id === bIds[index]);
+  };
 
   const addToCart = (item: CartItem) => {
     setCart(prev => {
@@ -356,15 +381,20 @@ export default function POS() {
           next[idx] = { ...next[idx], quantity: next[idx].quantity + 1 };
           return next;
         }
-        return [...prev, { ...item, quantity: 1, note: "" }];
+        return [...prev, { ...item, cart_line_id: item.cart_line_id || createCartLineId("combo"), quantity: 1, note: "" }];
       }
-      const idx = prev.findIndex(c => c.sku === item.sku);
+      // Keep each pizza as its own line so toppings can target one specific pizza.
+      const idx = item.is_pizza
+        ? -1
+        : prev.findIndex(
+            c => c.item_type === "product" && c.sku === item.sku && haveSameToppings(c.added_topping, item.added_topping),
+          );
       if (idx >= 0) {
         const next = [...prev];
         next[idx] = { ...next[idx], quantity: next[idx].quantity + 1 };
         return next;
       }
-      return [...prev, { ...item, quantity: 1, note: "" }];
+      return [...prev, { ...item, cart_line_id: item.cart_line_id || createCartLineId("product"), quantity: 1, note: "" }];
     });
   };
 
@@ -512,6 +542,7 @@ export default function POS() {
     });
     const finalPrice = getDisplayComboPrice();
     addToCart({
+      cart_line_id: createCartLineId("combo"),
       item_type: "combo",
       combo_id: selectedCombo._id,
       name: selectedCombo.name,
@@ -527,15 +558,40 @@ export default function POS() {
   };
 
   const updateQty = (index: number, delta: number) => {
+    const itemToUpdate = cart[index];
     setCart(prev => {
       const next = [...prev];
       next[index] = { ...next[index], quantity: next[index].quantity + delta };
       if (next[index].quantity <= 0) next.splice(index, 1);
       return next;
     });
+    if (itemToUpdate && itemToUpdate.quantity + delta <= 0 && itemToUpdate.cart_line_id === selectedCartLineId) {
+      setSelectedCartLineId(null);
+    }
   };
 
-  const removeItem = (index: number) => setCart(prev => prev.filter((_, i) => i !== index));
+  const removeItem = (index: number) => {
+    const itemToRemove = cart[index];
+    setCart(prev => prev.filter((_, i) => i !== index));
+    if (itemToRemove?.cart_line_id === selectedCartLineId) {
+      setSelectedCartLineId(null);
+    }
+  };
+
+  const clearCartQuickly = () => {
+    setCart([]);
+    setSelectedCartLineId(null);
+    setEditNoteIndex(null);
+    setOrderNote("");
+    setPromoCode("");
+    setPromoError("");
+    setAppliedPromo(null);
+    setPromoSubtotal(null);
+    setCashReceived("");
+    setCreateValidationAttempted(false);
+    setPosStep("order");
+    toast.success("Đã hủy và xóa toàn bộ giỏ hàng");
+  };
 
   const updateNote = (index: number, note: string) => {
     setCart(prev => {
@@ -545,18 +601,139 @@ export default function POS() {
     });
   };
 
+  const selectedPizzaCartItem = selectedCartLineId
+    ? cart.find(item => item.cart_line_id === selectedCartLineId && item.is_pizza)
+    : undefined;
+
+  const getToppingNames = (ids: string[] = []) =>
+    toppingList.filter(topping => ids.includes(topping._id)).map(topping => topping.name);
+
+  const toggleToppingForSelectedPizza = (toppingId: string) => {
+    if (!selectedCartLineId || !selectedPizzaCartItem) {
+      toast.info("Vui lòng chọn một pizza trong giỏ trước");
+      return;
+    }
+
+    setCart(prev =>
+      prev.map(item => {
+        if (item.cart_line_id !== selectedCartLineId) return item;
+
+        const currentToppingIds = item.added_topping ?? [];
+        const nextToppingIds = currentToppingIds.includes(toppingId)
+          ? currentToppingIds.filter(id => id !== toppingId)
+          : [...currentToppingIds, toppingId];
+        const currentToppingTotal = toppingList
+          .filter(topping => currentToppingIds.includes(topping._id))
+          .reduce((sum, topping) => sum + Number(topping.price || 0), 0);
+        const nextToppingTotal = toppingList
+          .filter(topping => nextToppingIds.includes(topping._id))
+          .reduce((sum, topping) => sum + Number(topping.price || 0), 0);
+        const basePrice = item.base_price ?? Math.max(0, item.price - currentToppingTotal);
+
+        return {
+          ...item,
+          base_price: basePrice,
+          price: basePrice + nextToppingTotal,
+          added_topping: nextToppingIds,
+        };
+      }),
+    );
+  };
+
   const cartCount = cart.reduce((s, c) => s + c.quantity, 0);
   const subtotal = cart.reduce((s, c) => s + c.price * c.quantity, 0);
   const deliveryFee = orderType === "delivery" && subtotal < 200000 ? 25000 : 0;
-  const total = subtotal + deliveryFee;
+  const discountAmount = appliedPromo?.valid ? Math.min(appliedPromo.discountAmount, subtotal) : 0;
+  const total = Math.max(0, subtotal + deliveryFee - discountAmount);
   const cashReceivedNum = parseInt(cashReceived) || 0;
   const change = paymentMethod === "cash" ? cashReceivedNum - total : 0;
+
+  useEffect(() => {
+    if (appliedPromo?.valid && promoSubtotal !== null && subtotal !== promoSubtotal) {
+      setAppliedPromo(null);
+      setPromoSubtotal(null);
+      setPromoError("Giỏ hàng đã thay đổi, vui lòng áp dụng lại mã.");
+    }
+  }, [appliedPromo, promoSubtotal, subtotal]);
+
+  const handleApplyPromo = async () => {
+    const code = promoCode.trim().toUpperCase();
+    if (!code) {
+      setPromoError("Vui lòng nhập mã khuyến mãi");
+      return;
+    }
+    if (!user?.store_id) {
+      setPromoError("Không xác định được cửa hàng");
+      return;
+    }
+
+    setIsApplyingPromo(true);
+    setPromoError("");
+    try {
+      const result = await applyPromoCode(code, subtotal, user.store_id, null);
+      if (result.valid) {
+        setAppliedPromo(result);
+        setPromoCode(result.code);
+        setPromoSubtotal(subtotal);
+        toast.success(`Đã áp dụng mã ${result.code}`);
+      } else {
+        const errorMessages: Record<string, string> = {
+          PROMOTION_NOT_FOUND: "Mã khuyến mãi không tồn tại.",
+          PROMOTION_INACTIVE: "Mã khuyến mãi hiện không hoạt động.",
+          PROMOTION_NOT_STARTED: "Mã khuyến mãi chưa đến thời gian áp dụng.",
+          PROMOTION_EXPIRED: "Mã khuyến mãi đã hết hạn.",
+          PROMOTION_NOT_APPLICABLE: "Mã không áp dụng cho cửa hàng này.",
+          PROMOTION_USAGE_LIMIT_REACHED: "Mã khuyến mãi đã hết lượt sử dụng.",
+          PROMOTION_REQUIRES_POINTS: "Mã này chỉ dành cho khách hàng đã đổi điểm.",
+        };
+        setAppliedPromo(null);
+        setPromoSubtotal(null);
+        setPromoError(errorMessages[result.message || ""] || result.message || "Mã khuyến mãi không hợp lệ");
+      }
+    } catch {
+      setPromoError("Không thể kiểm tra mã khuyến mãi");
+    } finally {
+      setIsApplyingPromo(false);
+    }
+  };
+
+  const removeAppliedPromo = () => {
+    setPromoCode("");
+    setPromoError("");
+    setAppliedPromo(null);
+    setPromoSubtotal(null);
+  };
 
   const canSubmit = () => {
     if (cart.length === 0) return false;
     if (orderType === "dine_in" && !tableNumber) return false;
     if (paymentMethod === "cash" && cashReceivedNum < total) return false;
     return true;
+  };
+
+  const handleContinueToPricing = () => {
+    setCreateValidationAttempted(true);
+    const isMissingTable = orderType === "dine_in" && !tableNumber;
+
+    if (isMissingTable) {
+      setHideTable(false);
+      toast.warning("Vui lòng chọn số bàn");
+      return;
+    }
+
+    setCreateValidationAttempted(false);
+    setPosStep("pricing");
+  };
+
+  const handleCreateOrderClick = () => {
+    setCreateValidationAttempted(true);
+    if (paymentMethod === "cash" && cashReceivedNum < total) {
+      toast.warning("Vui lòng nhập đủ tiền khách đưa");
+      return;
+    }
+
+    setCreateValidationAttempted(false);
+    setContactModal(true);
   };
 
   const handleSubmit = async () => {
@@ -612,6 +789,8 @@ export default function POS() {
         customer_id: null,
         employee_id: emp._id,
         items: listItem,
+        promotion_code: appliedPromo?.valid ? appliedPromo.code : undefined,
+        discount_amount: discountAmount,
       };
       const result = await createPosOrder(order, "");
       const res = result.data;
@@ -626,13 +805,21 @@ export default function POS() {
         setLastOrderId(result.data._id);
         setShowSuccess(true);
       }
-    } catch (error) {
-      toast.error("Có lỗi!");
+    } catch (error: unknown) {
+      const orderError = error as { data?: { message?: string }; message?: string };
+      const rawMessage = orderError.data?.message || orderError.message || "";
+      const errorMessages: Record<string, string> = {
+        PROMOTION_NOT_FOUND_OR_EXPIRED: "Mã khuyến mãi không tồn tại hoặc đã hết hạn.",
+        PROMOTION_USAGE_LIMIT_REACHED: "Mã khuyến mãi đã hết lượt sử dụng.",
+        PROMOTION_REQUIRES_POINTS: "Mã này chỉ dành cho khách hàng đã đổi điểm.",
+      };
+      toast.error(errorMessages[rawMessage] || "Không thể tạo đơn hàng");
     }
   };
 
   const resetOrder = () => {
     setCart([]);
+    setSelectedCartLineId(null);
     setOrderType("dine_in");
     setTableNumber("");
     setCustomerName("");
@@ -641,6 +828,13 @@ export default function POS() {
     setPaymentMethod("cash");
     setCashReceived("");
     setOrderNote("");
+    setPromoCode("");
+    setPromoError("");
+    setAppliedPromo(null);
+    setPromoSubtotal(null);
+    setPosStep("order");
+    setCreateValidationAttempted(false);
+    setHideTable(true);
     setShowSuccess(false);
     setContactModal(false);
   };
@@ -665,23 +859,27 @@ export default function POS() {
   const handlePrintInvoice = async () => {
     setIsPrinting(true);
     try {
-      const invoiceItems: InvoiceItem[] = cart.map(item => ({
-        name: item.name,
-        size: item.size,
-        crust: item.crust,
-        quantity: item.quantity,
-        price: item.price,
-        note: item.note || undefined,
-        isCombo: item.item_type === "combo",
-        comboSelections: item.combo_selections?.map(sel => {
-          const selProduct = menuProducts.find(p => p._id === sel.productId);
-          return {
-            name: selProduct?.name || sel.productId,
-            size: sel.size,
-            crust: sel.crust,
-          };
-        }),
-      }));
+      const invoiceItems: InvoiceItem[] = cart.map(item => {
+        const toppingNames = getToppingNames(item.added_topping);
+        const toppingNote = toppingNames.length ? `Extra topping: ${toppingNames.join(", ")}` : "";
+        return {
+          name: item.name,
+          size: item.size,
+          crust: item.crust,
+          quantity: item.quantity,
+          price: item.price,
+          note: [item.note, toppingNote].filter(Boolean).join(" | ") || undefined,
+          isCombo: item.item_type === "combo",
+          comboSelections: item.combo_selections?.map(sel => {
+            const selProduct = menuProducts.find(p => p._id === sel.productId);
+            return {
+              name: selProduct?.name || sel.productId,
+              size: sel.size,
+              crust: sel.crust,
+            };
+          }),
+        };
+      });
 
       const paymentLabel = paymentOptions.find(p => p.key === paymentMethod)?.label || paymentMethod;
       const storeAddress = storeInfo
@@ -699,6 +897,8 @@ export default function POS() {
         items: invoiceItems,
         subtotal,
         deliveryFee: orderType === "delivery" && subtotal < 200000 ? 25000 : 0,
+        discountAmount,
+        promotionCode: appliedPromo?.valid ? appliedPromo.code : undefined,
         total,
         cashReceived: paymentMethod === "cash" ? cashReceivedNum : undefined,
         change: paymentMethod === "cash" && change > 0 ? change : undefined,
@@ -735,7 +935,50 @@ export default function POS() {
   const timeStr = `${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}`;
 
   const orderPanel = (
-    <div className="flex flex-col h-[95vh] max-h-screen">
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <div className="grid grid-cols-3 border-b border-border bg-white px-2 py-1">
+        {[
+          { key: "order" as PosStep, number: 1, label: "Chọn món" },
+          { key: "pricing" as PosStep, number: 2, label: "Tính tiền" },
+          { key: "payment" as PosStep, number: 3, label: "Thanh toán" },
+        ].map((step, index) => {
+          const currentIndex = ["order", "pricing", "payment"].indexOf(posStep);
+          const isActive = posStep === step.key;
+          const isCompleted = index < currentIndex;
+          return (
+            <div key={step.key} className="relative flex items-center justify-center">
+              {index > 0 && (
+                <span className={`absolute right-1/2 top-1/2 h-px w-full ${isCompleted || isActive ? "bg-primary" : "bg-border"}`} />
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  if (isCompleted) setPosStep(step.key);
+                }}
+                className={`relative z-10 flex min-h-10 touch-manipulation items-center justify-center gap-1.5 rounded-full bg-white px-2 text-[10px] font-medium ${
+                  isActive ? "text-primary" : isCompleted ? "text-primary" : "text-muted-foreground"
+                }`}
+              >
+                <span
+                  className={`flex size-5 shrink-0 items-center justify-center rounded-full border text-[10px] font-semibold ${
+                    isActive
+                      ? "border-primary bg-primary text-white"
+                      : isCompleted
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border bg-white"
+                  }`}
+                >
+                  {isCompleted ? <CheckCircle2 size={12} /> : step.number}
+                </span>
+                <span className="whitespace-nowrap">{step.label}</span>
+              </button>
+            </div>
+          );
+        })}
+      </div>
+
+      {posStep === "order" && (
+        <>
       <div className="p-2 border-b border-border">
         <div className="flex gap-1 bg-muted rounded-xl p-1">
           {[
@@ -753,22 +996,41 @@ export default function POS() {
           ))}
         </div>
       </div>
-      <div className={`space-y-2 border-b border-border ${orderType === "dine_in" ? "p-2" : "hidden"}`}>
+      <div
+        className={`border-b px-2 py-1 transition-colors ${
+          orderType !== "dine_in"
+            ? "hidden"
+            : createValidationAttempted && !tableNumber
+              ? "border-red-300 bg-red-50/40"
+              : "border-border"
+        }`}
+      >
         {orderType === "dine_in" && (
           <div>
-            <div className="flex justify-between px-1">
-              <label className="text-[11px] text-muted-foreground mb-1 block">Số bàn *</label>
-              <button onClick={() => setHideTable(!hideTable)}>
-                <ChevronDown />
+            <div className="flex min-h-9 items-center justify-between px-1">
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] text-muted-foreground">Số bàn *</span>
+                {tableNumber && <span className="rounded-md bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">{tableNumber}</span>}
+                {createValidationAttempted && !tableNumber && <span className="text-[10px] font-medium text-red-500">Vui lòng chọn</span>}
+              </div>
+              <button
+                type="button"
+                onClick={() => setHideTable(!hideTable)}
+                className="flex size-9 touch-manipulation items-center justify-center rounded-lg hover:bg-muted"
+              >
+                <ChevronDown size={18} className={`transition-transform ${hideTable ? "" : "rotate-180"}`} />
               </button>
             </div>
             {!hideTable && (
-              <div className="grid grid-cols-6 gap-1.5">
+              <div className="grid grid-cols-6 gap-1 pb-1">
                 {tables.map(t => (
                   <button
                     key={t}
-                    onClick={() => setTableNumber(t)}
-                    className={`py-2 rounded-lg text-xs font-medium transition-all active:scale-95 ${tableNumber === t ? "bg-primary text-white" : "bg-muted text-foreground hover:bg-primary/10"}`}
+                    onClick={() => {
+                      setTableNumber(t);
+                      setHideTable(true);
+                    }}
+                    className={`min-h-9 rounded-lg px-1 text-[11px] font-medium transition-all active:scale-95 ${tableNumber === t ? "bg-primary text-white" : "bg-muted text-foreground hover:bg-primary/10"}`}
                   >
                     {t}
                   </button>
@@ -779,7 +1041,7 @@ export default function POS() {
         )}
       </div>
 
-      <div className="flex-1 overflow-y-auto p-3">
+      <div className="min-h-0 flex-1 overflow-y-auto p-2">
         {cart.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-muted-foreground/40 py-8">
             <ShoppingCart size={40} className="mb-2" />
@@ -787,12 +1049,27 @@ export default function POS() {
             <p className="text-xs">Chọn món từ menu bên trái</p>
           </div>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-1">
             {cart.map((item, i) => {
+              const isSelectedPizza = item.is_pizza && item.cart_line_id === selectedCartLineId;
+              const toppingNames = getToppingNames(item.added_topping);
               return (
-                <div key={item.sku} className="bg-muted/40 rounded-xl p-3 group">
-                  <div className="flex items-start gap-3">
-                    <div className="w-12 h-12 rounded-lg overflow-hidden bg-muted shrink-0">
+                <div
+                  key={item.cart_line_id}
+                  onClick={event => {
+                    if ((event.target as HTMLElement).closest("button, input")) return;
+                    if (item.is_pizza) setSelectedCartLineId(item.cart_line_id);
+                  }}
+                  className={`group rounded-xl border p-2 transition-all ${
+                    isSelectedPizza
+                      ? "bg-primary/5 border-primary ring-1 ring-primary/20"
+                      : item.is_pizza
+                        ? "bg-muted/40 border-transparent cursor-pointer hover:border-primary/40"
+                        : "bg-muted/40 border-transparent"
+                  }`}
+                >
+                  <div className="flex items-start gap-2">
+                    <div className="h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-muted">
                       {item.image ? (
                         <Image fill src={item.image} alt={item.sku} className="relative! w-full h-full" />
                       ) : (
@@ -804,7 +1081,7 @@ export default function POS() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-1">
                         <div className="min-w-0">
-                          <p className="text-sm text-foreground font-medium truncate flex items-center gap-1">
+                          <p className="flex items-center gap-1 truncate text-[13px] font-medium leading-5 text-foreground">
                             {item.name}{" "}
                             {item.item_type === "product" ? `- ${item.size}${item.crust ? ` (${item.crust})` : ""}` : ""}
                             {item.item_type === "combo" && (
@@ -827,26 +1104,41 @@ export default function POS() {
                               })}
                             </div>
                           )}
+                          {toppingNames.length > 0 && <p className="truncate text-[10px] leading-4 text-primary">+ {toppingNames.join(", ")}</p>}
+                          {item.is_pizza && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedCartLineId(item.cart_line_id);
+                                setActiveTab("toppings");
+                                setActiveCategory("all");
+                                setSearch("");
+                              }}
+                              className="text-[10px] font-medium leading-4 text-primary underline underline-offset-2 hover:text-primary/80"
+                            >
+                              Extra topping
+                            </button>
+                          )}
                         </div>
                         <button
                           onClick={() => removeItem(i)}
-                          className="text-red-400 hover:text-red-500 hover:bg-red-50 rounded-lg p-1.5 transition-all -mr-1"
+                          className="-mr-1 flex size-9 shrink-0 touch-manipulation items-center justify-center rounded-lg text-red-400 transition-all hover:bg-red-50 hover:text-red-500"
                         >
                           <Trash2 size={16} />
                         </button>
                       </div>
-                      <div className="flex items-center justify-between mt-2">
-                        <div className="flex items-center gap-2">
+                      <div className="mt-1 flex items-center justify-between gap-1">
+                        <div className="flex items-center gap-1">
                           <button
                             onClick={() => updateQty(i, -1)}
-                            className="w-8 h-8 rounded-lg bg-card border border-border flex items-center justify-center hover:bg-primary/10 text-primary transition-colors active:scale-95"
+                            className="flex size-9 touch-manipulation items-center justify-center rounded-lg border border-border bg-card text-primary transition-colors hover:bg-primary/10 active:scale-95"
                           >
                             <Minus size={14} />
                           </button>
-                          <span className="text-sm w-6 text-center text-foreground font-medium">{item.quantity}</span>
+                          <span className="w-5 text-center text-xs font-medium text-foreground">{item.quantity}</span>
                           <button
                             onClick={() => updateQty(i, 1)}
-                            className="w-8 h-8 rounded-lg bg-primary text-white flex items-center justify-center hover:bg-primary/90 transition-colors active:scale-95"
+                            className="flex size-9 touch-manipulation items-center justify-center rounded-lg bg-primary text-white transition-colors hover:bg-primary/90 active:scale-95"
                           >
                             <Plus size={14} />
                           </button>
@@ -866,12 +1158,12 @@ export default function POS() {
                         ) : (
                           <button
                             onClick={() => setEditNoteIndex(i)}
-                            className="text-xs text-muted-foreground mt-1 hover:text-primary transition-colors py-1"
+                            className="min-h-9 touch-manipulation whitespace-nowrap rounded-md px-1.5 text-[11px] text-muted-foreground transition-colors hover:bg-muted hover:text-primary"
                           >
                             {item.note ? `${item.note}` : "+ Ghi chú"}
                           </button>
                         )}
-                        <span className="text-sm text-primary font-semibold">{formatVND(item.price * item.quantity)}</span>
+                        <span className="shrink-0 text-[13px] font-semibold text-primary">{formatVND(item.price * item.quantity)}</span>
                       </div>
                     </div>
                   </div>
@@ -881,105 +1173,196 @@ export default function POS() {
           </div>
         )}
       </div>
+        </>
+      )}
 
       {cart.length > 0 && (
-        <div className="shrink-0 bg-white bottom-0 border-t border-border p-3 space-y-3">
-          <div>
-            <div className="px-3 pb-2">
-              <input
-                value={orderNote}
-                onChange={e => setOrderNote(e.target.value)}
-                placeholder="Ghi chú đơn hàng chung..."
-                className="w-full text-xs px-3 py-2 rounded-lg border border-border bg-background outline-none focus:border-primary"
-              />
+        <>
+          {posStep === "order" && (
+            <div className="shrink-0 border-t border-border bg-white p-2">
+              <button
+                type="button"
+                onClick={handleContinueToPricing}
+                className="flex min-h-11 w-full touch-manipulation items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-medium text-white shadow-md shadow-primary/20 hover:bg-primary/90"
+              >
+                Tính tiền <ChevronRight size={16} />
+              </button>
             </div>
-            <label className="text-[11px] text-muted-foreground mb-1.5 block">Thanh toán</label>
-            <div className="grid grid-cols-2 gap-1.5">
-              {paymentOptions.map(opt => (
-                <button
-                  key={opt.key}
-                  onClick={() => setPaymentMethod(opt.key)}
-                  className={`flex flex-col items-center gap-1 p-2 rounded-lg border text-[10px] transition-all ${paymentMethod === opt.key ? "border-primary bg-primary/5 text-primary" : "border-border text-muted-foreground hover:border-primary/30"}`}
-                >
-                  {opt.icon}
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-          </div>
+          )}
 
-          {paymentMethod === "cash" && (
-            <div>
-              <label className="text-[11px] text-muted-foreground mb-1 block">Tiền khách đưa</label>
-              <input
-                type="number"
-                value={cashReceived}
-                onChange={e => setCashReceived(e.target.value)}
-                placeholder={formatVND(total)}
-                className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm outline-none focus:border-primary text-right"
-              />
-              <div className="flex gap-1.5 mt-1.5">
-                {[
-                  total,
-                  Math.ceil(total / 50000) * 50000,
-                  Math.ceil(total / 100000) * 100000,
-                  Math.ceil(total / 200000) * 200000,
-                  500000,
-                ]
-                  .filter((v, i, arr) => arr.indexOf(v) === i && v >= total)
-                  .slice(0, 4)
-                  .map(v => (
-                    <button
-                      key={v}
-                      onClick={() => setCashReceived(v.toString())}
-                      className={`flex-1 py-1 text-[10px] rounded-md transition-all ${cashReceived === v.toString() ? "bg-primary text-white" : "bg-muted text-muted-foreground hover:bg-primary/10"}`}
-                    >
-                      {v >= 1000000 ? `${(v / 1000000).toFixed(1)}M` : `${(v / 1000).toFixed(0)}K`}
+          {posStep === "pricing" && (
+            <div className="flex min-h-0 flex-1 flex-col">
+              <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
+                <div>
+                  <h4 className="text-sm font-semibold text-foreground">Tính tiền</h4>
+                  <p className="text-xs text-muted-foreground">Kiểm tra đơn, thêm ghi chú và mã khuyến mãi.</p>
+                </div>
+
+                <div className="rounded-xl border border-border bg-muted/30 p-3">
+                  <div className="mb-2 flex items-center justify-between">
+                    <span className="text-xs font-medium text-foreground">{cartCount} món đã chọn</span>
+                    <button type="button" onClick={() => setPosStep("order")} className="text-xs text-primary underline">
+                      Sửa món
                     </button>
-                  ))}
+                  </div>
+                  <div className="max-h-40 space-y-1.5 overflow-y-auto">
+                    {cart.map(item => (
+                      <div key={item.cart_line_id} className="flex justify-between gap-3 text-xs">
+                        <span className="truncate text-muted-foreground">
+                          {item.quantity} × {item.name} {item.size ? `- ${item.size}` : ""}
+                        </span>
+                        <span className="shrink-0 text-foreground">{formatVND(item.price * item.quantity)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="mb-1.5 block text-xs text-muted-foreground">Ghi chú đơn hàng</label>
+                  <textarea
+                    value={orderNote}
+                    onChange={event => setOrderNote(event.target.value)}
+                    rows={3}
+                    placeholder="Nhập ghi chú chung..."
+                    className="w-full rounded-xl border border-border bg-background p-3 text-sm outline-none focus:border-primary"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-1.5 block text-xs text-muted-foreground">Mã khuyến mãi</label>
+                  <div className="flex gap-2">
+                    <div className="relative min-w-0 flex-1">
+                      <TicketPercent size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                      <input
+                        value={promoCode}
+                        onChange={event => {
+                          setPromoCode(event.target.value.toUpperCase());
+                          if (promoError) setPromoError("");
+                        }}
+                        onKeyDown={event => {
+                          if (event.key === "Enter" && !appliedPromo?.valid) void handleApplyPromo();
+                        }}
+                        placeholder="Nhập mã"
+                        disabled={!!appliedPromo?.valid || isApplyingPromo}
+                        className="min-h-11 w-full rounded-xl border border-border bg-background pl-9 pr-3 text-xs uppercase outline-none focus:border-primary disabled:bg-green-50 disabled:text-green-700"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={appliedPromo?.valid ? removeAppliedPromo : () => void handleApplyPromo()}
+                      disabled={!appliedPromo?.valid && (!promoCode.trim() || isApplyingPromo)}
+                      className={`min-h-11 touch-manipulation rounded-xl px-4 text-xs font-medium disabled:opacity-50 ${
+                        appliedPromo?.valid ? "border border-red-200 bg-red-50 text-red-600" : "bg-primary text-white"
+                      }`}
+                    >
+                      {isApplyingPromo ? <LoaderCircle size={15} className="animate-spin" /> : appliedPromo?.valid ? "Hủy" : "Áp dụng"}
+                    </button>
+                  </div>
+                  {(promoError || appliedPromo?.valid) && (
+                    <p className={`mt-1.5 text-xs ${appliedPromo?.valid ? "text-green-600" : "text-red-500"}`}>
+                      {appliedPromo?.valid ? `Đã giảm ${formatVND(discountAmount)} với mã ${appliedPromo.code}` : promoError}
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-2 rounded-xl bg-muted/40 p-3 text-sm">
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>Tạm tính</span><span>{formatVND(subtotal)}</span>
+                  </div>
+                  {deliveryFee > 0 && (
+                    <div className="flex justify-between text-muted-foreground"><span>Phí giao hàng</span><span>{formatVND(deliveryFee)}</span></div>
+                  )}
+                  {discountAmount > 0 && (
+                    <div className="flex justify-between text-green-600"><span>Giảm giá</span><span>-{formatVND(discountAmount)}</span></div>
+                  )}
+                  <div className="flex justify-between border-t border-border pt-2 font-semibold">
+                    <span>Tổng cộng</span><span className="text-lg text-primary">{formatVND(total)}</span>
+                  </div>
+                </div>
+              </div>
+              <div className="grid shrink-0 grid-cols-2 gap-2 border-t border-border bg-white p-2">
+                <button type="button" onClick={() => setPosStep("order")} className="min-h-11 rounded-xl border border-border text-sm font-medium">
+                  Quay lại
+                </button>
+                <button type="button" onClick={() => setPosStep("payment")} className="flex min-h-11 items-center justify-center gap-1 rounded-xl bg-primary text-sm font-medium text-white">
+                  Thanh toán <ChevronRight size={16} />
+                </button>
               </div>
             </div>
           )}
 
-          <div className="space-y-1.5 text-sm">
-            <div className="flex justify-between text-muted-foreground">
-              <span className="text-xs">Tạm tính ({cartCount} sản phẩm)</span>
-              <span className="text-xs">{formatVND(subtotal)}</span>
+          {posStep === "payment" && (
+            <div className="flex min-h-0 flex-1 flex-col">
+              <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
+                <div>
+                  <h4 className="text-sm font-semibold text-foreground">Thanh toán</h4>
+                  <p className="text-xs text-muted-foreground">Chọn phương thức và hoàn tất đơn hàng.</p>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {paymentOptions.map(option => (
+                    <button
+                      key={option.key}
+                      type="button"
+                      onClick={() => setPaymentMethod(option.key)}
+                      className={`flex min-h-14 touch-manipulation items-center justify-center gap-2 rounded-xl border text-xs font-medium ${
+                        paymentMethod === option.key ? "border-primary bg-primary/5 text-primary" : "border-border text-muted-foreground"
+                      }`}
+                    >
+                      {option.icon} {option.label}
+                    </button>
+                  ))}
+                </div>
+                {paymentMethod === "cash" && (
+                  <div className="space-y-2">
+                    <label className="block text-xs text-muted-foreground">Tiền khách đưa</label>
+                    <input
+                      type="number"
+                      value={cashReceived}
+                      onChange={event => setCashReceived(event.target.value)}
+                      placeholder={formatVND(total)}
+                      className={`min-h-12 w-full rounded-xl border bg-background px-4 text-right text-base outline-none ${
+                        createValidationAttempted && cashReceivedNum < total ? "border-red-400" : "border-border focus:border-primary"
+                      }`}
+                    />
+                    {createValidationAttempted && cashReceivedNum < total && (
+                      <p className="text-xs font-medium text-red-500">Số tiền khách đưa phải từ {formatVND(total)}</p>
+                    )}
+                    <div className="grid grid-cols-4 gap-1.5">
+                      {[total, Math.ceil(total / 50000) * 50000, Math.ceil(total / 100000) * 100000, 500000]
+                        .filter((value, index, values) => values.indexOf(value) === index && value >= total)
+                        .slice(0, 4)
+                        .map(value => (
+                          <button
+                            key={value}
+                            type="button"
+                            onClick={() => setCashReceived(value.toString())}
+                            className={`min-h-11 rounded-lg text-[10px] font-medium ${cashReceived === value.toString() ? "bg-primary text-white" : "bg-muted"}`}
+                          >
+                            {value >= 1000000 ? `${(value / 1000000).toFixed(1)}M` : `${(value / 1000).toFixed(0)}K`}
+                          </button>
+                        ))}
+                    </div>
+                    {cashReceivedNum >= total && (
+                      <div className="flex justify-between rounded-lg bg-green-50 p-3 text-sm text-green-700"><span>Tiền thừa</span><strong>{formatVND(change)}</strong></div>
+                    )}
+                  </div>
+                )}
+                <div className="flex items-center justify-between rounded-xl bg-muted/40 p-4">
+                  <span className="text-sm font-medium">Tổng thanh toán</span>
+                  <strong className="text-xl text-primary">{formatVND(total)}</strong>
+                </div>
+              </div>
+              <div className="grid shrink-0 grid-cols-2 gap-2 border-t border-border bg-white p-2">
+                <button type="button" onClick={() => setPosStep("pricing")} className="min-h-11 rounded-xl border border-border text-sm font-medium">
+                  Quay lại
+                </button>
+                <button type="button" onClick={handleCreateOrderClick} className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-primary text-sm font-medium text-white">
+                  <Receipt size={15} /> Xác nhận
+                </button>
+              </div>
             </div>
-            {deliveryFee > 0 && (
-              <div className="flex justify-between text-muted-foreground">
-                <span className="text-xs">Phí giao hàng</span>
-                <span className="text-xs">{formatVND(deliveryFee)}</span>
-              </div>
-            )}
-            {deliveryFee === 0 && orderType === "delivery" && (
-              <div className="flex justify-between">
-                <span className="text-xs text-muted-foreground">Phí giao hàng</span>
-                <span className="text-xs text-green-600">Miễn phí</span>
-              </div>
-            )}
-            <div className="flex justify-between pt-1.5 border-t border-border">
-              <span className="text-foreground">Tổng cộng</span>
-              <span className="text-primary text-lg">{formatVND(total)}</span>
-            </div>
-            {paymentMethod === "cash" && cashReceivedNum > 0 && cashReceivedNum >= total && (
-              <div className="flex justify-between text-green-600">
-                <span className="text-xs">Tiền thừa</span>
-                <span className="text-xs">{formatVND(change)}</span>
-              </div>
-            )}
-          </div>
-
-          <button
-            onClick={() => {
-              setContactModal(true);
-            }}
-            disabled={!canSubmit()}
-            className="w-full py-3 rounded-xl bg-primary text-white hover:bg-primary/90 transition-colors shadow-lg shadow-primary/25 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm"
-          >
-            <Receipt size={16} /> Tạo đơn hàng
-          </button>
-        </div>
+          )}
+        </>
       )}
     </div>
   );
@@ -1135,6 +1518,7 @@ export default function POS() {
               { key: "all" as MenuTab, label: "Tất cả" },
               { key: "products" as MenuTab, label: "Món ăn" },
               { key: "combos" as MenuTab, label: "Combo" },
+              { key: "toppings" as MenuTab, label: "Extra topping" },
             ].map(t => (
               <button
                 key={t.key}
@@ -1154,7 +1538,7 @@ export default function POS() {
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="Tìm món..."
+              placeholder={activeTab === "toppings" ? "Tìm topping..." : "Tìm món..."}
               className="w-full pl-9 pr-4 py-2 rounded-xl border border-border bg-background text-sm outline-none focus:border-primary"
             />
           </div>
@@ -1175,7 +1559,70 @@ export default function POS() {
             </div>
           ) : (
             <>
-              {activeTab !== "combos" && (
+              {activeTab === "toppings" && (
+                <div className="space-y-4">
+                  {selectedPizzaCartItem ? (
+                    <>
+                      <div className="flex items-center justify-between gap-4 rounded-xl border border-primary/30 bg-primary/5 p-4">
+                        <div className="min-w-0">
+                          <p className="text-xs text-muted-foreground">Đang thêm topping cho</p>
+                          <p className="font-semibold text-foreground truncate">
+                            {selectedPizzaCartItem.name} - {selectedPizzaCartItem.size}
+                            {selectedPizzaCartItem.crust ? ` (${selectedPizzaCartItem.crust})` : ""}
+                          </p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="text-xs text-muted-foreground">
+                            {(selectedPizzaCartItem.added_topping ?? []).length} topping
+                          </p>
+                          <p className="font-semibold text-primary">{formatVND(selectedPizzaCartItem.price)}</p>
+                        </div>
+                      </div>
+
+                      {filteredToppings.length > 0 ? (
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
+                          {filteredToppings.map(topping => {
+                            const isSelected = (selectedPizzaCartItem.added_topping ?? []).includes(topping._id);
+                            return (
+                              <button
+                                key={topping._id}
+                                type="button"
+                                aria-pressed={isSelected}
+                                onClick={() => toggleToppingForSelectedPizza(topping._id)}
+                                className={`rounded-xl border p-4 text-left transition-all active:scale-[0.98] ${
+                                  isSelected
+                                    ? "border-primary bg-primary/10 ring-1 ring-primary/20"
+                                    : "border-border bg-card hover:border-primary/40 hover:shadow-md"
+                                }`}
+                              >
+                                <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
+                                  {isSelected ? <CheckCircle2 size={20} /> : <Plus size={20} />}
+                                </div>
+                                <p className="text-sm font-medium text-foreground truncate">{topping.name}</p>
+                                <p className="mt-1 text-sm font-semibold text-primary">+ {formatVND(topping.price)}</p>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="py-16 text-center text-sm text-muted-foreground">
+                          Không tìm thấy extra topping phù hợp
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-20 text-center">
+                      <ShoppingCart size={44} className="mb-3 text-muted-foreground/30" />
+                      <p className="font-medium text-foreground">Chưa chọn pizza trong giỏ</p>
+                      <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+                        Chọn một pizza ở giỏ hàng bên phải, sau đó quay lại tab này để thêm extra topping cho đúng bánh.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {activeTab !== "combos" && activeTab !== "toppings" && (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 mb-4">
                   {filteredMenu.map(item => {
                     // Đây có phải sản phẩm pizza không?
@@ -1211,16 +1658,22 @@ export default function POS() {
                         <button
                           key={`${item._id}-${size}`}
                           onClick={() => {
-                            setPendingProduct({
-                              product: item,
+                            addToCart({
+                              cart_line_id: createCartLineId("product"),
+                              item_type: "product",
+                              product_id: item._id,
+                              name: item.name,
+                              note: "",
+                              price: matchedVariant.price,
+                              base_price: matchedVariant.price,
+                              quantity: 1,
                               size,
                               crust: isPizza ? selectedCrust : undefined,
                               sku: matchedVariant.sku,
-                              basePrice: matchedVariant.price,
                               image: displayVariant.image.url,
+                              is_pizza: isPizza,
+                              added_topping: [],
                             });
-                            setSelectedToppingIds([]);
-                            setShowToppingModal(true);
                           }}
                           className="bg-card rounded-xl border overflow-hidden hover:shadow-lg transition-all text-left w-full active:scale-[0.98] cursor-pointer"
                         >
@@ -1323,7 +1776,7 @@ export default function POS() {
                 </div>
               )}
 
-              {filteredMenu.length === 0 && filteredCombos.length === 0 && !isLoading && (
+              {activeTab !== "toppings" && filteredMenu.length === 0 && filteredCombos.length === 0 && !isLoading && (
                 <div className="flex flex-col items-center justify-center py-16 text-muted-foreground/40">
                   <Search size={40} className="mb-2" />
                   <p className="text-sm">Không tìm thấy sản phẩm</p>
@@ -1334,12 +1787,23 @@ export default function POS() {
         </div>
       </div>
 
-      <div className="hidden lg:flex w-[380px] border-l border-border bg-card flex-col shrink-0">
+      <div className="hidden lg:flex w-[24vw] border-l border-border bg-card flex-col shrink-0">
         <div className="flex items-center justify-between px-4 py-3 h-[62px] border-b border-border">
           <h3 className="text-foreground text-sm flex items-center gap-2">
             <Receipt size={16} className="text-primary" /> Đơn hàng mới
           </h3>
-          <span className="text-[11px] text-muted-foreground">{cartCount} món</span>
+          <div className="flex items-center gap-2">
+            {cart.length > 0 && (
+              <button
+                type="button"
+                onClick={clearCartQuickly}
+                className="flex min-h-10 touch-manipulation items-center gap-1 rounded-lg px-2 text-xs font-medium text-red-500 hover:bg-red-50 hover:text-red-600"
+              >
+                <Trash2 size={14} /> Hủy giỏ
+              </button>
+            )}
+            <span className="text-[11px] text-muted-foreground">{cartCount} món</span>
+          </div>
         </div>
         {orderPanel}
       </div>
@@ -1678,110 +2142,6 @@ export default function POS() {
                 }`}
               >
                 <Plus size={16} /> Thêm vào giỏ ({formatVND(getDisplayComboPrice())})
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Extra topping modal */}
-      {showToppingModal && pendingProduct && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 m-0"
-          onClick={() => setShowToppingModal(false)}
-        >
-          <div
-            className="bg-card rounded-2xl p-5 w-full max-w-md max-h-[80vh] overflow-y-auto shadow-2xl"
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h3 className="text-foreground text-lg font-bold">{pendingProduct.product.name}</h3>
-                <p className="text-xs text-muted-foreground">
-                  {pendingProduct.size}
-                  {pendingProduct.crust ? ` - ${pendingProduct.crust}` : ""}
-                </p>
-              </div>
-              <button
-                onClick={() => setShowToppingModal(false)}
-                className="p-2 rounded-lg hover:bg-muted text-muted-foreground transition-colors"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            <div className="mb-4">
-              <p className="text-sm font-semibold text-foreground mb-2">
-                Chọn extra topping ({selectedToppingIds.length} đã chọn)
-              </p>
-              {toppingList.length === 0 ? (
-                <p className="text-xs text-muted-foreground italic">Không có topping khả dụng</p>
-              ) : (
-                <div className="grid grid-cols-2 gap-2 max-h-64 overflow-y-auto">
-                  {toppingList.map(topping => {
-                    const isSelected = selectedToppingIds.includes(topping._id);
-                    return (
-                      <button
-                        key={topping._id}
-                        onClick={() =>
-                          setSelectedToppingIds(prev =>
-                            prev.includes(topping._id) ? prev.filter(id => id !== topping._id) : [...prev, topping._id],
-                          )
-                        }
-                        className={`px-3 py-3 rounded-lg border text-left transition-all active:scale-95 ${
-                          isSelected
-                            ? "border-primary bg-primary/10 text-primary"
-                            : "border-border bg-muted/50 text-muted-foreground hover:border-primary/40"
-                        }`}
-                      >
-                        <p className="text-sm font-medium truncate">{topping.name}</p>
-                        <p className="text-xs">+ {formatVND(topping.price)}</p>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            <div className="border-t border-border pt-3 flex items-center justify-between">
-              <span className="text-primary font-bold text-lg">
-                {formatVND(
-                  pendingProduct.basePrice +
-                    toppingList.filter(t => selectedToppingIds.includes(t._id)).reduce((sum, t) => sum + (t.price || 0), 0),
-                )}
-              </span>
-              <button
-                onClick={() => {
-                  const extraPrice = toppingList
-                    .filter(t => selectedToppingIds.includes(t._id))
-                    .reduce((sum, t) => sum + (t.price || 0), 0);
-                  const finalPrice = pendingProduct.basePrice + extraPrice;
-                  const toppingNote = toppingList
-                    .filter(t => selectedToppingIds.includes(t._id))
-                    .map(t => t.name)
-                    .join(", ");
-
-                  const itemCart: CartItem = {
-                    item_type: "product",
-                    product_id: pendingProduct.product._id,
-                    name: pendingProduct.product.name,
-                    note: toppingNote ? `Extra topping: ${toppingNote}` : "",
-                    price: finalPrice,
-                    quantity: 1,
-                    size: pendingProduct.size,
-                    crust: pendingProduct.crust,
-                    sku: pendingProduct.sku,
-                    image: pendingProduct.image,
-                    added_topping: selectedToppingIds,
-                  };
-                  addToCart(itemCart);
-                  setShowToppingModal(false);
-                  setPendingProduct(null);
-                  setSelectedToppingIds([]);
-                }}
-                className="px-6 py-2.5 rounded-xl bg-primary text-white hover:bg-primary/90 transition-all flex items-center gap-2 text-sm font-medium"
-              >
-                <Plus size={16} /> Thêm vào giỏ
               </button>
             </div>
           </div>
