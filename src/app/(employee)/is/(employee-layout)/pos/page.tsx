@@ -199,7 +199,7 @@ export default function POS() {
   const [cart, setCart] = useState<CartItem[]>([]);
   // Theo dõi loại đế (crust) đã chọn theo key "productId-size"
   const [selectedCrustMap, setSelectedCrustMap] = useState<Record<string, string>>({});
-  const [hideTable, setHideTable] = useState(true);
+  const [hideTable, setHideTable] = useState(false);
   const [posStep, setPosStep] = useState<PosStep>("order");
   const [createValidationAttempted, setCreateValidationAttempted] = useState(false);
   const [tableNumber, setTableNumber] = useState("");
@@ -953,7 +953,9 @@ export default function POS() {
           return (
             <div key={step.key} className="relative flex items-center justify-center">
               {index > 0 && (
-                <span className={`absolute right-1/2 top-1/2 h-px w-full ${isCompleted || isActive ? "bg-primary" : "bg-border"}`} />
+                <span
+                  className={`absolute right-1/2 top-1/2 h-px w-full ${isCompleted || isActive ? "bg-primary" : "bg-border"}`}
+                />
               )}
               <button
                 type="button"
@@ -984,200 +986,213 @@ export default function POS() {
 
       {posStep === "order" && (
         <>
-      <div className="p-2 border-b border-border">
-        <div className="flex gap-1 bg-muted rounded-xl p-1">
-          {[
-            { key: "dine_in" as OrderType, label: "Tại chỗ", icon: <UtensilsCrossed size={14} /> },
-            { key: "carry_out" as OrderType, label: "Mang đi", icon: <ShoppingBag size={14} /> },
-            { key: "delivery" as OrderType, label: "Giao hàng", icon: <Truck size={14} /> },
-          ].map(t => (
-            <button
-              key={t.key}
-              onClick={() => setOrderType(t.key)}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs transition-all ${orderType === t.key ? "bg-primary text-white shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
-            >
-              {t.icon} {t.label}
-            </button>
-          ))}
-        </div>
-      </div>
-      <div
-        className={`border-b px-2 py-1 transition-colors ${
-          orderType !== "dine_in"
-            ? "hidden"
-            : createValidationAttempted && !tableNumber
-              ? "border-red-300 bg-red-50/40"
-              : "border-border"
-        }`}
-      >
-        {orderType === "dine_in" && (
-          <div>
-            <div className="flex min-h-9 items-center justify-between px-1">
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] text-muted-foreground">Số bàn *</span>
-                {tableNumber && <span className="rounded-md bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">{tableNumber}</span>}
-                {createValidationAttempted && !tableNumber && <span className="text-[10px] font-medium text-red-500">Vui lòng chọn</span>}
-              </div>
-              <button
-                type="button"
-                onClick={() => setHideTable(!hideTable)}
-                className="flex size-9 touch-manipulation items-center justify-center rounded-lg hover:bg-muted"
-              >
-                <ChevronDown size={18} className={`transition-transform ${hideTable ? "" : "rotate-180"}`} />
-              </button>
+          <div className="p-2 border-b border-border">
+            <div className="flex gap-1 bg-muted rounded-xl p-1">
+              {[
+                { key: "dine_in" as OrderType, label: "Tại chỗ", icon: <UtensilsCrossed size={14} /> },
+                { key: "carry_out" as OrderType, label: "Mang đi", icon: <ShoppingBag size={14} /> },
+                { key: "delivery" as OrderType, label: "Giao hàng", icon: <Truck size={14} /> },
+              ].map(t => (
+                <button
+                  key={t.key}
+                  onClick={() => setOrderType(t.key)}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs transition-all ${orderType === t.key ? "bg-primary text-white shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                >
+                  {t.icon} {t.label}
+                </button>
+              ))}
             </div>
-            {!hideTable && (
-              <div className="grid grid-cols-6 gap-1 pb-1">
-                {tables.map(t => (
+          </div>
+          <div
+            className={`border-b px-2 py-1 transition-colors ${
+              orderType !== "dine_in"
+                ? "hidden"
+                : createValidationAttempted && !tableNumber
+                  ? "border-red-300 bg-red-50/40"
+                  : "border-border"
+            }`}
+          >
+            {orderType === "dine_in" && (
+              <div>
+                <div
+                  onClick={() => setHideTable(!hideTable)}
+                  className="flex min-h-9 items-center justify-between cursor-pointer px-1"
+                >
+                  <div className=" flex items-center gap-2">
+                    <span className="text-[11px] text-muted-foreground">Số bàn *</span>
+                    {tableNumber && (
+                      <span className="rounded-md bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
+                        {tableNumber}
+                      </span>
+                    )}
+                    {createValidationAttempted && !tableNumber && (
+                      <span className="text-[10px] font-medium text-red-500">Vui lòng chọn</span>
+                    )}
+                  </div>
                   <button
-                    key={t}
-                    onClick={() => {
-                      setTableNumber(t);
-                      setHideTable(true);
-                    }}
-                    className={`min-h-9 rounded-lg px-1 text-[11px] font-medium transition-all active:scale-95 ${tableNumber === t ? "bg-primary text-white" : "bg-muted text-foreground hover:bg-primary/10"}`}
+                    type="button"
+                    onClick={() => setHideTable(!hideTable)}
+                    className="flex size-9 touch-manipulation items-center justify-center rounded-lg hover:bg-muted"
                   >
-                    {t}
+                    <ChevronDown size={18} className={`transition-transform ${hideTable ? "" : "rotate-180"}`} />
                   </button>
-                ))}
+                </div>
+                {!hideTable && (
+                  <div className="grid grid-cols-6 gap-1 pb-1">
+                    {tables.map(t => (
+                      <button
+                        key={t}
+                        onClick={() => {
+                          setTableNumber(t);
+                          setHideTable(true);
+                        }}
+                        className={`min-h-9 rounded-lg px-1 text-[11px] font-medium transition-all active:scale-95 ${tableNumber === t ? "bg-primary text-white" : "bg-muted text-foreground hover:bg-primary/10"}`}
+                      >
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>
-        )}
-      </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto p-2">
-        {cart.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-muted-foreground/40 py-8">
-            <ShoppingCart size={40} className="mb-2" />
-            <p className="text-sm">Chưa có sản phẩm</p>
-            <p className="text-xs">Chọn món từ menu bên trái</p>
-          </div>
-        ) : (
-          <div className="space-y-1">
-            {cart.map((item, i) => {
-              const isSelectedPizza = item.is_pizza && item.cart_line_id === selectedCartLineId;
-              const toppingNames = getToppingNames(item.added_topping);
-              return (
-                <div
-                  key={item.cart_line_id}
-                  onClick={event => {
-                    if ((event.target as HTMLElement).closest("button, input")) return;
-                    if (item.is_pizza) setSelectedCartLineId(item.cart_line_id);
-                  }}
-                  className={`group rounded-xl border p-2 transition-all ${
-                    isSelectedPizza
-                      ? "bg-primary/5 border-primary ring-1 ring-primary/20"
-                      : item.is_pizza
-                        ? "bg-muted/40 border-transparent cursor-pointer hover:border-primary/40"
-                        : "bg-muted/40 border-transparent"
-                  }`}
-                >
-                  <div className="flex items-start gap-2">
-                    <div className="h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-muted">
-                      {item.image ? (
-                        <Image fill src={item.image} alt={item.sku} className="relative! w-full h-full" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <Pizza size={20} className="text-muted-foreground/30" />
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-1">
-                        <div className="min-w-0">
-                          <p className="flex items-center gap-1 truncate text-[13px] font-medium leading-5 text-foreground">
-                            {item.name}{" "}
-                            {item.item_type === "product" ? `- ${item.size}${item.crust ? ` (${item.crust})` : ""}` : ""}
-                            {item.item_type === "combo" && (
-                              <span className="px-1.5 py-0.5 bg-orange-500 text-white text-[10px] font-semibold rounded-full shrink-0">
-                                COMBO
-                              </span>
-                            )}
-                          </p>
-                          {item.item_type === "combo" && item.combo_selections && item.combo_selections.length > 0 && (
-                            <div className="mt-0.5 space-y-0.5">
-                              {item.combo_selections.map((sel, si) => {
-                                const selProduct = menuProducts.find(p => p._id === sel.productId);
-                                return (
-                                  <p key={si} className="text-xs text-muted-foreground flex items-center gap-1">
-                                    <span className="w-1 h-1 rounded-full bg-orange-400 shrink-0" />
-                                    {selProduct?.name || sel.productId} - {sel.size}
-                                    {sel.crust ? ` - ${sel.crust}` : ""}
-                                  </p>
-                                );
-                              })}
+          <div className="min-h-0 flex-1 overflow-y-auto p-2">
+            {cart.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full text-muted-foreground/40 py-8">
+                <ShoppingCart size={40} className="mb-2" />
+                <p className="text-sm">Chưa có sản phẩm</p>
+                <p className="text-xs">Chọn món từ menu bên trái</p>
+              </div>
+            ) : (
+              <div className="space-y-1">
+                {cart.map((item, i) => {
+                  const isSelectedPizza = item.is_pizza && item.cart_line_id === selectedCartLineId;
+                  const toppingNames = getToppingNames(item.added_topping);
+                  return (
+                    <div
+                      key={item.cart_line_id}
+                      onClick={event => {
+                        if ((event.target as HTMLElement).closest("button, input")) return;
+                        if (item.is_pizza) setSelectedCartLineId(item.cart_line_id);
+                      }}
+                      className={`group rounded-xl border p-2 transition-all ${
+                        isSelectedPizza
+                          ? "bg-primary/5 border-primary ring-1 ring-primary/20"
+                          : item.is_pizza
+                            ? "bg-muted/40 border-transparent cursor-pointer hover:border-primary/40"
+                            : "bg-muted/40 border-transparent"
+                      }`}
+                    >
+                      <div className="flex items-start gap-2">
+                        <div className="h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-muted">
+                          {item.image ? (
+                            <Image fill src={item.image} alt={item.sku} className="relative! w-full h-full" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <Pizza size={20} className="text-muted-foreground/30" />
                             </div>
                           )}
-                          {toppingNames.length > 0 && <p className="truncate text-[10px] leading-4 text-primary">+ {toppingNames.join(", ")}</p>}
-                          {item.is_pizza && (
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-1">
+                            <div className="min-w-0">
+                              <p className="flex items-center gap-1 truncate text-[13px] font-medium leading-5 text-foreground">
+                                {item.name}{" "}
+                                {item.item_type === "product" ? `- ${item.size}${item.crust ? ` (${item.crust})` : ""}` : ""}
+                                {item.item_type === "combo" && (
+                                  <span className="px-1.5 py-0.5 bg-orange-500 text-white text-[10px] font-semibold rounded-full shrink-0">
+                                    COMBO
+                                  </span>
+                                )}
+                              </p>
+                              {item.item_type === "combo" && item.combo_selections && item.combo_selections.length > 0 && (
+                                <div className="mt-0.5 space-y-0.5">
+                                  {item.combo_selections.map((sel, si) => {
+                                    const selProduct = menuProducts.find(p => p._id === sel.productId);
+                                    return (
+                                      <p key={si} className="text-xs text-muted-foreground flex items-center gap-1">
+                                        <span className="w-1 h-1 rounded-full bg-orange-400 shrink-0" />
+                                        {selProduct?.name || sel.productId} - {sel.size}
+                                        {sel.crust ? ` - ${sel.crust}` : ""}
+                                      </p>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                              {toppingNames.length > 0 && (
+                                <p className="truncate text-[10px] leading-4 text-primary">+ {toppingNames.join(", ")}</p>
+                              )}
+                              {item.is_pizza && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedCartLineId(item.cart_line_id);
+                                    setActiveTab("toppings");
+                                    setActiveCategory("all");
+                                    setSearch("");
+                                  }}
+                                  className="text-[10px] font-medium leading-4 text-primary underline underline-offset-2 hover:text-primary/80"
+                                >
+                                  Extra topping
+                                </button>
+                              )}
+                            </div>
                             <button
-                              type="button"
-                              onClick={() => {
-                                setSelectedCartLineId(item.cart_line_id);
-                                setActiveTab("toppings");
-                                setActiveCategory("all");
-                                setSearch("");
-                              }}
-                              className="text-[10px] font-medium leading-4 text-primary underline underline-offset-2 hover:text-primary/80"
+                              onClick={() => removeItem(i)}
+                              className="-mr-1 flex size-9 shrink-0 touch-manipulation items-center justify-center rounded-lg text-red-400 transition-all hover:bg-red-50 hover:text-red-500"
                             >
-                              Extra topping
+                              <Trash2 size={16} />
                             </button>
-                          )}
-                        </div>
-                        <button
-                          onClick={() => removeItem(i)}
-                          className="-mr-1 flex size-9 shrink-0 touch-manipulation items-center justify-center rounded-lg text-red-400 transition-all hover:bg-red-50 hover:text-red-500"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                      <div className="mt-1 flex items-center justify-between gap-1">
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => updateQty(i, -1)}
-                            className="flex size-9 touch-manipulation items-center justify-center rounded-lg border border-border bg-card text-primary transition-colors hover:bg-primary/10 active:scale-95"
-                          >
-                            <Minus size={14} />
-                          </button>
-                          <span className="w-5 text-center text-xs font-medium text-foreground">{item.quantity}</span>
-                          <button
-                            onClick={() => updateQty(i, 1)}
-                            className="flex size-9 touch-manipulation items-center justify-center rounded-lg bg-primary text-white transition-colors hover:bg-primary/90 active:scale-95"
-                          >
-                            <Plus size={14} />
-                          </button>
-                        </div>
-                        {editNoteIndex === i ? (
-                          <div className="mt-1.5 flex gap-1">
-                            <input
-                              autoFocus
-                              value={item.note}
-                              onChange={e => updateNote(i, e.target.value)}
-                              onBlur={() => setEditNoteIndex(null)}
-                              onKeyDown={e => e.key === "Enter" && setEditNoteIndex(null)}
-                              placeholder="Ghi chú món..."
-                              className="flex-1 text-xs px-2 py-1.5 rounded border border-border bg-background outline-none focus:border-primary"
-                            />
                           </div>
-                        ) : (
-                          <button
-                            onClick={() => setEditNoteIndex(i)}
-                            className="min-h-9 touch-manipulation whitespace-nowrap rounded-md px-1.5 text-[11px] text-muted-foreground transition-colors hover:bg-muted hover:text-primary"
-                          >
-                            {item.note ? `${item.note}` : "+ Ghi chú"}
-                          </button>
-                        )}
-                        <span className="shrink-0 text-[13px] font-semibold text-primary">{formatVND(item.price * item.quantity)}</span>
+                          <div className="mt-1 flex items-center justify-between gap-1">
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={() => updateQty(i, -1)}
+                                className="flex size-9 touch-manipulation items-center justify-center rounded-lg border border-border bg-card text-primary transition-colors hover:bg-primary/10 active:scale-95"
+                              >
+                                <Minus size={14} />
+                              </button>
+                              <span className="w-5 text-center text-xs font-medium text-foreground">{item.quantity}</span>
+                              <button
+                                onClick={() => updateQty(i, 1)}
+                                className="flex size-9 touch-manipulation items-center justify-center rounded-lg bg-primary text-white transition-colors hover:bg-primary/90 active:scale-95"
+                              >
+                                <Plus size={14} />
+                              </button>
+                            </div>
+                            {editNoteIndex === i ? (
+                              <div className="mt-1.5 flex gap-1">
+                                <input
+                                  autoFocus
+                                  value={item.note}
+                                  onChange={e => updateNote(i, e.target.value)}
+                                  onBlur={() => setEditNoteIndex(null)}
+                                  onKeyDown={e => e.key === "Enter" && setEditNoteIndex(null)}
+                                  placeholder="Ghi chú món..."
+                                  className="flex-1 text-xs px-2 py-1.5 rounded border border-border bg-background outline-none focus:border-primary"
+                                />
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => setEditNoteIndex(i)}
+                                className="min-h-9 touch-manipulation whitespace-nowrap rounded-md px-1.5 text-[11px] text-muted-foreground transition-colors hover:bg-muted hover:text-primary"
+                              >
+                                {item.note ? `${item.note}` : "+ Ghi chú"}
+                              </button>
+                            )}
+                            <span className="shrink-0 text-[13px] font-semibold text-primary">
+                              {formatVND(item.price * item.quantity)}
+                            </span>
+                          </div>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </div>
-              );
-            })}
+                  );
+                })}
+              </div>
+            )}
           </div>
-        )}
-      </div>
         </>
       )}
 
@@ -1260,7 +1275,13 @@ export default function POS() {
                         appliedPromo?.valid ? "border border-red-200 bg-red-50 text-red-600" : "bg-primary text-white"
                       }`}
                     >
-                      {isApplyingPromo ? <LoaderCircle size={15} className="animate-spin" /> : appliedPromo?.valid ? "Hủy" : "Áp dụng"}
+                      {isApplyingPromo ? (
+                        <LoaderCircle size={15} className="animate-spin" />
+                      ) : appliedPromo?.valid ? (
+                        "Hủy"
+                      ) : (
+                        "Áp dụng"
+                      )}
                     </button>
                   </div>
                   {(promoError || appliedPromo?.valid) && (
@@ -1272,24 +1293,40 @@ export default function POS() {
 
                 <div className="space-y-2 rounded-xl bg-muted/40 p-3 text-sm">
                   <div className="flex justify-between text-muted-foreground">
-                    <span>Tạm tính</span><span>{formatVND(subtotal)}</span>
+                    <span>Tạm tính</span>
+                    <span>{formatVND(subtotal)}</span>
                   </div>
                   {deliveryFee > 0 && (
-                    <div className="flex justify-between text-muted-foreground"><span>Phí giao hàng</span><span>{formatVND(deliveryFee)}</span></div>
+                    <div className="flex justify-between text-muted-foreground">
+                      <span>Phí giao hàng</span>
+                      <span>{formatVND(deliveryFee)}</span>
+                    </div>
                   )}
                   {discountAmount > 0 && (
-                    <div className="flex justify-between text-green-600"><span>Giảm giá</span><span>-{formatVND(discountAmount)}</span></div>
+                    <div className="flex justify-between text-green-600">
+                      <span>Giảm giá</span>
+                      <span>-{formatVND(discountAmount)}</span>
+                    </div>
                   )}
                   <div className="flex justify-between border-t border-border pt-2 font-semibold">
-                    <span>Tổng cộng</span><span className="text-lg text-primary">{formatVND(total)}</span>
+                    <span>Tổng cộng</span>
+                    <span className="text-lg text-primary">{formatVND(total)}</span>
                   </div>
                 </div>
               </div>
               <div className="grid shrink-0 grid-cols-2 gap-2 border-t border-border bg-white p-2">
-                <button type="button" onClick={() => setPosStep("order")} className="min-h-11 rounded-xl border border-border text-sm font-medium">
+                <button
+                  type="button"
+                  onClick={() => setPosStep("order")}
+                  className="min-h-11 rounded-xl border border-border text-sm font-medium"
+                >
                   Quay lại
                 </button>
-                <button type="button" onClick={() => setPosStep("payment")} className="flex min-h-11 items-center justify-center gap-1 rounded-xl bg-primary text-sm font-medium text-white">
+                <button
+                  type="button"
+                  onClick={() => setPosStep("payment")}
+                  className="flex min-h-11 items-center justify-center gap-1 rounded-xl bg-primary text-sm font-medium text-white"
+                >
                   Thanh toán <ChevronRight size={16} />
                 </button>
               </div>
@@ -1310,7 +1347,9 @@ export default function POS() {
                       type="button"
                       onClick={() => setPaymentMethod(option.key)}
                       className={`flex min-h-14 touch-manipulation items-center justify-center gap-2 rounded-xl border text-xs font-medium ${
-                        paymentMethod === option.key ? "border-primary bg-primary/5 text-primary" : "border-border text-muted-foreground"
+                        paymentMethod === option.key
+                          ? "border-primary bg-primary/5 text-primary"
+                          : "border-border text-muted-foreground"
                       }`}
                     >
                       {option.icon} {option.label}
@@ -1326,7 +1365,9 @@ export default function POS() {
                       onChange={event => setCashReceived(event.target.value)}
                       placeholder={formatVND(total)}
                       className={`min-h-12 w-full rounded-xl border bg-background px-4 text-right text-base outline-none ${
-                        createValidationAttempted && cashReceivedNum < total ? "border-red-400" : "border-border focus:border-primary"
+                        createValidationAttempted && cashReceivedNum < total
+                          ? "border-red-400"
+                          : "border-border focus:border-primary"
                       }`}
                     />
                     {createValidationAttempted && cashReceivedNum < total && (
@@ -1348,7 +1389,10 @@ export default function POS() {
                         ))}
                     </div>
                     {cashReceivedNum >= total && (
-                      <div className="flex justify-between rounded-lg bg-green-50 p-3 text-sm text-green-700"><span>Tiền thừa</span><strong>{formatVND(change)}</strong></div>
+                      <div className="flex justify-between rounded-lg bg-green-50 p-3 text-sm text-green-700">
+                        <span>Tiền thừa</span>
+                        <strong>{formatVND(change)}</strong>
+                      </div>
                     )}
                   </div>
                 )}
@@ -1358,10 +1402,18 @@ export default function POS() {
                 </div>
               </div>
               <div className="grid shrink-0 grid-cols-2 gap-2 border-t border-border bg-white p-2">
-                <button type="button" onClick={() => setPosStep("pricing")} className="min-h-11 rounded-xl border border-border text-sm font-medium">
+                <button
+                  type="button"
+                  onClick={() => setPosStep("pricing")}
+                  className="min-h-11 rounded-xl border border-border text-sm font-medium"
+                >
                   Quay lại
                 </button>
-                <button type="button" onClick={handleCreateOrderClick} className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-primary text-sm font-medium text-white">
+                <button
+                  type="button"
+                  onClick={handleCreateOrderClick}
+                  className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-primary text-sm font-medium text-white"
+                >
                   <Receipt size={15} /> Xác nhận
                 </button>
               </div>

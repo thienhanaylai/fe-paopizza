@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import {
   ShoppingCart,
   DollarSign,
-  Pizza,
   Users,
   TrendingUp,
   ArrowUpRight,
@@ -34,7 +34,7 @@ import { useEmployeeAuth } from "@/src/context/authEmployeeContext";
 import { getAllStore, type StoreData } from "@/src/services/store.service";
 import { getRevenue, getStoresRevenue } from "@/src/services/revenue.service";
 import { getAllOrder, type OrderHistory, type OrderStatus } from "@/src/services/order.service";
-import { getAllEmployee } from "@/src/services/employee.service";
+import { getAllEmployee, getEmployeeById } from "@/src/services/employee.service";
 import { SortableHeader } from "@/src/components/ui/SortableHeader";
 import { useSort } from "@/src/hooks/useSort";
 
@@ -42,6 +42,7 @@ type EmployeeRole = "admin" | "manager" | "staff";
 
 type EmployeeInfo = {
   ref_id?: {
+    _id?: string;
     store_id?: string;
     store_name?: string;
   };
@@ -64,6 +65,13 @@ type AdminStoreRow = {
   revenue: number;
   orders: number;
   status: StoreData["status"];
+};
+
+type StoreRevenueItem = {
+  key: string;
+  label: string;
+  total_revenue: number;
+  total_orders: number;
 };
 
 type AdminDataState = {
@@ -320,6 +328,12 @@ function StoreDashboard({
       <div className="bg-card rounded-2xl p-5 border border-border">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-foreground">Đơn hàng gần đây</h3>
+          <Link
+            href="/is/orders"
+            className="text-sm font-medium text-primary underline underline-offset-4 transition-colors hover:text-primary/75 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+          >
+            Xem tất cả →
+          </Link>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -576,7 +590,33 @@ export default function DashboardPage() {
 
     const loadDashboard = async () => {
       try {
-        const info = (await getInfo()) as EmployeeInfo | null;
+        let info = (await getInfo()) as EmployeeInfo | null;
+        if (cancelled) return;
+
+        if (role === "manager" || role === "staff") {
+          const employeeId = info?.ref_id?._id || user?.employee_id;
+          if (employeeId) {
+            try {
+              const employee = await getEmployeeById(employeeId);
+              const storeRef = employee.store_id;
+              const storeId = typeof storeRef === "string" ? storeRef : storeRef?._id;
+              const storeName = typeof storeRef === "object" && storeRef !== null ? storeRef.name : undefined;
+
+              info = {
+                ...info,
+                ref_id: {
+                  ...info?.ref_id,
+                  _id: employee._id,
+                  store_id: storeId || info?.ref_id?.store_id || user?.store_id,
+                  store_name: storeName || info?.ref_id?.store_name,
+                },
+              };
+            } catch (error) {
+              console.error("Không thể tải thông tin cửa hàng của nhân viên:", error);
+            }
+          }
+        }
+
         if (cancelled) return;
         setEmployeeInfo(info);
 
@@ -612,11 +652,10 @@ export default function DashboardPage() {
 
           // 1 call duy nhất thay vì N calls (mỗi store 1 call)
           const storesRevenue = await getStoresRevenue(monthRange.start, monthRange.end, "");
-          const revenueMap = new Map(
-            storesRevenue.map((item: { key: string; label: string; total_revenue: number; total_orders: number }) => [
-              item.key,
-              item,
-            ]),
+          const revenueMap = new Map<string, StoreRevenueItem>(
+            storesRevenue.map(
+              (item: StoreRevenueItem): [string, StoreRevenueItem] => [item.key, item],
+            ),
           );
 
           const storeRows = stores.map(st => {
@@ -726,7 +765,7 @@ export default function DashboardPage() {
     return () => {
       cancelled = true;
     };
-  }, [getInfo, role]);
+  }, [getInfo, role, user?.employee_id, user?.store_id]);
 
   const userName = user?.name || "User";
   const EmpStoreName = employeeInfo?.ref_id?.store_name || "Cửa hàng";

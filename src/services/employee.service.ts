@@ -41,6 +41,28 @@ export interface PaginationInfo {
   totalPages: number;
 }
 
+export interface EmployeeDetail {
+  _id: string;
+  name: string;
+  email: string;
+  phone: string;
+  birthday?: string;
+  station?: EmployeeStation;
+  salaryType?: SalaryType;
+  salary?: number;
+  status?: boolean;
+  address?: string;
+  isDeleted?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+  store_id?:
+    | string
+    | {
+        _id: string;
+        name: string;
+      };
+}
+
 export const getAllEmployee = async (page?: number, limit?: number) => {
   try {
     const params = new URLSearchParams();
@@ -50,7 +72,7 @@ export const getAllEmployee = async (page?: number, limit?: number) => {
     const response = await http(`/api/v1/employees?${params.toString()}`, {
       method: "GET",
     });
-    return response as { data: any[]; pagination: PaginationInfo };
+    return response as { data: EmployeeDetail[]; pagination: PaginationInfo };
   } catch (error) {
     console.error("Lỗi:", error);
     throw error;
@@ -67,6 +89,13 @@ export const getEmployeesByStore = async (storeId: string) => {
     console.error("Lỗi:", error);
     throw error;
   }
+};
+
+export const getEmployeeById = async (employeeId: string): Promise<EmployeeDetail> => {
+  const response = await http(`/api/v1/employees/${employeeId}`, {
+    method: "GET",
+  });
+  return response.data as EmployeeDetail;
 };
 
 export const getEmployeeByRole = async (role: string) => {
