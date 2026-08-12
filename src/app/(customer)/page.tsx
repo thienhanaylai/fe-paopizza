@@ -11,6 +11,7 @@ import {
   MapPin,
   Phone,
   ShieldCheck,
+  ShoppingBag,
   Star,
 } from "lucide-react";
 import Image from "next/image";
@@ -46,7 +47,18 @@ function formatMenuUpdatedAt(value?: string) {
 
 export default function IndexPage() {
   const { user } = useCustomerAuth();
-  const { cart, clearCart, editingSku, setEditingSku, editingComboId, setEditingComboId } = useCart();
+  const {
+    cart,
+    cartCount,
+    showCart,
+    setShowCart,
+    checkout,
+    clearCart,
+    editingSku,
+    setEditingSku,
+    editingComboId,
+    setEditingComboId,
+  } = useCart();
 
   const [activeCategory, setActiveCategory] = useState<string>("all");
   const [categories, setCategories] = useState<MenuCategoryUI[]>([]);
@@ -892,6 +904,37 @@ export default function IndexPage() {
           onClose={handleMissingMenuStoreSelected}
           onDismiss={() => setShowMissingMenuStorePicker(false)}
         />
+      )}
+
+      {cartCount > 0 && !showCart && !checkout && (
+        <>
+          {product && (
+            <button
+              type="button"
+              onClick={() => setShowCart(true)}
+              className="fixed inset-x-0 bottom-0 z-[9999] flex h-13 md:h-10 w-screen cursor-pointer items-center justify-center gap-2 bg-primary px-4 text-sm font-semibold text-white shadow-[0_-4px_16px_rgba(0,0,0,0.18)] transition-colors hover:bg-primary/90 active:bg-primary/80 sm:hidden"
+              aria-label={`Tiến hành thanh toán, giỏ hàng có ${cartCount} sản phẩm`}
+            >
+              <ShoppingBag size={18} aria-hidden="true" />
+              <span>Tiến hành thanh toán</span>
+              <ArrowRight size={18} aria-hidden="true" />
+              <span className="rounded-full bg-white/20 px-2 py-0.5 text-xs">{cartCount > 99 ? "99+" : cartCount}</span>
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={() => setShowCart(true)}
+            className={`fixed bottom-4 right-4 z-[9999] h-14 cursor-pointer items-center justify-center gap-2 rounded-full bg-primary px-5 text-white shadow-xl shadow-primary/30 transition-all hover:bg-primary/90 active:scale-95 sm:bottom-6 sm:right-6 ${product ? "hidden sm:flex" : "flex"}`}
+            aria-label={`Mở giỏ hàng, có ${cartCount} sản phẩm`}
+          >
+            <ShoppingBag size={24} aria-hidden="true" />
+            <span className="font-semibold">Giỏ hàng</span>
+            <span className="absolute -right-1 -top-1 flex h-6 min-w-6 items-center justify-center rounded-full border-2 border-white bg-orange-500 px-1 text-[11px] font-bold text-white">
+              {cartCount > 99 ? "99+" : cartCount}
+            </span>
+          </button>
+        </>
       )}
     </>
   );

@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useCallback } from "react";
 import useEmblaCarousel from "embla-carousel-react";
-import { ChevronLeft, ChevronRight, Plus, ShoppingBag, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { useCustomerAuth } from "@/src/context/authCustomerContext";
@@ -353,7 +353,7 @@ export default function ProductDetailModal({
   if (!selectedProduct || !selectedVariant) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 m-0 p-2 sm:p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 m-0 flex items-center justify-center bg-black/50 px-2 pb-24 pt-2 sm:p-4" onClick={onClose}>
       <div className="flex items-center gap-2 sm:gap-4 w-full max-w-[calc(100vw-0.5rem)] sm:max-w-[calc(100vw-7rem)] justify-center">
         {/* Prev button - desktop */}
         <div className="hidden sm:block w-10 h-10 shrink-0">
@@ -621,7 +621,7 @@ export default function ProductDetailModal({
       </div>
 
       {/* Mobile navigation */}
-      <div className="sm:hidden fixed bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-3 z-[60]">
+      <div className="sm:hidden fixed bottom-16 left-1/2 -translate-x-1/2 flex items-center gap-3 z-[60]">
         {(products ?? []).length > 1 && (
           <>
             <button
@@ -650,23 +650,6 @@ export default function ProductDetailModal({
           </>
         )}
       </div>
-
-      {/* Floating cart button */}
-      {(cart?.items?.length ?? 0) > 0 && (
-        <button
-          onClick={e => {
-            e.stopPropagation();
-            setShowCart(true);
-          }}
-          className="fixed bottom-3 right-3 z-[70] flex items-center justify-center w-14 h-14 rounded-full bg-primary text-white shadow-xl shadow-primary/30 active:scale-95 transition-all cursor-pointer hover:bg-primary/90"
-          aria-label="Giỏ hàng"
-        >
-          <ShoppingBag size={24} />
-          <span className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-orange-500 text-white text-[11px] font-bold flex items-center justify-center border-2 border-white">
-            {cart?.items?.length}
-          </span>
-        </button>
-      )}
     </div>
   );
 }
