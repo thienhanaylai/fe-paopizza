@@ -329,9 +329,9 @@ export default function ComboBuilderModal({
 
   return (
     <div
-      className={`fixed inset-x-0 top-0 z-50 m-0 flex h-[100dvh] items-center justify-center overflow-hidden overscroll-none bg-black/50 pt-[max(0.5rem,env(safe-area-inset-top,0px))] pr-[max(0.5rem,env(safe-area-inset-right,0px))] pl-[max(0.5rem,env(safe-area-inset-left,0px))] sm:inset-0 sm:h-auto sm:p-4 ${
+      className={`fixed inset-x-0 top-0 z-50 m-0 flex h-[100dvh] items-center justify-center overflow-hidden overscroll-none bg-black/50 pt-[max(0rem,env(safe-area-inset-top,0px))] pr-[max(0.5rem,env(safe-area-inset-right,0px))] pl-[max(0.5rem,env(safe-area-inset-left,0px))] sm:inset-0 sm:h-auto sm:p-4 ${
         hasMobileCheckoutBar
-          ? "pb-[calc(5rem+env(safe-area-inset-bottom,0px))]"
+          ? "pb-[calc(3rem+env(safe-area-inset-bottom,0px))]"
           : "pb-[calc(2.5rem+env(safe-area-inset-bottom,0px))]"
       }`}
       onClick={() => {
