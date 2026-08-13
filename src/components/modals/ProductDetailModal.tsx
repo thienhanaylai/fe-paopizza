@@ -55,6 +55,40 @@ export default function ProductDetailModal({
   const prevProductIdRef = useRef<string | null>(null);
   const loadingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Khóa trang nền khi modal mở. `overflow: hidden` đơn thuần không chặn được
+  // cuộn/rubber-band của body trên iOS Safari, nên cố định body tại vị trí hiện tại.
+  useEffect(() => {
+    const scrollY = window.scrollY;
+    const body = document.body;
+    const root = document.documentElement;
+    const previousBodyStyles = {
+      position: body.style.position,
+      top: body.style.top,
+      left: body.style.left,
+      right: body.style.right,
+      width: body.style.width,
+      overflow: body.style.overflow,
+    };
+    const previousRootOverflow = root.style.overflow;
+    const previousRootOverscrollBehavior = root.style.overscrollBehavior;
+
+    body.style.position = "fixed";
+    body.style.top = `-${scrollY}px`;
+    body.style.left = "0";
+    body.style.right = "0";
+    body.style.width = "100%";
+    body.style.overflow = "hidden";
+    root.style.overflow = "hidden";
+    root.style.overscrollBehavior = "none";
+
+    return () => {
+      Object.assign(body.style, previousBodyStyles);
+      root.style.overflow = previousRootOverflow;
+      root.style.overscrollBehavior = previousRootOverscrollBehavior;
+      window.scrollTo(0, scrollY);
+    };
+  }, []);
+
   const currentProductIndex = useMemo(() => {
     if (!selectedProduct) return -1;
     return products.findIndex(p => p._id === selectedProduct._id);
@@ -354,7 +388,7 @@ export default function ProductDetailModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 m-0 flex items-center justify-center bg-black/50 pt-[max(0.5rem,env(safe-area-inset-top,0px))] pr-[max(0.5rem,env(safe-area-inset-right,0px))] pb-[calc(6rem+env(safe-area-inset-bottom,0px))] pl-[max(0.5rem,env(safe-area-inset-left,0px))] sm:p-4"
+      className="fixed inset-x-0 top-0 z-50 m-0 flex h-[100dvh] items-center justify-center overflow-hidden overscroll-none bg-black/50 pt-[max(0.5rem,env(safe-area-inset-top,0px))] pr-[max(0.5rem,env(safe-area-inset-right,0px))] pb-[calc(6rem+env(safe-area-inset-bottom,0px))] pl-[max(0.5rem,env(safe-area-inset-left,0px))] sm:inset-0 sm:h-auto sm:p-4"
       onClick={onClose}
     >
       <div className="relative flex items-center gap-2 sm:gap-4 w-full max-w-[calc(100vw-0.5rem)] sm:max-w-[calc(100vw-7rem)] justify-center">
@@ -376,14 +410,14 @@ export default function ProductDetailModal({
 
         {/* Carousel */}
         <div
-          className="overflow-hidden rounded-3xl w-full md:w-[800px] lg:w-[896px] max-w-[calc(100vw-1rem)] sm:max-w-[calc(100vw-7rem)] shadow-2xl max-h-[90vh] max-md:max-h-[85vh] 2xl:max-h-[70vh] shrink-0"
+          className="overflow-hidden rounded-3xl w-full md:w-[800px] lg:w-[896px] max-w-[calc(100vw-1rem)] sm:max-w-[calc(100vw-7rem)] shadow-2xl max-h-[90vh] max-md:max-h-[min(85dvh,calc(100dvh-6.5rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px)))] 2xl:max-h-[70vh] shrink-0"
           ref={emblaRef}
           onClick={e => e.stopPropagation()}
         >
           <div className="flex">
             {products.map(p => (
               <div key={p._id} className="flex-[0_0_100%] min-w-0">
-                <div className="bg-card flex flex-col md:flex-row h-full max-h-[90vh] max-md:max-h-[85vh] 2xl:max-h-[70vh]">
+                <div className="bg-card flex flex-col md:flex-row h-full max-h-[90vh] max-md:max-h-[min(85dvh,calc(100dvh-6.5rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px)))] 2xl:max-h-[70vh]">
                   {/* Product image */}
                   <div className="md:w-2/5 bg-white border-b md:border-b-0 md:border-r border-border/60 flex items-center justify-center p-2 sm:p-5 shrink-0">
                     <div className="relative w-full max-w-[340px] aspect-square max-md:aspect-[3/2] max-md:max-w-[340px]">
