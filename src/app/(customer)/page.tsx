@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import useEmblaCarousel from "embla-carousel-react";
 import { getAllCategories } from "@/src/services/category.service";
 import { useCustomerAuth } from "@/src/context/authCustomerContext";
@@ -180,6 +180,24 @@ export default function IndexPage() {
       : activeCategory === "all"
         ? menu?.products
         : menu?.products.filter(m => m?.category.slug === activeCategory);
+
+  const carouselProducts = useMemo(() => {
+    const categoryOrder = new Map(
+      categories
+        .filter(category => category.slug !== "all" && category.slug !== "combo")
+        .map((category, index) => [category.slug, index]),
+    );
+
+    return (menu?.products ?? [])
+      .filter(item => item.isActive && !item.isDeleted)
+      .map((item, originalIndex) => ({ item, originalIndex }))
+      .sort((a, b) => {
+        const aCategoryIndex = categoryOrder.get(a.item.category.slug) ?? Number.MAX_SAFE_INTEGER;
+        const bCategoryIndex = categoryOrder.get(b.item.category.slug) ?? Number.MAX_SAFE_INTEGER;
+        return aCategoryIndex - bCategoryIndex || a.originalIndex - b.originalIndex;
+      })
+      .map(({ item }) => item);
+  }, [categories, menu?.products]);
 
   const handleMissingMenuStoreSelected = (store: StoreData) => {
     localStorage.setItem("selected_store", store._id);
@@ -880,7 +898,7 @@ export default function IndexPage() {
       </section>
       {product && (
         <ProductDetailModal
-          products={filteredMenu1 ?? []}
+          products={carouselProducts}
           initialProduct={product}
           extraToppings={extraToppings}
           initialState={editProductState ?? undefined}

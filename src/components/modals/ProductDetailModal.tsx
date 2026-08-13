@@ -56,9 +56,9 @@ export default function ProductDetailModal({
   const loadingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const currentProductIndex = useMemo(() => {
-    if (!selectedProduct || !products) return -1;
+    if (!selectedProduct) return -1;
     return products.findIndex(p => p._id === selectedProduct._id);
-  }, [selectedProduct, products]);
+  }, [products, selectedProduct]);
 
   const handleProductChange = useCallback(
     (product: Product, skipLoading = false) => {
@@ -357,10 +357,10 @@ export default function ProductDetailModal({
       className="fixed inset-0 z-50 m-0 flex items-center justify-center bg-black/50 pt-[max(0.5rem,env(safe-area-inset-top,0px))] pr-[max(0.5rem,env(safe-area-inset-right,0px))] pb-[calc(6rem+env(safe-area-inset-bottom,0px))] pl-[max(0.5rem,env(safe-area-inset-left,0px))] sm:p-4"
       onClick={onClose}
     >
-      <div className="flex items-center gap-2 sm:gap-4 w-full max-w-[calc(100vw-0.5rem)] sm:max-w-[calc(100vw-7rem)] justify-center">
+      <div className="relative flex items-center gap-2 sm:gap-4 w-full max-w-[calc(100vw-0.5rem)] sm:max-w-[calc(100vw-7rem)] justify-center">
         {/* Prev button - desktop */}
         <div className="hidden sm:block w-10 h-10 shrink-0">
-          {(products ?? []).length > 1 && (
+          {products.length > 1 && (
             <button
               onClick={e => {
                 e.stopPropagation();
@@ -376,17 +376,17 @@ export default function ProductDetailModal({
 
         {/* Carousel */}
         <div
-          className="overflow-hidden rounded-3xl w-full md:w-[800px] lg:w-[896px] max-w-[calc(100vw-1rem)] sm:max-w-[calc(100vw-7rem)] shadow-2xl max-h-[90vh] max-md:max-h-[82vh] 2xl:max-h-[70vh] shrink-0"
+          className="overflow-hidden rounded-3xl w-full md:w-[800px] lg:w-[896px] max-w-[calc(100vw-1rem)] sm:max-w-[calc(100vw-7rem)] shadow-2xl max-h-[90vh] max-md:max-h-[85vh] 2xl:max-h-[70vh] shrink-0"
           ref={emblaRef}
           onClick={e => e.stopPropagation()}
         >
           <div className="flex">
-            {(products ?? []).map(p => (
+            {products.map(p => (
               <div key={p._id} className="flex-[0_0_100%] min-w-0">
-                <div className="bg-card flex flex-col md:flex-row h-full max-h-[90vh] max-md:max-h-[82vh] 2xl:max-h-[70vh]">
+                <div className="bg-card flex flex-col md:flex-row h-full max-h-[90vh] max-md:max-h-[85vh] 2xl:max-h-[70vh]">
                   {/* Product image */}
-                  <div className="md:w-2/5 bg-white border-b md:border-b-0 md:border-r border-border/60 flex items-center justify-center p-4 sm:p-6 shrink-0">
-                    <div className="relative w-full max-w-[320px] aspect-square max-md:aspect-[3/2] max-md:max-h-[200px] max-md:max-w-[200px]">
+                  <div className="md:w-2/5 bg-white border-b md:border-b-0 md:border-r border-border/60 flex items-center justify-center p-2 sm:p-5 shrink-0">
+                    <div className="relative w-full max-w-[340px] aspect-square max-md:aspect-[3/2] max-md:max-w-[340px]">
                       {p._id === selectedProduct._id ? (
                         <Image
                           src={selectedVariant.image.url}
@@ -408,7 +408,7 @@ export default function ProductDetailModal({
                   </div>
 
                   {/* Product details */}
-                  <div className="flex-1 flex flex-col min-h-0">
+                  <div className="flex-1 flex flex-col min-h-0 max-h-full overflow-hidden">
                     {p._id === selectedProduct._id ? (
                       modalLoading ? (
                         <>
@@ -470,11 +470,11 @@ export default function ProductDetailModal({
                           <div className="flex items-start justify-between p-4 sm:p-5 pb-2 sm:pb-3 shrink-0">
                             <div className="pr-3">
                               <h3 className="text-lg sm:text-xl text-foreground">{selectedProduct.name}</h3>
-                              <p className="text-[11px] text-muted-foreground mt-0.5">
+                              <p className="hidden md:block text-[11px] text-muted-foreground mt-0.5">
                                 {selectedVariant.size}
                                 {isPizzaProduct && selectedCrust ? ` - ${formatCrustLabel(selectedCrust)}` : ""}
                               </p>
-                              <p className="text-xs sm:text-sm text-muted-foreground mt-1.5 sm:mt-2 leading-relaxed line-clamp-2 sm:line-clamp-none">
+                              <p className="hidden md:block text-xs sm:text-sm text-muted-foreground mt-1.5 sm:mt-2 leading-relaxed line-clamp-2 sm:line-clamp-none">
                                 {selectedProduct.description}
                               </p>
                               <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 line-clamp-2 sm:line-clamp-none">
@@ -487,11 +487,11 @@ export default function ProductDetailModal({
                           </div>
 
                           {/* Scrollable content */}
-                          <div className="flex-1 overflow-y-auto px-4 sm:px-5 space-y-4 sm:space-y-5 max-md:pb-5">
+                          <div className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-5 space-y-4 sm:space-y-5 max-md:pb-5">
                             {/* Size selection */}
-                            <div className="space-y-3">
-                              <div>
-                                <p className="text-sm font-semibold text-foreground mb-2">Chọn kích thước</p>
+                            <div className="space-y-3 mb-0 md:mb-2">
+                              <div className="mb-0 md:mb-2">
+                                <p className="text-sm font-semibold text-foreground mb-1">Chọn kích thước</p>
                                 <div
                                   className="grid gap-2 bg-muted rounded-xl p-1"
                                   style={{
@@ -502,7 +502,7 @@ export default function ProductDetailModal({
                                     <button
                                       key={size}
                                       onClick={() => handleSelectSize(size)}
-                                      className={`py-2 rounded-lg text-center transition-all ${selectedSize === size ? "bg-card shadow text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                                      className={`py-1 md:py-2 rounded-lg text-center transition-all ${selectedSize === size ? "bg-card shadow text-foreground" : "text-muted-foreground hover:text-foreground"}`}
                                     >
                                       <p className="text-sm truncate">{size}</p>
                                     </button>
@@ -512,8 +512,8 @@ export default function ProductDetailModal({
 
                               {/* Crust selection */}
                               {isPizzaProduct && availableCrusts.length > 0 && (
-                                <div>
-                                  <p className="text-sm font-semibold text-foreground mb-2">Chọn loại đế</p>
+                                <div className="mb-0 md:mb-2">
+                                  <p className="text-sm font-semibold text-foreground mb-1">Chọn loại đế</p>
                                   <div
                                     className="grid gap-2 bg-muted rounded-xl p-1"
                                     style={{
@@ -524,7 +524,7 @@ export default function ProductDetailModal({
                                       <button
                                         key={crust}
                                         onClick={() => handleSelectCrust(crust)}
-                                        className={`py-2 rounded-lg text-center transition-all ${selectedCrust === crust ? "bg-card shadow text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                                        className={`py-1 md:py-2 rounded-lg text-center transition-all ${selectedCrust === crust ? "bg-card shadow text-foreground" : "text-muted-foreground hover:text-foreground"}`}
                                       >
                                         <p className="text-sm truncate">{formatCrustLabel(crust)}</p>
                                       </button>
@@ -608,7 +608,7 @@ export default function ProductDetailModal({
 
         {/* Next button - desktop */}
         <div className="hidden sm:block w-10 h-10 shrink-0">
-          {(products ?? []).length > 1 && (
+          {products.length > 1 && (
             <button
               onClick={e => {
                 e.stopPropagation();
@@ -621,37 +621,15 @@ export default function ProductDetailModal({
             </button>
           )}
         </div>
-      </div>
 
-      {/* Mobile navigation */}
-      <div className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom,0px))] left-1/2 z-[60] flex -translate-x-1/2 items-center gap-3 sm:hidden">
-        {(products ?? []).length > 1 && (
-          <>
-            <button
-              onClick={e => {
-                e.stopPropagation();
-                scrollPrev();
-              }}
-              className="flex items-center justify-center w-12 h-12 rounded-full bg-white/90 backdrop-blur-sm shadow-xl border border-border text-foreground active:scale-95 transition-all cursor-pointer"
-              aria-label="Sản phẩm trước"
-            >
-              <ChevronLeft size={22} />
-            </button>
-            <span className="text-xs text-white/70 font-medium bg-black/40 px-3 py-1.5 rounded-full backdrop-blur-sm">
-              {currentProductIndex + 1} / {(products ?? []).length}
-            </span>
-            <button
-              onClick={e => {
-                e.stopPropagation();
-                scrollNext();
-              }}
-              className="flex items-center justify-center w-12 h-12 rounded-full bg-white/90 backdrop-blur-sm shadow-xl border border-border text-foreground active:scale-95 transition-all cursor-pointer"
-              aria-label="Sản phẩm tiếp theo"
-            >
-              <ChevronRight size={22} />
-            </button>
-          </>
-        )}
+        {/* Mobile swipe hint — anchored to the modal instead of the viewport */}
+        <div className="pointer-events-none absolute left-1/2 top-[calc(100%+0.2rem)] z-[60] -translate-x-1/2 sm:hidden">
+          {products.length > 1 && (
+            <p className="w-max max-w-[calc(100vw-1rem)] rounded-full bg-black/40 px-4 py-1 text-center text-[10px] font-medium text-white shadow-lg backdrop-blur-sm">
+              Vuốt sang trái hoặc phải để xem sản phẩm khác
+            </p>
+          )}
+        </div>
       </div>
     </div>
   );
