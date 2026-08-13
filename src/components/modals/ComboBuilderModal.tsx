@@ -52,7 +52,7 @@ export default function ComboBuilderModal({
   const { addToCart, fetchCart, cart, cartCount, setShowCart } = useCart();
   const hasMobileCheckoutBar = cartCount > 0;
   const mobileModalHeightClass = hasMobileCheckoutBar
-    ? "max-md:max-h-[min(85dvh,calc(100dvh-6.5rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px)))]"
+    ? "max-md:h-[calc(100dvh-3.75rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))] max-md:max-h-[calc(100dvh-3.75rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))]"
     : "max-md:h-[calc(100dvh-3rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))] max-md:max-h-[calc(100dvh-3rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))]";
 
   const [comboSelections, setComboSelections] = useState<Record<number, ComboSlotSelection[]>>(initialSelections || {});
@@ -62,6 +62,38 @@ export default function ComboBuilderModal({
   const comboCounterRef = useRef(0);
   const ruleRefs = useRef<(HTMLDivElement | null)[]>([]);
   const initializedRef = useRef(false);
+
+  // Khóa trang nền khi modal mở và chỉ cho phép thao tác cuộn trong
+  // vùng danh sách sản phẩm của combo.
+  useEffect(() => {
+    const body = document.body;
+    const root = document.documentElement;
+    const previousBodyOverflow = body.style.overflow;
+    const previousBodyOverscrollBehavior = body.style.overscrollBehavior;
+    const previousRootOverflow = root.style.overflow;
+    const previousRootOverscrollBehavior = root.style.overscrollBehavior;
+
+    body.style.overflow = "hidden";
+    body.style.overscrollBehavior = "none";
+    root.style.overflow = "hidden";
+    root.style.overscrollBehavior = "none";
+
+    const preventBackgroundTouchMove = (event: TouchEvent) => {
+      const target = event.target;
+      const isInsideScrollableContent = target instanceof Element && target.closest("[data-combo-modal-scroll]");
+      if (!isInsideScrollableContent) event.preventDefault();
+    };
+
+    document.addEventListener("touchmove", preventBackgroundTouchMove, { passive: false });
+
+    return () => {
+      document.removeEventListener("touchmove", preventBackgroundTouchMove);
+      body.style.overflow = previousBodyOverflow;
+      body.style.overscrollBehavior = previousBodyOverscrollBehavior;
+      root.style.overflow = previousRootOverflow;
+      root.style.overscrollBehavior = previousRootOverscrollBehavior;
+    };
+  }, []);
 
   // Sync editOldSku when prop changes
   useEffect(() => {
@@ -329,10 +361,10 @@ export default function ComboBuilderModal({
 
   return (
     <div
-      className={`fixed inset-x-0 top-0 z-50 m-0 flex h-[100dvh] items-center justify-center overflow-hidden overscroll-none bg-black/50 pt-[max(0rem,env(safe-area-inset-top,0px))] pr-[max(0.5rem,env(safe-area-inset-right,0px))] pl-[max(0.5rem,env(safe-area-inset-left,0px))] sm:inset-0 sm:h-auto sm:p-4 ${
+      className={`fixed inset-x-0 top-0 z-50 m-0 flex h-[100dvh] justify-center overflow-hidden overscroll-none bg-black/50 pt-[max(0.5rem,env(safe-area-inset-top,0px))] pr-[max(0.5rem,env(safe-area-inset-right,0px))] pl-[max(0.5rem,env(safe-area-inset-left,0px))] sm:inset-0 sm:h-auto sm:items-center sm:p-4 ${
         hasMobileCheckoutBar
-          ? "pb-[calc(3rem+env(safe-area-inset-bottom,0px))]"
-          : "pb-[calc(2.5rem+env(safe-area-inset-bottom,0px))]"
+          ? "items-end pb-[calc(3.5rem+env(safe-area-inset-bottom,0px))]"
+          : "items-center pb-[calc(2.5rem+env(safe-area-inset-bottom,0px))]"
       }`}
       onClick={() => {
         onClose();
@@ -381,7 +413,10 @@ export default function ComboBuilderModal({
           </div>
 
           {/* Rules */}
-          <div className="flex-1 overflow-y-auto px-4 sm:px-5 space-y-3 sm:space-y-4 pb-2">
+          <div
+            data-combo-modal-scroll
+            className="flex-1 min-h-0 touch-pan-y overflow-y-auto overscroll-contain px-4 sm:px-5 space-y-3 sm:space-y-4 pb-2"
+          >
             {combo.rules.map((rule, ruleIdx) => {
               const products = getProductsForRule(rule);
               const selectedSelections = comboSelections[ruleIdx] || [];
