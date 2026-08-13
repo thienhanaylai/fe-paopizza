@@ -55,37 +55,35 @@ export default function ProductDetailModal({
   const prevProductIdRef = useRef<string | null>(null);
   const loadingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Khóa trang nền khi modal mở. `overflow: hidden` đơn thuần không chặn được
-  // cuộn/rubber-band của body trên iOS Safari, nên cố định body tại vị trí hiện tại.
+  // Khóa trang nền mà không đổi body sang `position: fixed`. Việc cố định body
+  // khiến iOS Safari hiện lại navbar và buộc phải scrollTo khi đóng modal.
   useEffect(() => {
-    const scrollY = window.scrollY;
     const body = document.body;
     const root = document.documentElement;
-    const previousBodyStyles = {
-      position: body.style.position,
-      top: body.style.top,
-      left: body.style.left,
-      right: body.style.right,
-      width: body.style.width,
-      overflow: body.style.overflow,
-    };
+    const previousBodyOverflow = body.style.overflow;
+    const previousBodyOverscrollBehavior = body.style.overscrollBehavior;
     const previousRootOverflow = root.style.overflow;
     const previousRootOverscrollBehavior = root.style.overscrollBehavior;
 
-    body.style.position = "fixed";
-    body.style.top = `-${scrollY}px`;
-    body.style.left = "0";
-    body.style.right = "0";
-    body.style.width = "100%";
     body.style.overflow = "hidden";
+    body.style.overscrollBehavior = "none";
     root.style.overflow = "hidden";
     root.style.overscrollBehavior = "none";
 
+    const preventBackgroundTouchMove = (event: TouchEvent) => {
+      const target = event.target;
+      const isInsideScrollableContent = target instanceof Element && target.closest("[data-product-modal-scroll]");
+      if (!isInsideScrollableContent) event.preventDefault();
+    };
+
+    document.addEventListener("touchmove", preventBackgroundTouchMove, { passive: false });
+
     return () => {
-      Object.assign(body.style, previousBodyStyles);
+      document.removeEventListener("touchmove", preventBackgroundTouchMove);
+      body.style.overflow = previousBodyOverflow;
+      body.style.overscrollBehavior = previousBodyOverscrollBehavior;
       root.style.overflow = previousRootOverflow;
       root.style.overscrollBehavior = previousRootOverscrollBehavior;
-      window.scrollTo(0, scrollY);
     };
   }, []);
 
@@ -458,7 +456,10 @@ export default function ProductDetailModal({
                           </div>
 
                           {/* Scrollable body skeleton */}
-                          <div className="flex-1 overflow-y-auto px-4 sm:px-5 space-y-4 sm:space-y-5 animate-pulse">
+                          <div
+                            data-product-modal-scroll
+                            className="flex-1 overflow-y-auto overscroll-contain px-4 sm:px-5 space-y-4 sm:space-y-5 animate-pulse"
+                          >
                             {/* Size picker */}
                             <div className="space-y-2">
                               <div className="h-4 w-28 bg-muted rounded-lg" />
@@ -521,7 +522,10 @@ export default function ProductDetailModal({
                           </div>
 
                           {/* Scrollable content */}
-                          <div className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-5 space-y-4 sm:space-y-5 max-md:pb-5">
+                          <div
+                            data-product-modal-scroll
+                            className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 sm:px-5 space-y-4 sm:space-y-5 max-md:pb-5"
+                          >
                             {/* Size selection */}
                             <div className="space-y-3 mb-0 md:mb-2">
                               <div className="mb-0 md:mb-2">
