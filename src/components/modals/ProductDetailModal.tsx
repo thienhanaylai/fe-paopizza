@@ -37,13 +37,17 @@ export default function ProductDetailModal({
   onClose,
 }: ProductDetailModalProps) {
   const { user } = useCustomerAuth();
-  const { addToCart, fetchCart, cart, setShowCart } = useCart();
+  const { addToCart, fetchCart, cart, cartCount, setShowCart } = useCart();
 
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [selectedSize, setSelectedSize] = useState<string>("");
   const [selectedCrust, setSelectedCrust] = useState<string>("");
   const [selectedExtraToppingIds, setSelectedExtraToppingIds] = useState<string[]>([]);
   const [note, setNote] = useState<string>("");
+  const hasMobileCheckoutBar = cartCount > 0;
+  const mobileModalHeightClass = hasMobileCheckoutBar
+    ? "max-md:max-h-[min(85dvh,calc(100dvh-6.5rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px)))]"
+    : "max-md:h-[calc(100dvh-3rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))] max-md:max-h-[calc(100dvh-3rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))]";
 
   // Embla carousel
   const [emblaRef, emblaApi] = useEmblaCarousel({ skipSnaps: true, duration: 30 });
@@ -386,7 +390,11 @@ export default function ProductDetailModal({
 
   return (
     <div
-      className="fixed inset-x-0 top-0 z-50 m-0 flex h-[100dvh] items-center justify-center overflow-hidden overscroll-none bg-black/50 pt-[max(0.5rem,env(safe-area-inset-top,0px))] pr-[max(0.5rem,env(safe-area-inset-right,0px))] pb-[calc(6rem+env(safe-area-inset-bottom,0px))] pl-[max(0.5rem,env(safe-area-inset-left,0px))] sm:inset-0 sm:h-auto sm:p-4"
+      className={`fixed inset-x-0 top-0 z-50 m-0 flex h-[100dvh] items-center justify-center overflow-hidden overscroll-none bg-black/50 pt-[max(0.5rem,env(safe-area-inset-top,0px))] pr-[max(0.5rem,env(safe-area-inset-right,0px))] pl-[max(0.5rem,env(safe-area-inset-left,0px))] sm:inset-0 sm:h-auto sm:p-4 ${
+        hasMobileCheckoutBar
+          ? "pb-[calc(6rem+env(safe-area-inset-bottom,0px))]"
+          : "pb-[calc(2.5rem+env(safe-area-inset-bottom,0px))]"
+      }`}
       onClick={onClose}
     >
       <div className="relative flex items-center gap-2 sm:gap-4 w-full max-w-[calc(100vw-0.5rem)] sm:max-w-[calc(100vw-7rem)] justify-center">
@@ -408,14 +416,16 @@ export default function ProductDetailModal({
 
         {/* Carousel */}
         <div
-          className="overflow-hidden rounded-3xl w-full md:w-[800px] lg:w-[896px] max-w-[calc(100vw-1rem)] sm:max-w-[calc(100vw-7rem)] shadow-2xl max-h-[90vh] max-md:max-h-[min(85dvh,calc(100dvh-6.5rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px)))] 2xl:max-h-[70vh] shrink-0"
+          className={`overflow-hidden rounded-3xl w-full md:w-[800px] lg:w-[896px] max-w-[calc(100vw-1rem)] sm:max-w-[calc(100vw-7rem)] shadow-2xl max-h-[90vh] 2xl:max-h-[70vh] shrink-0 ${mobileModalHeightClass}`}
           ref={emblaRef}
           onClick={e => e.stopPropagation()}
         >
-          <div className="flex">
+          <div className="flex h-full">
             {products.map(p => (
-              <div key={p._id} className="flex-[0_0_100%] min-w-0">
-                <div className="bg-card flex flex-col md:flex-row h-full max-h-[90vh] max-md:max-h-[min(85dvh,calc(100dvh-6.5rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px)))] 2xl:max-h-[70vh]">
+              <div key={p._id} className="flex-[0_0_100%] min-w-0 h-full">
+                <div
+                  className={`bg-card flex flex-col md:flex-row h-full max-h-[90vh] 2xl:max-h-[70vh] ${mobileModalHeightClass}`}
+                >
                   {/* Product image */}
                   <div className="md:w-2/5 bg-white border-b md:border-b-0 md:border-r border-border/60 flex items-center justify-center p-2 sm:p-5 shrink-0">
                     <div className="relative w-full max-w-[340px] aspect-square max-md:aspect-[3/2] max-md:max-w-[340px]">
@@ -661,7 +671,7 @@ export default function ProductDetailModal({
         </div>
 
         {/* Mobile swipe hint — anchored to the modal instead of the viewport */}
-        <div className="pointer-events-none absolute left-1/2 top-[calc(100%+0.2rem)] z-[60] -translate-x-1/2 sm:hidden">
+        <div className="pointer-events-none absolute left-1/2 top-[calc(100%+0.5rem)] z-[60] -translate-x-1/2 sm:hidden">
           {products.length > 1 && (
             <p className="w-max max-w-[calc(100vw-1rem)] rounded-full bg-black/40 px-4 py-1 text-center text-[10px] font-medium text-white shadow-lg backdrop-blur-sm">
               Vuốt sang trái hoặc phải để xem sản phẩm khác
