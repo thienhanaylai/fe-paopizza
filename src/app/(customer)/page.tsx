@@ -926,7 +926,7 @@ export default function IndexPage() {
 
       {cartCount > 0 && !showCart && !checkout && (
         <>
-          {product && (
+          {(product || selectedCombo) && (
             <button
               type="button"
               onClick={() => setShowCart(true)}
@@ -943,7 +943,7 @@ export default function IndexPage() {
           <button
             type="button"
             onClick={() => setShowCart(true)}
-            className={`fixed bottom-[calc(1rem+env(safe-area-inset-bottom,0px))] right-[max(1rem,env(safe-area-inset-right,0px))] z-[9999] h-14 cursor-pointer items-center justify-center gap-2 rounded-full bg-primary px-5 text-white shadow-xl shadow-primary/30 transition-all hover:bg-primary/90 active:scale-95 sm:bottom-6 sm:right-6 ${product ? "hidden sm:flex" : "flex"}`}
+            className={`fixed bottom-[calc(1rem+env(safe-area-inset-bottom,0px))] right-[max(1rem,env(safe-area-inset-right,0px))] z-[9999] h-14 cursor-pointer items-center justify-center gap-2 rounded-full bg-primary px-5 text-white shadow-xl shadow-primary/30 transition-all hover:bg-primary/90 active:scale-95 sm:bottom-6 sm:right-6 ${product || selectedCombo ? "hidden sm:flex" : "flex"}`}
             aria-label={`Mở giỏ hàng, có ${cartCount} sản phẩm`}
           >
             <ShoppingBag size={24} aria-hidden="true" />

@@ -49,7 +49,11 @@ export default function ComboBuilderModal({
   onClose,
 }: ComboBuilderModalProps) {
   const { user } = useCustomerAuth();
-  const { addToCart, fetchCart, cart, setShowCart } = useCart();
+  const { addToCart, fetchCart, cart, cartCount, setShowCart } = useCart();
+  const hasMobileCheckoutBar = cartCount > 0;
+  const mobileModalHeightClass = hasMobileCheckoutBar
+    ? "max-md:max-h-[min(85dvh,calc(100dvh-6.5rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px)))]"
+    : "max-md:h-[calc(100dvh-3rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))] max-md:max-h-[calc(100dvh-3rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))]";
 
   const [comboSelections, setComboSelections] = useState<Record<number, ComboSlotSelection[]>>(initialSelections || {});
   const [replacingRule, setReplacingRule] = useState<number | null>(null);
@@ -325,13 +329,17 @@ export default function ComboBuilderModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 m-0 flex items-center justify-center bg-black/50 pt-[max(1rem,env(safe-area-inset-top,0px))] pr-[max(1rem,env(safe-area-inset-right,0px))] pb-[max(1rem,env(safe-area-inset-bottom,0px))] pl-[max(1rem,env(safe-area-inset-left,0px))]"
+      className={`fixed inset-x-0 top-0 z-50 m-0 flex h-[100dvh] items-center justify-center overflow-hidden overscroll-none bg-black/50 pt-[max(0.5rem,env(safe-area-inset-top,0px))] pr-[max(0.5rem,env(safe-area-inset-right,0px))] pl-[max(0.5rem,env(safe-area-inset-left,0px))] sm:inset-0 sm:h-auto sm:p-4 ${
+        hasMobileCheckoutBar
+          ? "pb-[calc(5rem+env(safe-area-inset-bottom,0px))]"
+          : "pb-[calc(2.5rem+env(safe-area-inset-bottom,0px))]"
+      }`}
       onClick={() => {
         onClose();
       }}
     >
       <div
-        className="bg-card rounded-3xl w-full max-w-4xl shadow-2xl overflow-hidden max-h-[92vh] flex flex-col md:flex-row"
+        className={`bg-card rounded-3xl h-[95vh] max-h-[95vh] w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col md:flex-row ${mobileModalHeightClass}`}
         onClick={e => e.stopPropagation()}
       >
         {/* Combo image */}
@@ -491,12 +499,9 @@ export default function ComboBuilderModal({
           </div>
 
           {/* Footer with price and add button */}
-          <div className="p-4 sm:p-5 border-t border-border space-y-2 shrink-0">
+          <div className="p-3 sm:p-5 border-t border-border space-y-2 shrink-0">
             {isDynamic ? (
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Giá tự động tính theo sản phẩm đã chọn</span>
-                {allComboSelectionsFilled && <span className="text-lg font-bold text-primary">{formatVND(displayPrice)}</span>}
-              </div>
+              <div></div>
             ) : (
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground line-through">{formatVND(originalPrice)}</span>
