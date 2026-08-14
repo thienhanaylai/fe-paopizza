@@ -10,3 +10,12 @@
     display: none;
   }
 }
+
+/* Prevent iOS browsers from zooming the page when a form control receives focus. */
+@media (max-width: 767px) {
+  :is(input, textarea, select):not([type="checkbox"]):not([type="radio"]):not([type="range"]):not(
+      [type="color"]
+    ):not([type="file"]) {
+    font-size: 1rem;
+  }
+}
