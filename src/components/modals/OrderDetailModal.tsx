@@ -69,10 +69,10 @@ function ComboSelectionItem({ sel }: { sel: ComboSelectionPopulated }) {
   );
 }
 
-function OrderItemRow({ item }: { item: OrderItemHistory }) {
+function OrderItemRow({ item, comboSequence }: { item: OrderItemHistory; comboSequence?: number }) {
   const isCombo = item.item_type === "combo";
-  const name = isCombo ? item.combo_id?.name : item.product_id?.name;
-  const displayName = name || item.sku;
+  const name = isCombo ? item.combo?.name || item.combo_id?.name : item.product_id?.name;
+  const displayName = isCombo && name && comboSequence ? `${name} - ${comboSequence}` : name || item.sku;
 
   return (
     <div className="py-2.5 border-b border-border last:border-b-0">
@@ -233,6 +233,8 @@ function OrderProgressBar({ status, orderType }: { status: string; orderType: st
 
 export default function OrderDetailModal({ order, onClose }: OrderDetailModalProps) {
   const pt = paymentStatusConfig[order.paymentStatus];
+  let comboCount = 0;
+  const comboSequenceByItem = order.items.map(item => (item.item_type === "combo" ? ++comboCount : undefined));
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 m-0" onClick={onClose}>
@@ -310,7 +312,7 @@ export default function OrderDetailModal({ order, onClose }: OrderDetailModalPro
             </h4>
             <div className="bg-muted/20 rounded-xl px-3">
               {order.items.map((item, i) => (
-                <OrderItemRow key={i} item={item} />
+                <OrderItemRow key={i} item={item} comboSequence={comboSequenceByItem[i]} />
               ))}
             </div>
           </div>

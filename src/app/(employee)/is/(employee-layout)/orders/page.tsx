@@ -690,7 +690,7 @@ export default function Orders() {
                           <div className="flex items-center gap-2 flex-wrap">
                             {item.item_type === "combo" ? (
                               <span className="text-foreground font-medium">
-                                {item.combo_id?.name || "Combo"}
+                                {item.combo?.name || item.combo_id?.name || "Combo"}
                                 <span className="text-xs text-muted-foreground ml-1">(Combo)</span>
                               </span>
                             ) : (

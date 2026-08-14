@@ -76,6 +76,12 @@ export interface OrderItemHistory {
     image?: string;
     price: number;
   };
+  combo?: {
+    _id: string;
+    name: string;
+    image?: string;
+    price: number;
+  };
   combo_selections?: ComboSelectionPopulated[];
 }
 

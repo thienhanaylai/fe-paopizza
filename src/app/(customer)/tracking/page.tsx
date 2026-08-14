@@ -156,7 +156,9 @@ export default function TrackingPage() {
 
                     {/* Items summary */}
                     <p className="text-xs text-muted-foreground truncate mb-2">
-                      {order.items.map(i => `${i.product_id?.name || i.combo_id?.name || i.sku} x${i.quantity}`).join(", ")}
+                      {order.items
+                        .map(i => `${i.product_id?.name || i.combo?.name || i.combo_id?.name || i.sku} x${i.quantity}`)
+                        .join(", ")}
                     </p>
 
                     {/* Bottom row */}
