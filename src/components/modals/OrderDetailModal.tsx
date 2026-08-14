@@ -2,7 +2,6 @@
 
 import {
   X,
-  Store,
   User,
   ShoppingBag,
   Receipt,
@@ -263,16 +262,12 @@ export default function OrderDetailModal({ order, onClose }: OrderDetailModalPro
           <div className="flex items-center gap-2 flex-wrap">
             <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${pt.color}`}>{pt.label}</span>
             <span className="px-2.5 py-1 rounded-full text-xs bg-muted text-foreground">{orderTypeLabels[order.orderType]}</span>
-            <span className="px-2.5 py-1 rounded-full text-xs bg-muted text-foreground">
-              {paymentMethodLabels[order.paymentMethod] || order.paymentMethod}
-            </span>
           </div>
 
           <div className="text-xs text-muted-foreground">Đặt lúc: {formatDateTime(order.createdAt)}</div>
 
           <div className="bg-muted/30 rounded-xl p-3 space-y-1.5">
             <div className="flex items-center gap-2 text-sm">
-              <Store size={14} className="text-primary shrink-0" />
               <span className="font-medium text-foreground">{order.store_id.name}</span>
             </div>
             <p className="text-xs text-muted-foreground flex items-start gap-1.5">
@@ -283,10 +278,12 @@ export default function OrderDetailModal({ order, onClose }: OrderDetailModalPro
 
           <div className="bg-muted/30 rounded-xl p-3 space-y-1.5">
             <div className="flex items-center gap-2 text-sm">
-              <User size={14} className="text-primary shrink-0" />
-              <span className="font-medium text-foreground">Thông tin nhận hàng</span>
+              <span className="font-medium text-foreground">Thông tin người nhận hàng</span>
             </div>
-            <p className="text-sm text-foreground">{order.contact_info.full_name}</p>
+            <p className="text-sm text-muted-foreground flex items-center gap-1.5">
+              <User size={12} className="shrink-0" />
+              {order.contact_info.full_name}
+            </p>
             <p className="text-xs text-muted-foreground flex items-center gap-1.5">
               <Phone size={12} className="shrink-0" />
               {order.contact_info.phone}
@@ -341,6 +338,12 @@ export default function OrderDetailModal({ order, onClose }: OrderDetailModalPro
                 <span className="text-green-600">-{formatVND(order.discount_amount)}</span>
               </div>
             )}
+            <div className="flex justify-between gap-4 text-sm">
+              <span className="text-muted-foreground">Phương thức thanh toán</span>
+              <span className="text-right text-foreground">
+                {paymentMethodLabels[order.paymentMethod] || order.paymentMethod}
+              </span>
+            </div>
             <div className="flex justify-between text-base pt-1.5 border-t border-border">
               <span className="font-semibold text-foreground">Tổng cộng</span>
               <span className="font-semibold text-primary">{formatVND(order.total)}</span>

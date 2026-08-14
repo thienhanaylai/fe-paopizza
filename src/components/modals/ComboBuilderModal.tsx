@@ -170,8 +170,9 @@ function ComboBuilderContent({
     };
 
     const currentSelections = comboSelections[ruleIndex] || [];
-    const targetSlotIndex =
-      replacingSlot?.ruleIdx === ruleIndex ? replacingSlot.slotIdx : Math.min(activeSlotIndex, currentSelections.length);
+    const replacementTarget = replacingSlot?.ruleIdx === ruleIndex ? replacingSlot : null;
+    const targetSlotIndex = replacementTarget?.slotIdx ?? Math.min(activeSlotIndex, currentSelections.length);
+    const isReplacingSelection = replacementTarget !== null;
     const isFillingNewSlot = targetSlotIndex >= currentSelections.length;
 
     setComboSelections(prev => {
@@ -184,6 +185,11 @@ function ComboBuilderContent({
       return { ...prev, [ruleIndex]: current };
     });
     setReplacingSlot(null);
+
+    if (isReplacingSelection) {
+      setMobilePanel("summary");
+      return;
+    }
 
     if (isFillingNewSlot) {
       const currentStepIndex = selectionSteps.findIndex(

@@ -388,9 +388,249 @@ export default function ProductDetailModal({
         {/* Carousel */}
         <div
           className={`relative h-auto w-full max-w-[calc(100vw-1rem)] shrink-0 overflow-hidden rounded-3xl shadow-2xl sm:max-w-[calc(100vw-7rem)] md:h-[min(660px,90vh)] md:w-[800px] lg:w-[896px] ${mobileModalHeightClass}`}
-          ref={emblaRef}
           onClick={e => e.stopPropagation()}
         >
+          <div ref={emblaRef} className="h-full overflow-hidden">
+            <div className="flex h-full">
+              {products.map(p => (
+                <div key={p._id} className="flex-[0_0_100%] min-w-0 h-full">
+                  <div className={`h-full bg-card flex flex-col md:flex-row ${mobileModalHeightClass}`}>
+                    {/* Product image */}
+                    <div className="md:w-2/5 bg-white border-b md:border-b-0 md:border-r border-border/60 flex items-center justify-center p-2 sm:p-5 shrink-0">
+                      <div className="relative w-full max-w-[340px] aspect-square max-md:aspect-[3/2] max-md:max-w-[340px]">
+                        {p._id === selectedProduct._id ? (
+                          <Image
+                            src={selectedVariant.image.url}
+                            alt={p.name}
+                            fill
+                            sizes="(max-width: 768px) 90vw, (max-width: 1024px) 60vw, 35vw"
+                            className="object-contain"
+                          />
+                        ) : (
+                          <Image
+                            src={p.variants[0]?.image?.url || ""}
+                            alt={p.name}
+                            fill
+                            sizes="(max-width: 768px) 90vw, (max-width: 1024px) 60vw, 35vw"
+                            className="object-contain opacity-40"
+                          />
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Product details */}
+                    <div className="flex-1 flex flex-col min-h-0 max-h-full overflow-hidden">
+                      {p._id === selectedProduct._id ? (
+                        modalLoading ? (
+                          <>
+                            <div
+                              data-modal-scroll
+                              className="flex-1 min-h-0 overflow-y-auto overscroll-contain animate-pulse md:flex md:flex-col md:overflow-hidden"
+                            >
+                              {/* Header skeleton */}
+                              <div className="flex items-start justify-between p-4 sm:p-5 pb-2 sm:pb-3 shrink-0">
+                                <div className="space-y-2 flex-1 pr-3">
+                                  <div className="h-6 w-48 bg-muted rounded-lg" />
+                                  <div className="h-4 w-24 bg-muted rounded-lg" />
+                                  <div className="h-4 w-full bg-muted rounded-lg" />
+                                  <div className="h-4 w-3/4 bg-muted rounded-lg" />
+                                </div>
+                                <div className="hidden w-8 h-8 bg-muted rounded-lg shrink-0 md:block" />
+                              </div>
+
+                              {/* Scrollable body skeleton */}
+                              <div className="px-4 sm:px-5 space-y-4 sm:space-y-5 md:flex-1 md:min-h-0 md:overflow-y-auto md:overscroll-contain">
+                                {/* Size picker */}
+                                <div className="space-y-2">
+                                  <div className="h-4 w-28 bg-muted rounded-lg" />
+                                  <div className="flex gap-2">
+                                    {[1, 2, 3].map(i => (
+                                      <div key={i} className="h-10 flex-1 bg-muted rounded-xl" />
+                                    ))}
+                                  </div>
+                                </div>
+                                {/* Crust picker */}
+                                <div className="space-y-2">
+                                  <div className="h-4 w-28 bg-muted rounded-lg" />
+                                  <div className="flex gap-2">
+                                    {[1, 2, 3].map(i => (
+                                      <div key={i} className="h-10 flex-1 bg-muted rounded-xl" />
+                                    ))}
+                                  </div>
+                                </div>
+                                {/* Extra topping */}
+                                <div className="space-y-2">
+                                  <div className="h-4 w-36 bg-muted rounded-lg" />
+                                  <div className="grid grid-cols-2 gap-2">
+                                    {[1, 2, 3, 4].map(i => (
+                                      <div key={i} className="h-14 bg-muted rounded-lg" />
+                                    ))}
+                                  </div>
+                                </div>
+                                {/* Note */}
+                                <div className="space-y-2 pb-2">
+                                  <div className="h-4 w-20 bg-muted rounded-lg" />
+                                  <div className="h-14 bg-muted rounded-lg" />
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Footer button skeleton */}
+                            <div className="p-4 sm:p-5 border-t border-border shrink-0 animate-pulse">
+                              <div className="h-12 bg-muted rounded-xl w-full" />
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div
+                              data-modal-scroll
+                              className="flex-1 min-h-0 overflow-y-auto overscroll-contain md:flex md:flex-col md:overflow-hidden"
+                            >
+                              {/* Header */}
+                              <div className="flex items-start justify-between p-4 sm:p-5 pb-2 sm:pb-3 shrink-0">
+                                <div className="pr-3">
+                                  <h3 className="text-lg sm:text-xl text-foreground">{selectedProduct.name}</h3>
+                                  <p className="hidden md:block text-[11px] text-muted-foreground mt-0.5">
+                                    {selectedVariant.size}
+                                    {isPizzaProduct && selectedCrust ? ` - ${formatCrustLabel(selectedCrust)}` : ""}
+                                  </p>
+                                  <p className="hidden md:block text-xs sm:text-sm text-muted-foreground mt-1.5 sm:mt-2 leading-relaxed line-clamp-2 sm:line-clamp-none">
+                                    {selectedProduct.description}
+                                  </p>
+                                  <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 line-clamp-2 sm:line-clamp-none">
+                                    Nguyên liệu: {selectedVariant.recipe.map(item => item.ingredient.name).join(", ")}
+                                  </p>
+                                </div>
+                                <button
+                                  onClick={onClose}
+                                  className="hidden p-2 rounded-lg hover:bg-muted text-muted-foreground shrink-0 md:inline-flex"
+                                  aria-label="Đóng chi tiết sản phẩm"
+                                >
+                                  <X size={18} />
+                                </button>
+                              </div>
+
+                              {/* Scrollable content */}
+                              <div className="px-4 sm:px-5 space-y-4 sm:space-y-5 max-md:pb-5 md:flex-1 md:min-h-0 md:overflow-y-auto md:overscroll-contain">
+                                {/* Size selection */}
+                                <div className="space-y-3 mb-0 md:mb-2">
+                                  <div className="mb-0 md:mb-2">
+                                    <p className="text-sm font-semibold text-foreground mb-1">Chọn kích thước</p>
+                                    <div
+                                      className="grid gap-2 bg-muted rounded-xl p-1"
+                                      style={{
+                                        gridTemplateColumns: `repeat(${Math.max(availableSizes.length, 1)}, minmax(0, 1fr))`,
+                                      }}
+                                    >
+                                      {availableSizes.map(size => (
+                                        <button
+                                          key={size}
+                                          onClick={() => handleSelectSize(size)}
+                                          className={`py-1 md:py-2 rounded-lg text-center transition-all ${selectedSize === size ? "bg-card shadow text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                                        >
+                                          <p className="text-sm truncate">{size}</p>
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </div>
+
+                                  {/* Crust selection */}
+                                  {isPizzaProduct && availableCrusts.length > 0 && (
+                                    <div className="mb-0 md:mb-2">
+                                      <p className="text-sm font-semibold text-foreground mb-1">Chọn loại đế</p>
+                                      <div
+                                        className="grid gap-2 bg-muted rounded-xl p-1"
+                                        style={{
+                                          gridTemplateColumns: `repeat(${Math.max(availableCrusts.length, 1)}, minmax(0, 1fr))`,
+                                        }}
+                                      >
+                                        {availableCrusts.map(crust => (
+                                          <button
+                                            key={crust}
+                                            onClick={() => handleSelectCrust(crust)}
+                                            className={`py-1 md:py-2 rounded-lg text-center transition-all ${selectedCrust === crust ? "bg-card shadow text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                                          >
+                                            <p className="text-sm truncate">{formatCrustLabel(crust)}</p>
+                                          </button>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Extra toppings */}
+                                {showExtraTopping && extraToppingOptions.length > 0 && (
+                                  <div>
+                                    <p className="text-sm font-semibold text-foreground mb-2">Chọn extra topping</p>
+                                    <div className="grid grid-cols-2 gap-2">
+                                      {extraToppingOptions.map(item => {
+                                        const active = selectedExtraToppingIds.includes(item._id);
+                                        return (
+                                          <button
+                                            key={item._id}
+                                            onClick={() => handleToggleExtraTopping(item._id)}
+                                            className={`px-3 py-2 rounded-lg border text-left transition-all ${active ? "border-primary bg-primary/10 text-primary" : "border-border bg-muted/50 text-muted-foreground hover:border-primary/40"}`}
+                                          >
+                                            <p className="text-sm truncate">{item.name}</p>
+                                            <p className="text-xs">+ {formatVND(item.price)}</p>
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Note */}
+                                <div className="pb-2">
+                                  <p className="text-sm font-semibold text-foreground mb-2">Ghi chú</p>
+                                  <Textarea
+                                    placeholder="Thêm ghi chú cho món này"
+                                    className="min-h-[52px]"
+                                    value={note}
+                                    onChange={e => setNote(e.target.value)}
+                                  />
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Add to cart button */}
+                            <div className="p-4 sm:p-5 border-t border-border shrink-0">
+                              <button
+                                onClick={handleAddToCart}
+                                className="w-full flex items-center justify-between gap-2 bg-primary text-white pl-5 pr-4 py-3 rounded-xl hover:bg-primary/90 transition-colors shadow-lg shadow-primary/25"
+                              >
+                                <span className="flex items-center gap-2">
+                                  <Plus size={18} /> {isEditMode ? "Cập nhật giỏ hàng" : "Thêm vào giỏ"}
+                                </span>
+                                <span className="flex items-center gap-2">
+                                  {hasDiscount && (
+                                    <>
+                                      <span className="text-white/70 line-through text-sm">{formatVND(unitPrice)}</span>
+                                      <span className="bg-white/20 text-white text-xs px-1.5 py-0.5 rounded font-medium">
+                                        {selectedVariant.discountType === "percent"
+                                          ? `-${selectedVariant.discount}%`
+                                          : `-${formatVND(selectedVariant.discount || 0)}`}
+                                      </span>
+                                    </>
+                                  )}
+                                  <span>{formatVND(discountedPrice)}</span>
+                                </span>
+                              </button>
+                            </div>
+                          </>
+                        )
+                      ) : (
+                        <div className="flex-1 flex items-center justify-center p-6">
+                          <p className="text-muted-foreground text-sm">{p.name}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
           <button
             type="button"
             onPointerDown={e => e.stopPropagation()}
@@ -398,250 +638,11 @@ export default function ProductDetailModal({
               e.stopPropagation();
               onClose();
             }}
-            className="absolute right-3 top-3 z-30 flex h-10 w-10 items-center justify-center rounded-full border border-white/40 bg-black/55 text-white shadow-lg backdrop-blur-sm transition-colors hover:bg-black/70 md:hidden"
+            className="absolute right-3 top-3 z-30 flex h-10 w-10 items-center justify-center rounded-full border border-white/40 bg-white text-white shadow-lg backdrop-blur-xl transition-colors hover:bg-black/70 md:hidden"
             aria-label="Đóng chi tiết sản phẩm"
           >
-            <X size={20} />
+            <X size={20} className="text-black" />
           </button>
-
-          <div className="flex h-full">
-            {products.map(p => (
-              <div key={p._id} className="flex-[0_0_100%] min-w-0 h-full">
-                <div className={`h-full bg-card flex flex-col md:flex-row ${mobileModalHeightClass}`}>
-                  {/* Product image */}
-                  <div className="md:w-2/5 bg-white border-b md:border-b-0 md:border-r border-border/60 flex items-center justify-center p-2 sm:p-5 shrink-0">
-                    <div className="relative w-full max-w-[340px] aspect-square max-md:aspect-[3/2] max-md:max-w-[340px]">
-                      {p._id === selectedProduct._id ? (
-                        <Image
-                          src={selectedVariant.image.url}
-                          alt={p.name}
-                          fill
-                          sizes="(max-width: 768px) 90vw, (max-width: 1024px) 60vw, 35vw"
-                          className="object-contain"
-                        />
-                      ) : (
-                        <Image
-                          src={p.variants[0]?.image?.url || ""}
-                          alt={p.name}
-                          fill
-                          sizes="(max-width: 768px) 90vw, (max-width: 1024px) 60vw, 35vw"
-                          className="object-contain opacity-40"
-                        />
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Product details */}
-                  <div className="flex-1 flex flex-col min-h-0 max-h-full overflow-hidden">
-                    {p._id === selectedProduct._id ? (
-                      modalLoading ? (
-                        <>
-                          <div
-                            data-modal-scroll
-                            className="flex-1 min-h-0 overflow-y-auto overscroll-contain animate-pulse md:flex md:flex-col md:overflow-hidden"
-                          >
-                          {/* Header skeleton */}
-                          <div className="flex items-start justify-between p-4 sm:p-5 pb-2 sm:pb-3 shrink-0">
-                            <div className="space-y-2 flex-1 pr-3">
-                              <div className="h-6 w-48 bg-muted rounded-lg" />
-                              <div className="h-4 w-24 bg-muted rounded-lg" />
-                              <div className="h-4 w-full bg-muted rounded-lg" />
-                              <div className="h-4 w-3/4 bg-muted rounded-lg" />
-                            </div>
-                            <div className="hidden w-8 h-8 bg-muted rounded-lg shrink-0 md:block" />
-                          </div>
-
-                          {/* Scrollable body skeleton */}
-                          <div className="px-4 sm:px-5 space-y-4 sm:space-y-5 md:flex-1 md:min-h-0 md:overflow-y-auto md:overscroll-contain">
-                            {/* Size picker */}
-                            <div className="space-y-2">
-                              <div className="h-4 w-28 bg-muted rounded-lg" />
-                              <div className="flex gap-2">
-                                {[1, 2, 3].map(i => (
-                                  <div key={i} className="h-10 flex-1 bg-muted rounded-xl" />
-                                ))}
-                              </div>
-                            </div>
-                            {/* Crust picker */}
-                            <div className="space-y-2">
-                              <div className="h-4 w-28 bg-muted rounded-lg" />
-                              <div className="flex gap-2">
-                                {[1, 2, 3].map(i => (
-                                  <div key={i} className="h-10 flex-1 bg-muted rounded-xl" />
-                                ))}
-                              </div>
-                            </div>
-                            {/* Extra topping */}
-                            <div className="space-y-2">
-                              <div className="h-4 w-36 bg-muted rounded-lg" />
-                              <div className="grid grid-cols-2 gap-2">
-                                {[1, 2, 3, 4].map(i => (
-                                  <div key={i} className="h-14 bg-muted rounded-lg" />
-                                ))}
-                              </div>
-                            </div>
-                            {/* Note */}
-                            <div className="space-y-2 pb-2">
-                              <div className="h-4 w-20 bg-muted rounded-lg" />
-                              <div className="h-14 bg-muted rounded-lg" />
-                            </div>
-                          </div>
-                          </div>
-
-                          {/* Footer button skeleton */}
-                          <div className="p-4 sm:p-5 border-t border-border shrink-0 animate-pulse">
-                            <div className="h-12 bg-muted rounded-xl w-full" />
-                          </div>
-                        </>
-                      ) : (
-                        <>
-                          <div
-                            data-modal-scroll
-                            className="flex-1 min-h-0 overflow-y-auto overscroll-contain md:flex md:flex-col md:overflow-hidden"
-                          >
-                          {/* Header */}
-                          <div className="flex items-start justify-between p-4 sm:p-5 pb-2 sm:pb-3 shrink-0">
-                            <div className="pr-3">
-                              <h3 className="text-lg sm:text-xl text-foreground">{selectedProduct.name}</h3>
-                              <p className="hidden md:block text-[11px] text-muted-foreground mt-0.5">
-                                {selectedVariant.size}
-                                {isPizzaProduct && selectedCrust ? ` - ${formatCrustLabel(selectedCrust)}` : ""}
-                              </p>
-                              <p className="hidden md:block text-xs sm:text-sm text-muted-foreground mt-1.5 sm:mt-2 leading-relaxed line-clamp-2 sm:line-clamp-none">
-                                {selectedProduct.description}
-                              </p>
-                              <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 line-clamp-2 sm:line-clamp-none">
-                                Nguyên liệu: {selectedVariant.recipe.map(item => item.ingredient.name).join(", ")}
-                              </p>
-                            </div>
-                            <button
-                              onClick={onClose}
-                              className="hidden p-2 rounded-lg hover:bg-muted text-muted-foreground shrink-0 md:inline-flex"
-                              aria-label="Đóng chi tiết sản phẩm"
-                            >
-                              <X size={18} />
-                            </button>
-                          </div>
-
-                          {/* Scrollable content */}
-                          <div className="px-4 sm:px-5 space-y-4 sm:space-y-5 max-md:pb-5 md:flex-1 md:min-h-0 md:overflow-y-auto md:overscroll-contain">
-                            {/* Size selection */}
-                            <div className="space-y-3 mb-0 md:mb-2">
-                              <div className="mb-0 md:mb-2">
-                                <p className="text-sm font-semibold text-foreground mb-1">Chọn kích thước</p>
-                                <div
-                                  className="grid gap-2 bg-muted rounded-xl p-1"
-                                  style={{
-                                    gridTemplateColumns: `repeat(${Math.max(availableSizes.length, 1)}, minmax(0, 1fr))`,
-                                  }}
-                                >
-                                  {availableSizes.map(size => (
-                                    <button
-                                      key={size}
-                                      onClick={() => handleSelectSize(size)}
-                                      className={`py-1 md:py-2 rounded-lg text-center transition-all ${selectedSize === size ? "bg-card shadow text-foreground" : "text-muted-foreground hover:text-foreground"}`}
-                                    >
-                                      <p className="text-sm truncate">{size}</p>
-                                    </button>
-                                  ))}
-                                </div>
-                              </div>
-
-                              {/* Crust selection */}
-                              {isPizzaProduct && availableCrusts.length > 0 && (
-                                <div className="mb-0 md:mb-2">
-                                  <p className="text-sm font-semibold text-foreground mb-1">Chọn loại đế</p>
-                                  <div
-                                    className="grid gap-2 bg-muted rounded-xl p-1"
-                                    style={{
-                                      gridTemplateColumns: `repeat(${Math.max(availableCrusts.length, 1)}, minmax(0, 1fr))`,
-                                    }}
-                                  >
-                                    {availableCrusts.map(crust => (
-                                      <button
-                                        key={crust}
-                                        onClick={() => handleSelectCrust(crust)}
-                                        className={`py-1 md:py-2 rounded-lg text-center transition-all ${selectedCrust === crust ? "bg-card shadow text-foreground" : "text-muted-foreground hover:text-foreground"}`}
-                                      >
-                                        <p className="text-sm truncate">{formatCrustLabel(crust)}</p>
-                                      </button>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-
-                            {/* Extra toppings */}
-                            {showExtraTopping && extraToppingOptions.length > 0 && (
-                              <div>
-                                <p className="text-sm font-semibold text-foreground mb-2">Chọn extra topping</p>
-                                <div className="grid grid-cols-2 gap-2">
-                                  {extraToppingOptions.map(item => {
-                                    const active = selectedExtraToppingIds.includes(item._id);
-                                    return (
-                                      <button
-                                        key={item._id}
-                                        onClick={() => handleToggleExtraTopping(item._id)}
-                                        className={`px-3 py-2 rounded-lg border text-left transition-all ${active ? "border-primary bg-primary/10 text-primary" : "border-border bg-muted/50 text-muted-foreground hover:border-primary/40"}`}
-                                      >
-                                        <p className="text-sm truncate">{item.name}</p>
-                                        <p className="text-xs">+ {formatVND(item.price)}</p>
-                                      </button>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Note */}
-                            <div className="pb-2">
-                              <p className="text-sm font-semibold text-foreground mb-2">Ghi chú</p>
-                              <Textarea
-                                placeholder="Thêm ghi chú cho món này"
-                                className="min-h-[52px]"
-                                value={note}
-                                onChange={e => setNote(e.target.value)}
-                              />
-                            </div>
-                          </div>
-                          </div>
-
-                          {/* Add to cart button */}
-                          <div className="p-4 sm:p-5 border-t border-border shrink-0">
-                            <button
-                              onClick={handleAddToCart}
-                              className="w-full flex items-center justify-between gap-2 bg-primary text-white pl-5 pr-4 py-3 rounded-xl hover:bg-primary/90 transition-colors shadow-lg shadow-primary/25"
-                            >
-                              <span className="flex items-center gap-2">
-                                <Plus size={18} /> {isEditMode ? "Cập nhật giỏ hàng" : "Thêm vào giỏ"}
-                              </span>
-                              <span className="flex items-center gap-2">
-                                {hasDiscount && (
-                                  <>
-                                    <span className="text-white/70 line-through text-sm">{formatVND(unitPrice)}</span>
-                                    <span className="bg-white/20 text-white text-xs px-1.5 py-0.5 rounded font-medium">
-                                      {selectedVariant.discountType === "percent"
-                                        ? `-${selectedVariant.discount}%`
-                                        : `-${formatVND(selectedVariant.discount || 0)}`}
-                                    </span>
-                                  </>
-                                )}
-                                <span>{formatVND(discountedPrice)}</span>
-                              </span>
-                            </button>
-                          </div>
-                        </>
-                      )
-                    ) : (
-                      <div className="flex-1 flex items-center justify-center p-6">
-                        <p className="text-muted-foreground text-sm">{p.name}</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
         </div>
 
         {/* Next button - desktop */}
