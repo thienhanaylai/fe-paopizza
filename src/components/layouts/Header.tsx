@@ -270,6 +270,18 @@ export default function Header() {
                           >
                             <History size={16} className="text-muted-foreground" /> Lịch sử đơn hàng
                           </Link>
+                          <Link
+                            href={"/loyalty"}
+                            onClick={() => setShowMobileMenu(false)}
+                            className="w-full flex items-center justify-between px-4 py-2.5 text-sm text-foreground hover:bg-muted text-left"
+                          >
+                            <span className="flex items-center gap-2.5 whitespace-nowrap">
+                              <Gift size={16} className="text-primary animate-pulse" /> Đổi thưởng tích lũy
+                            </span>
+                            <span className="bg-primary/10 text-primary text-[10px] px-2 py-0.5 rounded-full font-bold">
+                              {user?.currentPoint || 0} Pts
+                            </span>
+                          </Link>
                           <button
                             onClick={() => {
                               setShowMobileMenu(false);

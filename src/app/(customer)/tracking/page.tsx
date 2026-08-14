@@ -94,7 +94,7 @@ export default function TrackingPage() {
                     value={searchValue}
                     onChange={e => setSearchValue(e.target.value)}
                     placeholder="Nhập số điện thoại hoặc mã đơn hàng..."
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-muted/50 border border-border focus:border-primary focus:ring-1 focus:ring-primary outline-none text-sm text-foreground placeholder:text-muted-foreground"
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-muted/50 border border-border focus:border-primary focus:ring-1 focus:ring-primary outline-none text-base sm:text-sm text-foreground placeholder:text-muted-foreground"
                   />
                 </div>
                 <button
