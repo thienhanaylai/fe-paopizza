@@ -34,7 +34,7 @@ type CheckoutFieldErrors = Partial<Record<"name" | "phone" | "address", string>>
 type AddressSuggestion = { place_id: string; description: string };
 
 const PHONE_REGEX = /^(?:0|84|\+84)[35789]\d{8}$/;
-const AUTOCOMPLETE_DEBOUNCE_MS = 600;
+const AUTOCOMPLETE_DEBOUNCE_MS = 500;
 const AUTOCOMPLETE_CACHE_LIMIT = 50;
 
 const normalizePhone = (phone: string) => phone.replace(/[\s.-]/g, "");

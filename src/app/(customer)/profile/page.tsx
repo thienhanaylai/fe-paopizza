@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   ArrowLeft,
   History,
@@ -14,6 +14,8 @@ import {
   MapPin,
   X,
   Trash2,
+  AlertCircle,
+  LoaderCircle,
 } from "lucide-react";
 
 import { useCustomerAuth } from "@/src/context/authCustomerContext";
@@ -35,6 +37,30 @@ import {
   updateCustomerAddress,
   UpdateCustomerAddressPayload,
 } from "@/src/services/customer.service";
+import { autocomplete } from "@/src/services/map.service";
+
+type AddressFieldErrors = Partial<Record<"name" | "phone" | "address", string>>;
+type AddressSuggestion = { place_id: string; description: string };
+
+const PHONE_REGEX = /^(?:0|84|\+84)[35789]\d{8}$/;
+const AUTOCOMPLETE_DEBOUNCE_MS = 600;
+const AUTOCOMPLETE_CACHE_LIMIT = 50;
+
+const normalizePhone = (value: string) => value.replace(/[\s.-]/g, "");
+
+const getAddressNameError = (value: string) => {
+  if (!value.trim()) return "Vui lòng nhập tên người nhận";
+  if (/\d/.test(value)) return "Tên người nhận không được chứa số";
+  return "";
+};
+
+const getAddressPhoneError = (value: string) => {
+  if (!value.trim()) return "Vui lòng nhập số điện thoại người nhận";
+  if (!PHONE_REGEX.test(normalizePhone(value))) return "Số điện thoại không đúng định dạng Việt Nam";
+  return "";
+};
+
+const getAddressTextError = (value: string) => (value.trim() ? "" : "Vui lòng nhập địa chỉ giao hàng");
 
 const tierBadges: Record<string, React.ReactNode> = {
   diamond: (
@@ -117,6 +143,16 @@ export default function Profile() {
   const [formAddressIsDefault, setFormAddressIsDefault] = useState(false);
   const [listAddress, setListAddress] = useState([]);
   const [editAddress, setEditAddress] = useState<CustomerAddress>();
+  const [addressFieldErrors, setAddressFieldErrors] = useState<AddressFieldErrors>({});
+  const [addressSuggestions, setAddressSuggestions] = useState<AddressSuggestion[]>([]);
+  const [addressSuggestionsLoading, setAddressSuggestionsLoading] = useState(false);
+  const [showAddressSuggestions, setShowAddressSuggestions] = useState(false);
+  const addressSessionTokenRef = useRef(
+    typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(),
+  );
+  const addressAutocompleteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const addressAutocompleteCacheRef = useRef(new Map<string, AddressSuggestion[]>());
+  const addressAutocompleteQueryRef = useRef("");
 
   const [oldPwd, setOldPwd] = useState("");
   const [newPwd, setNewPwd] = useState("");
@@ -125,6 +161,96 @@ export default function Profile() {
 
   const [ordersHistory, setOrderHistory] = useState<OrderHistory[]>();
   const [detailOrder, setDetailOrder] = useState<OrderHistory | null>(null);
+
+  const setAddressFieldError = (field: keyof AddressFieldErrors, message: string) => {
+    setAddressFieldErrors(previous => ({ ...previous, [field]: message }));
+  };
+
+  const validateAddressForm = () => {
+    const errors: AddressFieldErrors = {
+      name: getAddressNameError(formAddressName),
+      phone: getAddressPhoneError(formAddressPhone),
+      address: getAddressTextError(formAddressText),
+    };
+    const activeErrors = Object.fromEntries(Object.entries(errors).filter(([, message]) => message));
+    setAddressFieldErrors(activeErrors);
+    return Object.keys(activeErrors).length === 0;
+  };
+
+  const resetAddressSuggestions = () => {
+    addressAutocompleteQueryRef.current = "";
+    if (addressAutocompleteTimerRef.current) {
+      clearTimeout(addressAutocompleteTimerRef.current);
+      addressAutocompleteTimerRef.current = null;
+    }
+    setAddressSuggestions([]);
+    setShowAddressSuggestions(false);
+    setAddressSuggestionsLoading(false);
+  };
+
+  const handleAddressTextInput = (value: string) => {
+    setFormAddressText(value);
+    if (addressFieldErrors.address) setAddressFieldError("address", getAddressTextError(value));
+
+    const query = value.trim().replace(/\s+/g, " ").toLocaleLowerCase("vi-VN");
+    addressAutocompleteQueryRef.current = query;
+
+    if (addressAutocompleteTimerRef.current) clearTimeout(addressAutocompleteTimerRef.current);
+
+    if (query.length < 3) {
+      setAddressSuggestions([]);
+      setShowAddressSuggestions(false);
+      setAddressSuggestionsLoading(false);
+      return;
+    }
+
+    const cachedSuggestions = addressAutocompleteCacheRef.current.get(query);
+    if (cachedSuggestions !== undefined) {
+      setAddressSuggestions(cachedSuggestions);
+      setShowAddressSuggestions(cachedSuggestions.length > 0);
+      setAddressSuggestionsLoading(false);
+      return;
+    }
+
+    setShowAddressSuggestions(true);
+    addressAutocompleteTimerRef.current = setTimeout(async () => {
+      if (addressAutocompleteQueryRef.current !== query) return;
+
+      setAddressSuggestionsLoading(true);
+      try {
+        const result = await autocomplete({
+          input: value.trim(),
+          sessiontoken: addressSessionTokenRef.current,
+          limit: 6,
+        });
+        if (addressAutocompleteQueryRef.current !== query) return;
+
+        const predictions = (result.predictions || []) as AddressSuggestion[];
+        const cache = addressAutocompleteCacheRef.current;
+        if (cache.size >= AUTOCOMPLETE_CACHE_LIMIT) {
+          cache.delete(cache.keys().next().value as string);
+        }
+        cache.set(query, predictions);
+        setAddressSuggestions(predictions);
+        setShowAddressSuggestions(predictions.length > 0);
+      } catch {
+        if (addressAutocompleteQueryRef.current === query) {
+          setAddressSuggestions([]);
+          setShowAddressSuggestions(false);
+        }
+      } finally {
+        if (addressAutocompleteQueryRef.current === query) setAddressSuggestionsLoading(false);
+      }
+    }, AUTOCOMPLETE_DEBOUNCE_MS);
+  };
+
+  const handleSelectAddressSuggestion = (description: string) => {
+    setFormAddressText(description);
+    setAddressFieldError("address", "");
+    resetAddressSuggestions();
+    addressSessionTokenRef.current =
+      typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : Date.now().toString();
+  };
 
   const fecthData = async () => {
     const customer = await getInfo();
@@ -136,6 +262,13 @@ export default function Profile() {
   useEffect(() => {
     fecthData();
   }, []);
+
+  useEffect(
+    () => () => {
+      if (addressAutocompleteTimerRef.current) clearTimeout(addressAutocompleteTimerRef.current);
+    },
+    [],
+  );
 
   if (!user) return null;
 
@@ -149,6 +282,8 @@ export default function Profile() {
     setFormAddressPhone("");
     setFormAddressText("");
     setFormAddressIsDefault(false);
+    setAddressFieldErrors({});
+    resetAddressSuggestions();
     setAddressFormState("add");
   };
 
@@ -158,6 +293,8 @@ export default function Profile() {
     setFormAddressText(addr.address || "");
     setFormAddressIsDefault(addr.isDefault || false);
     setEditAddress(addr);
+    setAddressFieldErrors({});
+    resetAddressSuggestions();
     setAddressFormState("edit");
   };
 
@@ -175,11 +312,13 @@ export default function Profile() {
   };
 
   const handleAddAddress = async () => {
+    if (!validateAddressForm()) return;
+
     const payload: AddCustomerAddressPayload = {
       user_id: user.id,
-      name: formAddressName,
-      address: formAddressText,
-      phone: formAddressPhone,
+      name: formAddressName.trim(),
+      address: formAddressText.trim(),
+      phone: normalizePhone(formAddressPhone),
       isDefault: formAddressIsDefault,
     };
     const res = await addCustomerAddress(payload, "customer");
@@ -206,12 +345,14 @@ export default function Profile() {
   };
 
   const handleEditAddress = async (addr: CustomerAddress | undefined) => {
+    if (!validateAddressForm()) return;
+
     const payload: UpdateCustomerAddressPayload = {
       user_id: user.id,
       address_id: addr?._id || "",
-      name: formAddressName,
-      address: formAddressText,
-      phone: formAddressPhone,
+      name: formAddressName.trim(),
+      address: formAddressText.trim(),
+      phone: normalizePhone(formAddressPhone),
       isDefault: formAddressIsDefault,
     };
 
@@ -570,34 +711,114 @@ export default function Profile() {
                           <input
                             type="text"
                             value={formAddressName}
-                            onChange={e => setFormAddressName(e.target.value)}
+                            onChange={e => {
+                              const value = e.target.value;
+                              setFormAddressName(value);
+                              if (addressFieldErrors.name) setAddressFieldError("name", getAddressNameError(value));
+                            }}
+                            onBlur={() => setAddressFieldError("name", getAddressNameError(formAddressName))}
                             placeholder="Nguyễn Văn A"
-                            className="w-full px-3.5 py-2.5 rounded-xl border border-border bg-background text-sm text-foreground focus:border-primary focus:ring-1 focus:ring-primary/20 outline-none"
+                            aria-invalid={!!addressFieldErrors.name}
+                            className={`w-full rounded-xl border bg-background px-3.5 py-2.5 text-sm text-foreground outline-none transition-colors ${
+                              addressFieldErrors.name
+                                ? "border-red-500 focus:border-red-500 focus:ring-1 focus:ring-red-200"
+                                : "border-border focus:border-primary focus:ring-1 focus:ring-primary/20"
+                            }`}
                           />
+                          {addressFieldErrors.name && (
+                            <p className="mt-1.5 flex items-center gap-1 text-xs text-red-500">
+                              <AlertCircle size={12} /> {addressFieldErrors.name}
+                            </p>
+                          )}
                         </div>
                         <div>
                           <label className="block text-xs font-semibold text-muted-foreground mb-1.5">
                             Số điện thoại nhận hàng <span className="text-red-500">*</span>
                           </label>
                           <input
-                            type="text"
+                            type="tel"
+                            inputMode="tel"
                             value={formAddressPhone}
-                            onChange={e => setFormAddressPhone(e.target.value)}
+                            onChange={e => {
+                              const value = e.target.value;
+                              setFormAddressPhone(value);
+                              if (addressFieldErrors.phone) setAddressFieldError("phone", getAddressPhoneError(value));
+                            }}
+                            onBlur={() => setAddressFieldError("phone", getAddressPhoneError(formAddressPhone))}
                             placeholder="Nhập số điện thoại người nhận"
-                            className="w-full px-3.5 py-2.5 rounded-xl border border-border bg-background text-sm text-foreground focus:border-primary focus:ring-1 focus:ring-primary/20 outline-none"
+                            aria-invalid={!!addressFieldErrors.phone}
+                            className={`w-full rounded-xl border bg-background px-3.5 py-2.5 text-sm text-foreground outline-none transition-colors ${
+                              addressFieldErrors.phone
+                                ? "border-red-500 focus:border-red-500 focus:ring-1 focus:ring-red-200"
+                                : "border-border focus:border-primary focus:ring-1 focus:ring-primary/20"
+                            }`}
                           />
+                          {addressFieldErrors.phone && (
+                            <p className="mt-1.5 flex items-center gap-1 text-xs text-red-500">
+                              <AlertCircle size={12} /> {addressFieldErrors.phone}
+                            </p>
+                          )}
                         </div>
-                        <div>
+                        <div className="relative">
                           <label className="block text-xs font-semibold text-muted-foreground mb-1.5">
                             Địa chỉ giao hàng <span className="text-red-500">*</span>
                           </label>
-                          <textarea
-                            value={formAddressText}
-                            onChange={e => setFormAddressText(e.target.value)}
-                            placeholder="Số nhà, tên đường, phường/xã, quận/huyện, tỉnh/thành phố..."
-                            rows={3}
-                            className="w-full px-3.5 py-2.5 rounded-xl border border-border bg-background text-sm text-foreground focus:border-primary focus:ring-1 focus:ring-primary/20 outline-none resize-none"
-                          />
+                          <div className="relative">
+                            <textarea
+                              value={formAddressText}
+                              onChange={e => handleAddressTextInput(e.target.value)}
+                              onFocus={() => {
+                                if (addressSuggestions.length > 0 || addressSuggestionsLoading) {
+                                  setShowAddressSuggestions(true);
+                                }
+                              }}
+                              onBlur={() => {
+                                setTimeout(() => setShowAddressSuggestions(false), 350);
+                                setAddressFieldError("address", getAddressTextError(formAddressText));
+                              }}
+                              placeholder="Số nhà, tên đường, phường/xã, quận/huyện, tỉnh/thành phố..."
+                              rows={3}
+                              autoComplete="off"
+                              aria-invalid={!!addressFieldErrors.address}
+                              className={`w-full resize-none rounded-xl border bg-background px-3.5 py-2.5 pr-10 text-sm text-foreground outline-none transition-colors ${
+                                addressFieldErrors.address
+                                  ? "border-red-500 focus:border-red-500 focus:ring-1 focus:ring-red-200"
+                                  : "border-border focus:border-primary focus:ring-1 focus:ring-primary/20"
+                              }`}
+                            />
+                            {addressSuggestionsLoading && (
+                              <LoaderCircle
+                                size={16}
+                                className="absolute right-3 top-3 animate-spin text-muted-foreground"
+                              />
+                            )}
+                          </div>
+                          {addressFieldErrors.address && (
+                            <p className="mt-1.5 flex items-center gap-1 text-xs text-red-500">
+                              <AlertCircle size={12} /> {addressFieldErrors.address}
+                            </p>
+                          )}
+                          {showAddressSuggestions && (addressSuggestionsLoading || addressSuggestions.length > 0) && (
+                            <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-56 overflow-y-auto rounded-xl border border-border bg-card shadow-xl">
+                              {addressSuggestionsLoading && addressSuggestions.length === 0 && (
+                                <div className="flex items-center gap-2 px-4 py-3 text-xs text-muted-foreground">
+                                  <LoaderCircle size={13} className="animate-spin" /> Đang tìm địa chỉ...
+                                </div>
+                              )}
+                              {addressSuggestions.map(suggestion => (
+                                <button
+                                  key={suggestion.place_id}
+                                  type="button"
+                                  onMouseDown={event => event.preventDefault()}
+                                  onClick={() => handleSelectAddressSuggestion(suggestion.description)}
+                                  className="flex w-full items-start gap-2.5 border-b border-border/50 px-4 py-3 text-left text-sm text-foreground transition-colors last:border-b-0 hover:bg-muted"
+                                >
+                                  <MapPin size={15} className="mt-0.5 shrink-0 text-primary" />
+                                  <span>{suggestion.description}</span>
+                                </button>
+                              ))}
+                            </div>
+                          )}
                         </div>
                         <div className="flex items-center gap-2 pt-1">
                           <input
