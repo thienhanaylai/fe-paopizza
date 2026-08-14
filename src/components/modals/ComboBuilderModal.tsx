@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Check, ChevronLeft, ChevronRight, Plus, X } from "lucide-react";
 import { toast } from "sonner";
 
@@ -15,6 +15,7 @@ import { parseCrustOptions } from "@/src/app/(customer)/utils";
 import type { ComboSlotSelection } from "@/src/app/(customer)/types";
 import type { Product, Combo } from "@/src/services/menu.service";
 import SlotCard from "@/src/components/ui/SlotCard";
+import { useModalScrollLock } from "@/src/hooks/useModalScrollLock";
 
 interface ComboBuilderModalProps {
   combo: Combo;
@@ -54,6 +55,8 @@ function ComboBuilderContent({
 }: ComboBuilderModalProps) {
   const { user } = useCustomerAuth();
   const { addToCart, fetchCart, cart, cartCount, setShowCart } = useCart();
+  useModalScrollLock();
+
   const hasMobileCheckoutBar = cartCount > 0;
   const mobileModalHeightClass = hasMobileCheckoutBar
     ? "max-md:h-[calc(100dvh-3.75rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))] max-md:max-h-[calc(100dvh-3.75rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))]"
@@ -66,38 +69,6 @@ function ComboBuilderContent({
   const [replacingSlot, setReplacingSlot] = useState<{ ruleIdx: number; slotIdx: number } | null>(null);
   const editingComboOldSkuRef = useRef<string | null>(editOldSku || null);
   const comboCounterRef = useRef(0);
-
-  // Khóa trang nền khi modal mở và chỉ cho phép thao tác cuộn trong
-  // vùng danh sách sản phẩm của combo.
-  useEffect(() => {
-    const body = document.body;
-    const root = document.documentElement;
-    const previousBodyOverflow = body.style.overflow;
-    const previousBodyOverscrollBehavior = body.style.overscrollBehavior;
-    const previousRootOverflow = root.style.overflow;
-    const previousRootOverscrollBehavior = root.style.overscrollBehavior;
-
-    body.style.overflow = "hidden";
-    body.style.overscrollBehavior = "none";
-    root.style.overflow = "hidden";
-    root.style.overscrollBehavior = "none";
-
-    const preventBackgroundTouchMove = (event: TouchEvent) => {
-      const target = event.target;
-      const isInsideScrollableContent = target instanceof Element && target.closest("[data-combo-modal-scroll]");
-      if (!isInsideScrollableContent) event.preventDefault();
-    };
-
-    document.addEventListener("touchmove", preventBackgroundTouchMove, { passive: false });
-
-    return () => {
-      document.removeEventListener("touchmove", preventBackgroundTouchMove);
-      body.style.overflow = previousBodyOverflow;
-      body.style.overscrollBehavior = previousBodyOverscrollBehavior;
-      root.style.overflow = previousRootOverflow;
-      root.style.overscrollBehavior = previousRootOverscrollBehavior;
-    };
-  }, []);
 
   // --- Computed ---
 
@@ -471,7 +442,7 @@ function ComboBuilderContent({
             </div>
           </div>
 
-          <div data-combo-modal-scroll className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain p-4 sm:p-5">
+          <div data-modal-scroll className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain p-4 sm:p-5">
             {activeRule ? (
               <>
                 <p className={`mb-3 text-xs ${activeSlotSelection ? "text-green-700" : "text-muted-foreground"}`}>
@@ -559,7 +530,7 @@ function ComboBuilderContent({
           </div>
 
           <div
-            data-combo-modal-scroll
+            data-modal-scroll
             className="min-h-0 flex-1 space-y-3 touch-pan-y overflow-y-auto overscroll-contain p-4 sm:p-5"
           >
             {combo.rules.map((rule, ruleIdx) => {

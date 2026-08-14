@@ -5,6 +5,7 @@ import {
   ArrowLeft,
   Banknote,
   CheckCircle2,
+  Copy,
   LoaderCircle,
   MapPin,
   QrCode,
@@ -25,6 +26,7 @@ import { applyPromoCode, PromoCodeResult } from "@/src/services/promotion.servic
 import { getCustomerAddresses, CustomerAddress } from "@/src/services/customer.service";
 import { formatVND } from "@/src/utils/formatVND";
 import { autocomplete } from "@/src/services/map.service";
+import { useModalScrollLock } from "@/src/hooks/useModalScrollLock";
 
 type CheckoutStep = "info" | "payment" | "success" | "failed";
 type OrderMethod = "carry_out" | "delivery" | "dine_in";
@@ -41,6 +43,11 @@ const getPhoneError = (phone: string) => {
   if (!phone.trim()) return "Vui lòng nhập số điện thoại";
   if (!PHONE_REGEX.test(normalizePhone(phone))) return "Số điện thoại không đúng định dạng Việt Nam";
   return "";
+};
+
+const formatStoreAddress = (store?: StoreData) => {
+  if (!store?.address) return "";
+  return [store.address.streetNumber, store.address.district, store.address.city].filter(Boolean).join(", ");
 };
 
 export function CountdownTimer({ expiresAt, onExpire }: { expiresAt?: Date; onExpire: () => void }) {
@@ -82,6 +89,8 @@ export function CountdownTimer({ expiresAt, onExpire }: { expiresAt?: Date; onEx
 }
 
 export const CheckoutModal = () => {
+  useModalScrollLock();
+
   const { cart, cartTotal, setCheckout, fetchCart, clearCart } = useCart();
   const { user, getInfo } = useCustomerAuth();
   const [checkoutStep, setCheckoutStep] = useState<CheckoutStep>("info");
@@ -130,6 +139,17 @@ export const CheckoutModal = () => {
     setFieldErrors(previous => ({ ...previous, [field]: message }));
   };
 
+  const handleCopyOrderId = async () => {
+    if (!idOrder) return;
+
+    try {
+      await navigator.clipboard.writeText(idOrder);
+      toast.success("Đã sao chép mã đơn hàng!");
+    } catch {
+      toast.error("Không thể sao chép mã đơn hàng");
+    }
+  };
+
   const validateCheckoutInfo = () => {
     const errors: CheckoutFieldErrors = {};
 
@@ -171,7 +191,7 @@ export const CheckoutModal = () => {
       clearTimeout(addressAutocompleteTimerRef.current);
     }
 
-    if (query.length < 2) {
+    if (query.length < 3) {
       setAddressSuggestions([]);
       setShowAddressSuggestions(false);
       setAddressSuggestionsLoading(false);
@@ -497,6 +517,9 @@ export const CheckoutModal = () => {
     { key: "qrCode", label: "Chuyển khoản", icon: <QrCode size={20} />, desc: "Quét mã QR ngân hàng" },
   ];
 
+  const selectedPickupStore = listStore?.find(store => store._id === storeId);
+  const selectedPickupAddress = formatStoreAddress(selectedPickupStore);
+
   if (!listStore || listStore.length === 0) {
     return (
       <div className="fixed inset-0 z-50 m-0 flex items-center justify-center bg-black/50 pt-[max(1rem,env(safe-area-inset-top,0px))] pr-[max(1rem,env(safe-area-inset-right,0px))] pb-[max(1rem,env(safe-area-inset-bottom,0px))] pl-[max(1rem,env(safe-area-inset-left,0px))]">
@@ -508,7 +531,8 @@ export const CheckoutModal = () => {
   return (
     <div className="fixed inset-0 z-50 m-0 flex items-center justify-center bg-black/50 pt-[max(1rem,env(safe-area-inset-top,0px))] pr-[max(1rem,env(safe-area-inset-right,0px))] pb-[max(1rem,env(safe-area-inset-bottom,0px))] pl-[max(1rem,env(safe-area-inset-left,0px))]">
       <div
-        className="bg-card rounded-2xl w-full max-w-xl shadow-2xl max-h-[92vh] overflow-y-auto scrollbar-hide animate-fade-up animate-duration-300"
+        data-modal-scroll
+        className="bg-card rounded-2xl w-full max-w-xl shadow-2xl max-h-[92dvh] touch-pan-y overflow-y-auto overscroll-contain scrollbar-hide animate-fade-up animate-duration-300"
         onClick={e => e.stopPropagation()}
       >
         {checkoutStep === "success" && (
@@ -517,8 +541,23 @@ export const CheckoutModal = () => {
               <CheckCircle2 size={40} className="text-green-600" />
             </div>
             <h3 className="text-xl text-foreground mb-2">Đặt hàng thành công!</h3>
-            <p className="text-muted-foreground mb-1">
-              Mã đơn hàng: <span className="text-primary font-semibold"> {idOrder}</span>
+            <div className="mx-auto mb-2 flex max-w-md items-center gap-2 rounded-xl bg-muted/50 px-3 py-2 text-left">
+              <div className="min-w-0 flex-1">
+                <p className="text-xs text-muted-foreground">Mã đơn hàng</p>
+                <p className="break-all font-mono text-sm font-semibold text-primary">{idOrder}</p>
+              </div>
+              <button
+                type="button"
+                onClick={handleCopyOrderId}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-primary/20 bg-primary/10 text-primary transition-colors hover:bg-primary/20"
+                aria-label="Sao chép mã đơn hàng"
+                title="Sao chép mã đơn hàng"
+              >
+                <Copy size={15} />
+              </button>
+            </div>
+            <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+              Hãy lưu lại mã đơn hàng để tra cứu trạng thái đơn sau này.
             </p>
             <p className="text-sm text-muted-foreground mb-6">
               {orderMethod === "carry_out"
@@ -530,6 +569,13 @@ export const CheckoutModal = () => {
                 <span className="text-muted-foreground">Phương thức:</span>
                 <span className="text-foreground">{orderMethod === "carry_out" ? "Đến lấy" : "Giao hàng"}</span>
               </div>
+              {orderMethod === "carry_out" && selectedPickupStore && (
+                <div className="border-t border-border pt-2 text-sm">
+                  <span className="text-muted-foreground">Nhận tại:</span>
+                  <p className="mt-1 font-medium text-foreground">{selectedPickupStore.name}</p>
+                  <p className="text-xs leading-relaxed text-muted-foreground">{selectedPickupAddress}</p>
+                </div>
+              )}
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Thanh toán:</span>
                 <span className="text-foreground">{paymentOptions.find(p => p.key === paymentMethod)?.label}</span>
@@ -642,7 +688,20 @@ export const CheckoutModal = () => {
                     </div>
                   </div>
 
-                  {user && savedAddresses.length > 0 && (
+                  {orderMethod === "carry_out" && selectedPickupStore && (
+                    <div className="flex items-start gap-3 rounded-xl border border-primary/20 bg-primary/5 p-4">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                        <MapPin size={18} />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium text-primary">Địa chỉ cửa hàng đến lấy</p>
+                        <p className="mt-0.5 text-sm font-semibold text-foreground">{selectedPickupStore.name}</p>
+                        <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{selectedPickupAddress}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {orderMethod === "delivery" && user && savedAddresses.length > 0 && (
                     <div>
                       <label className="block text-sm mb-1">Chọn địa chỉ đã lưu</label>
                       <select
@@ -729,7 +788,7 @@ export const CheckoutModal = () => {
                             }
                           }}
                           onBlur={() => {
-                            setTimeout(() => setShowAddressSuggestions(false), 150);
+                            setTimeout(() => setShowAddressSuggestions(false), 350);
                             if (!custAddress.trim()) setFieldError("address", "Vui lòng nhập địa chỉ giao hàng");
                           }}
                           placeholder="Nhập số nhà, tên đường, phường/xã..."

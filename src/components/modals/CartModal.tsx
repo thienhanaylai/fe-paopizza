@@ -9,8 +9,11 @@ import { formatCrustLabel } from "@/src/utils/formatCrustLabel";
 import { useEffect, useMemo, useState, useCallback } from "react";
 import Link from "next/link";
 import { getMenuByStoreId, MenuData } from "@/src/services/menu.service";
+import { useModalScrollLock } from "@/src/hooks/useModalScrollLock";
 
 export const CartModal = () => {
+  useModalScrollLock();
+
   const {
     cart,
     showCart,
@@ -133,7 +136,7 @@ export const CartModal = () => {
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-5">
+        <div data-modal-scroll className="flex-1 touch-pan-y overflow-y-auto overscroll-contain p-5">
           {cartCount === 0 || !cart?.items.length ? (
             <div className="text-center py-12 flex flex-col items-center justify-center h-full">
               <ShoppingCart size={48} className="text-muted-foreground/30 mb-4" />

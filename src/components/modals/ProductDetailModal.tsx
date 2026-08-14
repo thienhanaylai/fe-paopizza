@@ -14,6 +14,7 @@ import { formatCrustLabel } from "@/src/utils/formatCrustLabel";
 import type { Product } from "@/src/services/menu.service";
 import { parseCrustOptions } from "@/src/app/(customer)/utils";
 import type { ExtraTopping } from "@/src/app/(customer)/types";
+import { useModalScrollLock } from "@/src/hooks/useModalScrollLock";
 
 interface ProductDetailModalProps {
   products: Product[];
@@ -49,6 +50,8 @@ export default function ProductDetailModal({
     ? "max-md:h-[min(85dvh,calc(100dvh-6.5rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px)))] max-md:max-h-[min(85dvh,calc(100dvh-6.5rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px)))]"
     : "max-md:h-[calc(100dvh-3rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))] max-md:max-h-[calc(100dvh-3rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))]";
 
+  useModalScrollLock();
+
   // Embla carousel
   const [emblaRef, emblaApi] = useEmblaCarousel({ skipSnaps: true, duration: 30 });
   const scrollPrev = useCallback(() => emblaApi?.scrollPrev(), [emblaApi]);
@@ -58,38 +61,6 @@ export default function ProductDetailModal({
   const [modalLoading, setModalLoading] = useState(false);
   const prevProductIdRef = useRef<string | null>(null);
   const loadingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Khóa trang nền mà không đổi body sang `position: fixed`. Việc cố định body
-  // khiến iOS Safari hiện lại navbar và buộc phải scrollTo khi đóng modal.
-  useEffect(() => {
-    const body = document.body;
-    const root = document.documentElement;
-    const previousBodyOverflow = body.style.overflow;
-    const previousBodyOverscrollBehavior = body.style.overscrollBehavior;
-    const previousRootOverflow = root.style.overflow;
-    const previousRootOverscrollBehavior = root.style.overscrollBehavior;
-
-    body.style.overflow = "hidden";
-    body.style.overscrollBehavior = "none";
-    root.style.overflow = "hidden";
-    root.style.overscrollBehavior = "none";
-
-    const preventBackgroundTouchMove = (event: TouchEvent) => {
-      const target = event.target;
-      const isInsideScrollableContent = target instanceof Element && target.closest("[data-product-modal-scroll]");
-      if (!isInsideScrollableContent) event.preventDefault();
-    };
-
-    document.addEventListener("touchmove", preventBackgroundTouchMove, { passive: false });
-
-    return () => {
-      document.removeEventListener("touchmove", preventBackgroundTouchMove);
-      body.style.overflow = previousBodyOverflow;
-      body.style.overscrollBehavior = previousBodyOverscrollBehavior;
-      root.style.overflow = previousRootOverflow;
-      root.style.overscrollBehavior = previousRootOverscrollBehavior;
-    };
-  }, []);
 
   const currentProductIndex = useMemo(() => {
     if (!selectedProduct) return -1;
@@ -416,10 +387,23 @@ export default function ProductDetailModal({
 
         {/* Carousel */}
         <div
-          className={`h-auto w-full max-w-[calc(100vw-1rem)] shrink-0 overflow-hidden rounded-3xl shadow-2xl sm:max-w-[calc(100vw-7rem)] md:h-[min(660px,90vh)] md:w-[800px] lg:w-[896px] ${mobileModalHeightClass}`}
+          className={`relative h-auto w-full max-w-[calc(100vw-1rem)] shrink-0 overflow-hidden rounded-3xl shadow-2xl sm:max-w-[calc(100vw-7rem)] md:h-[min(660px,90vh)] md:w-[800px] lg:w-[896px] ${mobileModalHeightClass}`}
           ref={emblaRef}
           onClick={e => e.stopPropagation()}
         >
+          <button
+            type="button"
+            onPointerDown={e => e.stopPropagation()}
+            onClick={e => {
+              e.stopPropagation();
+              onClose();
+            }}
+            className="absolute right-3 top-3 z-30 flex h-10 w-10 items-center justify-center rounded-full border border-white/40 bg-black/55 text-white shadow-lg backdrop-blur-sm transition-colors hover:bg-black/70 md:hidden"
+            aria-label="Đóng chi tiết sản phẩm"
+          >
+            <X size={20} />
+          </button>
+
           <div className="flex h-full">
             {products.map(p => (
               <div key={p._id} className="flex-[0_0_100%] min-w-0 h-full">
@@ -452,22 +436,23 @@ export default function ProductDetailModal({
                     {p._id === selectedProduct._id ? (
                       modalLoading ? (
                         <>
+                          <div
+                            data-modal-scroll
+                            className="flex-1 min-h-0 overflow-y-auto overscroll-contain animate-pulse md:flex md:flex-col md:overflow-hidden"
+                          >
                           {/* Header skeleton */}
-                          <div className="flex items-start justify-between p-4 sm:p-5 pb-2 sm:pb-3 shrink-0 animate-pulse">
+                          <div className="flex items-start justify-between p-4 sm:p-5 pb-2 sm:pb-3 shrink-0">
                             <div className="space-y-2 flex-1 pr-3">
                               <div className="h-6 w-48 bg-muted rounded-lg" />
                               <div className="h-4 w-24 bg-muted rounded-lg" />
                               <div className="h-4 w-full bg-muted rounded-lg" />
                               <div className="h-4 w-3/4 bg-muted rounded-lg" />
                             </div>
-                            <div className="w-8 h-8 bg-muted rounded-lg shrink-0" />
+                            <div className="hidden w-8 h-8 bg-muted rounded-lg shrink-0 md:block" />
                           </div>
 
                           {/* Scrollable body skeleton */}
-                          <div
-                            data-product-modal-scroll
-                            className="flex-1 overflow-y-auto overscroll-contain px-4 sm:px-5 space-y-4 sm:space-y-5 animate-pulse"
-                          >
+                          <div className="px-4 sm:px-5 space-y-4 sm:space-y-5 md:flex-1 md:min-h-0 md:overflow-y-auto md:overscroll-contain">
                             {/* Size picker */}
                             <div className="space-y-2">
                               <div className="h-4 w-28 bg-muted rounded-lg" />
@@ -501,6 +486,7 @@ export default function ProductDetailModal({
                               <div className="h-14 bg-muted rounded-lg" />
                             </div>
                           </div>
+                          </div>
 
                           {/* Footer button skeleton */}
                           <div className="p-4 sm:p-5 border-t border-border shrink-0 animate-pulse">
@@ -509,6 +495,10 @@ export default function ProductDetailModal({
                         </>
                       ) : (
                         <>
+                          <div
+                            data-modal-scroll
+                            className="flex-1 min-h-0 overflow-y-auto overscroll-contain md:flex md:flex-col md:overflow-hidden"
+                          >
                           {/* Header */}
                           <div className="flex items-start justify-between p-4 sm:p-5 pb-2 sm:pb-3 shrink-0">
                             <div className="pr-3">
@@ -524,16 +514,17 @@ export default function ProductDetailModal({
                                 Nguyên liệu: {selectedVariant.recipe.map(item => item.ingredient.name).join(", ")}
                               </p>
                             </div>
-                            <button onClick={onClose} className="p-2 rounded-lg hover:bg-muted text-muted-foreground shrink-0">
+                            <button
+                              onClick={onClose}
+                              className="hidden p-2 rounded-lg hover:bg-muted text-muted-foreground shrink-0 md:inline-flex"
+                              aria-label="Đóng chi tiết sản phẩm"
+                            >
                               <X size={18} />
                             </button>
                           </div>
 
                           {/* Scrollable content */}
-                          <div
-                            data-product-modal-scroll
-                            className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 sm:px-5 space-y-4 sm:space-y-5 max-md:pb-5"
-                          >
+                          <div className="px-4 sm:px-5 space-y-4 sm:space-y-5 max-md:pb-5 md:flex-1 md:min-h-0 md:overflow-y-auto md:overscroll-contain">
                             {/* Size selection */}
                             <div className="space-y-3 mb-0 md:mb-2">
                               <div className="mb-0 md:mb-2">
@@ -612,6 +603,7 @@ export default function ProductDetailModal({
                                 onChange={e => setNote(e.target.value)}
                               />
                             </div>
+                          </div>
                           </div>
 
                           {/* Add to cart button */}
