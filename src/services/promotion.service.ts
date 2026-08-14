@@ -22,6 +22,8 @@ export interface Promotion {
   updatedAt: string;
 }
 
+export type RedeemablePromotion = Omit<Promotion, "code">;
+
 export interface CreatePromotionPayload {
   code: string;
   point?: number;
@@ -222,7 +224,7 @@ export const applyPromoCode = async (
 };
 
 // Lấy danh sách khuyến mãi có thể đổi bằng điểm (point >= 0, active)
-export const getRedeemablePromotions = async (): Promise<Promotion[]> => {
+export const getRedeemablePromotions = async (): Promise<RedeemablePromotion[]> => {
   try {
     const { data: allPromotions } = await getAllPromotions("customer");
     const now = new Date();

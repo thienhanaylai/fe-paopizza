@@ -99,7 +99,11 @@ export default function Orders() {
             {ordersHistory?.map(order => {
               const st = orderStatusConfig[order.status];
               return (
-                <div key={order._id} className="border border-border rounded-xl p-4 hover:border-primary/30 transition-colors">
+                <div
+                  key={order._id}
+                  onClick={() => setDetailOrder(order)}
+                  className="border cursor-pointer border-border rounded-xl p-4 hover:border-primary/30 transition-colors"
+                >
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center text-sm gap-3">
                       <span
@@ -149,7 +153,11 @@ export default function Orders() {
               );
             })}
           </div>
-
+          {loading && (
+            <div className="flex justify-center mt-4">
+              <span className="text-sm text-muted-foreground">Đang tải...</span>
+            </div>
+          )}
           {pagination.totalPages > 1 && (
             <div className="flex items-center justify-center gap-1 mt-6">
               <button
@@ -180,12 +188,6 @@ export default function Orders() {
               >
                 Sau
               </button>
-            </div>
-          )}
-
-          {loading && (
-            <div className="flex justify-center mt-4">
-              <span className="text-sm text-muted-foreground">Đang tải...</span>
             </div>
           )}
         </div>

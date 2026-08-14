@@ -127,7 +127,11 @@ export default function TrackingPage() {
                 const pt = paymentStatusConfig[order.paymentStatus];
 
                 return (
-                  <div key={order._id} className="border border-border rounded-xl p-4 hover:border-primary/30 transition-colors">
+                  <div
+                    key={order._id}
+                    onClick={() => setDetailOrder(order)}
+                    className="border cursor-pointer border-border rounded-xl p-4 hover:border-primary/30 transition-colors"
+                  >
                     {/* Header row */}
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center text-sm gap-3">

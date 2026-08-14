@@ -46,7 +46,7 @@ export default function ProductDetailModal({
   const [note, setNote] = useState<string>("");
   const hasMobileCheckoutBar = cartCount > 0;
   const mobileModalHeightClass = hasMobileCheckoutBar
-    ? "max-md:max-h-[min(85dvh,calc(100dvh-6.5rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px)))]"
+    ? "max-md:h-[min(85dvh,calc(100dvh-6.5rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px)))] max-md:max-h-[min(85dvh,calc(100dvh-6.5rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px)))]"
     : "max-md:h-[calc(100dvh-3rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))] max-md:max-h-[calc(100dvh-3rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))]";
 
   // Embla carousel
@@ -416,16 +416,14 @@ export default function ProductDetailModal({
 
         {/* Carousel */}
         <div
-          className={`overflow-hidden rounded-3xl w-full md:w-[800px] lg:w-[896px] max-w-[calc(100vw-1rem)] sm:max-w-[calc(100vw-7rem)] shadow-2xl max-h-[90vh] 2xl:max-h-[70vh] shrink-0 ${mobileModalHeightClass}`}
+          className={`h-auto w-full max-w-[calc(100vw-1rem)] shrink-0 overflow-hidden rounded-3xl shadow-2xl sm:max-w-[calc(100vw-7rem)] md:h-[min(660px,90vh)] md:w-[800px] lg:w-[896px] ${mobileModalHeightClass}`}
           ref={emblaRef}
           onClick={e => e.stopPropagation()}
         >
           <div className="flex h-full">
             {products.map(p => (
               <div key={p._id} className="flex-[0_0_100%] min-w-0 h-full">
-                <div
-                  className={`bg-card flex flex-col md:flex-row h-full max-h-[90vh] 2xl:max-h-[70vh] ${mobileModalHeightClass}`}
-                >
+                <div className={`h-full bg-card flex flex-col md:flex-row ${mobileModalHeightClass}`}>
                   {/* Product image */}
                   <div className="md:w-2/5 bg-white border-b md:border-b-0 md:border-r border-border/60 flex items-center justify-center p-2 sm:p-5 shrink-0">
                     <div className="relative w-full max-w-[340px] aspect-square max-md:aspect-[3/2] max-md:max-w-[340px]">

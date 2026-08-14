@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Plus, X } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Plus, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { useCustomerAuth } from "@/src/context/authCustomerContext";
@@ -41,7 +41,11 @@ function computeComboSavings(combo: Combo): number {
   return computeComboOriginalPrice(combo) - combo.price;
 }
 
-export default function ComboBuilderModal({
+export default function ComboBuilderModal(props: ComboBuilderModalProps) {
+  return <ComboBuilderContent key={props.combo._id} {...props} />;
+}
+
+function ComboBuilderContent({
   combo,
   allProducts,
   initialSelections,
@@ -56,12 +60,12 @@ export default function ComboBuilderModal({
     : "max-md:h-[calc(100dvh-3rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))] max-md:max-h-[calc(100dvh-3rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))]";
 
   const [comboSelections, setComboSelections] = useState<Record<number, ComboSlotSelection[]>>(initialSelections || {});
-  const [replacingRule, setReplacingRule] = useState<number | null>(null);
+  const [activeRuleIndex, setActiveRuleIndex] = useState(0);
+  const [activeSlotIndex, setActiveSlotIndex] = useState(0);
+  const [mobilePanel, setMobilePanel] = useState<"products" | "summary">("products");
   const [replacingSlot, setReplacingSlot] = useState<{ ruleIdx: number; slotIdx: number } | null>(null);
   const editingComboOldSkuRef = useRef<string | null>(editOldSku || null);
   const comboCounterRef = useRef(0);
-  const ruleRefs = useRef<(HTMLDivElement | null)[]>([]);
-  const initializedRef = useRef(false);
 
   // Khóa trang nền khi modal mở và chỉ cho phép thao tác cuộn trong
   // vùng danh sách sản phẩm của combo.
@@ -95,31 +99,10 @@ export default function ComboBuilderModal({
     };
   }, []);
 
-  // Sync editOldSku when prop changes
-  useEffect(() => {
-    if (editOldSku && !initializedRef.current) {
-      editingComboOldSkuRef.current = editOldSku;
-    }
-  }, [editOldSku]);
-
-  // Reset state when combo changes (new combo opened)
-  useEffect(() => {
-    if (!initializedRef.current) {
-      initializedRef.current = true;
-      return;
-    }
-    // Reset for new combo (not initial render)
-    setComboSelections(initialSelections || {});
-    setReplacingRule(null);
-    setReplacingSlot(null);
-    editingComboOldSkuRef.current = editOldSku || null;
-  }, [combo._id]);
-
   // --- Computed ---
 
   const savings = computeComboSavings(combo);
   const originalPrice = computeComboOriginalPrice(combo);
-  const comboImg = combo.image || "";
   const isDynamic = combo.pricingType === "dynamic";
 
   /** Lấy danh sách sản phẩm khả dụng cho 1 rule, đã lọc theo applicableSizes */
@@ -160,12 +143,38 @@ export default function ComboBuilderModal({
 
   const displayPrice = isDynamic ? computeDynamicComboPrice() : combo.price;
 
-  const allComboSelectionsFilled = useMemo(() => {
-    return combo.rules.every((rule, idx) => {
-      const selected = comboSelections[idx] || [];
-      return selected.length >= rule.requiredQuantity;
-    });
+  const totalRemainingSelections = useMemo(() => {
+    return combo.rules.reduce((total, rule, idx) => {
+      const selectedCount = comboSelections[idx]?.length || 0;
+      return total + Math.max(0, rule.requiredQuantity - selectedCount);
+    }, 0);
   }, [combo, comboSelections]);
+  const allComboSelectionsFilled = totalRemainingSelections === 0;
+  const selectionSteps = useMemo(
+    () =>
+      combo.rules.flatMap((rule, ruleIdx) =>
+        Array.from({ length: rule.requiredQuantity }, (_, slotIdx) => ({ ruleIdx, slotIdx })),
+      ),
+    [combo.rules],
+  );
+  const totalRequiredSelections = selectionSteps.length;
+  const totalSelectedSelections = totalRequiredSelections - totalRemainingSelections;
+  const activeRule = combo.rules[activeRuleIndex];
+  const activeRuleProducts = activeRule ? getProductsForRule(activeRule) : [];
+  const activeRuleSelections = comboSelections[activeRuleIndex] || [];
+  const activeSlotSelection = activeRuleSelections[activeSlotIndex];
+  const activeStepIndex = Math.max(
+    0,
+    selectionSteps.findIndex(step => step.ruleIdx === activeRuleIndex && step.slotIdx === activeSlotIndex),
+  );
+
+  const goToSelectionStep = (stepIndex: number) => {
+    const step = selectionSteps[stepIndex];
+    if (!step) return;
+    setActiveRuleIndex(step.ruleIdx);
+    setActiveSlotIndex(step.slotIdx);
+    setReplacingSlot(null);
+  };
 
   // --- Handlers ---
 
@@ -189,27 +198,41 @@ export default function ComboBuilderModal({
       crust: variant ? parseCrustOptions(variant.crust)[0] || undefined : undefined,
     };
 
-    // Slot-level replacement
-    if (replacingSlot && replacingSlot.ruleIdx === ruleIndex) {
-      setComboSelections(prev => {
-        const current = [...(prev[ruleIndex] || [])];
-        current[replacingSlot.slotIdx] = selection;
-        return { ...prev, [ruleIndex]: current };
-      });
-      setReplacingSlot(null);
-      return;
-    }
+    const currentSelections = comboSelections[ruleIndex] || [];
+    const targetSlotIndex =
+      replacingSlot?.ruleIdx === ruleIndex ? replacingSlot.slotIdx : Math.min(activeSlotIndex, currentSelections.length);
+    const isFillingNewSlot = targetSlotIndex >= currentSelections.length;
 
     setComboSelections(prev => {
-      const current = prev[ruleIndex] || [];
-      const requiredQty = combo.rules[ruleIndex]?.requiredQuantity || 1;
-      if (current.length < requiredQty) {
-        return { ...prev, [ruleIndex]: [...current, selection] };
+      const current = [...(prev[ruleIndex] || [])];
+      if (targetSlotIndex < current.length) {
+        current[targetSlotIndex] = selection;
+      } else {
+        current.push(selection);
       }
-      const next = [...current];
-      next.shift();
-      return { ...prev, [ruleIndex]: [...next, selection] };
+      return { ...prev, [ruleIndex]: current };
     });
+    setReplacingSlot(null);
+
+    if (isFillingNewSlot) {
+      const currentStepIndex = selectionSteps.findIndex(
+        step => step.ruleIdx === ruleIndex && step.slotIdx === targetSlotIndex,
+      );
+      const orderedRemainingSteps = [
+        ...selectionSteps.slice(currentStepIndex + 1),
+        ...selectionSteps.slice(0, currentStepIndex),
+      ];
+      const nextIncompleteStep = orderedRemainingSteps.find(
+        step => !comboSelections[step.ruleIdx]?.[step.slotIdx],
+      );
+
+      if (nextIncompleteStep) {
+        setActiveRuleIndex(nextIncompleteStep.ruleIdx);
+        setActiveSlotIndex(nextIncompleteStep.slotIdx);
+      } else {
+        setMobilePanel("summary");
+      }
+    }
   };
 
   const handleChangeComboVariant = (
@@ -321,7 +344,7 @@ export default function ComboBuilderModal({
         name: combo.name,
         image: combo.image,
         pricingType: combo.pricingType,
-        discountType: combo.discountType,
+        discountType: combo.discountType === "fixed" ? "amount" : combo.discountType,
         discount: combo.discount,
       },
       combo_selections: (user?.id ? comboSelectionsPayload : populatedSelections) as ComboSelectionPayload[],
@@ -371,98 +394,216 @@ export default function ComboBuilderModal({
       }}
     >
       <div
-        className={`bg-card rounded-3xl h-[95vh] max-h-[95vh] w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col md:flex-row ${mobileModalHeightClass}`}
+        className={`flex h-[95vh] max-h-[95vh] w-full max-w-6xl flex-col overflow-hidden rounded-3xl bg-card shadow-2xl md:flex-row ${mobileModalHeightClass}`}
         onClick={e => e.stopPropagation()}
       >
-        {/* Combo image */}
-        <div className="md:w-2/5 bg-white border-b md:border-b-0 md:border-r border-border/60 flex items-center justify-center p-4 sm:p-6 shrink-0 relative">
-          <div className="relative w-full max-w-[320px] aspect-square max-md:aspect-[3/2] max-md:max-h-[200px] max-md:max-w-[200px]">
-            <Image
-              src={comboImg}
-              alt={combo.name}
-              fill
-              sizes="(max-width: 768px) 90vw, (max-width: 1024px) 60vw, 35vw"
-              className="object-contain"
-            />
+        <div className="flex shrink-0 items-center gap-2 border-b border-border/60 bg-card p-2 md:hidden">
+          <div className="grid min-w-0 flex-1 grid-cols-2 rounded-xl bg-muted p-1">
+            <button
+              onClick={() => setMobilePanel("products")}
+              className={`rounded-lg px-3 py-2 text-xs font-semibold transition-colors ${
+                mobilePanel === "products" ? "bg-card text-orange-600 shadow-sm" : "text-muted-foreground"
+              }`}
+            >
+              Chọn món
+            </button>
+            <button
+              onClick={() => setMobilePanel("summary")}
+              className={`rounded-lg px-3 py-2 text-xs font-semibold transition-colors ${
+                mobilePanel === "summary" ? "bg-card text-orange-600 shadow-sm" : "text-muted-foreground"
+              }`}
+            >
+              Đã chọn {totalSelectedSelections}/{totalRequiredSelections}
+            </button>
           </div>
-          {savings > 0 && (
-            <span className="absolute top-3 sm:top-5 left-3 sm:left-5 px-2.5 sm:px-3 py-1 sm:py-1.5 bg-orange-500 text-white text-xs sm:text-sm font-semibold rounded-full">
-              Tiết kiệm {formatVND(savings)}
-            </span>
-          )}
+          <button onClick={onClose} className="shrink-0 rounded-lg p-2 text-muted-foreground hover:bg-muted">
+            <X size={18} />
+          </button>
         </div>
 
-        {/* Combo builder */}
-        <div className="flex-1 flex flex-col min-h-0">
-          {/* Header */}
-          <div className="flex items-start justify-between p-4 sm:p-5 pb-2 shrink-0">
-            <div className="pr-3">
-              <h3 className="text-lg sm:text-xl text-foreground font-bold">{combo.name}</h3>
-              <p className="text-xs sm:text-sm text-muted-foreground mt-1 leading-relaxed line-clamp-2 sm:line-clamp-none">
+        {/* Product selection */}
+        <section
+          className={`${
+            mobilePanel === "products" ? "flex" : "hidden"
+          } min-h-0 flex-1 flex-col border-border/60 bg-muted/20 md:flex md:w-3/5 md:flex-none md:border-r`}
+        >
+          <div className="shrink-0 border-b border-border/60 bg-card/80 p-3 sm:p-5">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-orange-600">
+                  Bước {Math.min(activeStepIndex + 1, totalRequiredSelections)}/{totalRequiredSelections}
+                </p>
+                <h4 className="mt-0.5 truncate text-base font-bold text-foreground">
+                  {activeRule?.groupName || "Chọn sản phẩm"}
+                  {activeRule && activeRule.requiredQuantity > 1
+                    ? ` · Lựa chọn ${activeSlotIndex + 1}/${activeRule.requiredQuantity}`
+                    : ""}
+                </h4>
+              </div>
+
+              <div className="flex shrink-0 items-center gap-1">
+                <button
+                  onClick={() => goToSelectionStep(activeStepIndex - 1)}
+                  disabled={activeStepIndex === 0}
+                  className="rounded-lg border border-border bg-card p-2 text-muted-foreground transition-colors hover:border-orange-300 hover:text-orange-600 disabled:cursor-not-allowed disabled:opacity-40"
+                  aria-label="Lựa chọn trước"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+                <button
+                  onClick={() => goToSelectionStep(activeStepIndex + 1)}
+                  disabled={activeStepIndex >= totalRequiredSelections - 1 || !activeSlotSelection}
+                  className="rounded-lg border border-border bg-card p-2 text-muted-foreground transition-colors hover:border-orange-300 hover:text-orange-600 disabled:cursor-not-allowed disabled:opacity-40"
+                  aria-label="Lựa chọn tiếp theo"
+                >
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-muted">
+              <div
+                className="h-full rounded-full bg-orange-500 transition-all duration-300"
+                style={{
+                  width: `${totalRequiredSelections > 0 ? (totalSelectedSelections / totalRequiredSelections) * 100 : 0}%`,
+                }}
+              />
+            </div>
+          </div>
+
+          <div data-combo-modal-scroll className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain p-4 sm:p-5">
+            {activeRule ? (
+              <>
+                <p className={`mb-3 text-xs ${activeSlotSelection ? "text-green-700" : "text-muted-foreground"}`}>
+                  {activeSlotSelection
+                    ? "Đã chọn món này. Bấm món khác để thay thế."
+                    : "Chọn một sản phẩm để tiếp tục."}
+                </p>
+
+                {activeRuleProducts.length > 0 ? (
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-2 lg:grid-cols-3">
+                    {activeRuleProducts.map(product => {
+                      const variant =
+                        activeRule.applicableSizes && activeRule.applicableSizes.length > 0
+                          ? product.variants.find(item => activeRule.applicableSizes.includes(item.size))
+                          : product.variants[0];
+                      if (!variant) return null;
+
+                      const isSelected = activeSlotSelection?.productId === product._id;
+
+                      return (
+                        <button
+                          key={product._id}
+                          onClick={() => handleSelectComboProduct(activeRuleIndex, variant.sku)}
+                          className={`group relative overflow-hidden rounded-2xl border p-3 text-left transition-all ${
+                            isSelected
+                              ? "border-orange-500 bg-orange-50 ring-2 ring-orange-200 dark:bg-orange-950/20"
+                              : "border-border bg-card hover:-translate-y-0.5 hover:border-orange-300 hover:shadow-md"
+                          } cursor-pointer`}
+                        >
+                          {isSelected && (
+                            <span className="absolute top-2 right-2 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-orange-500 text-white shadow">
+                              <Check size={13} strokeWidth={3} />
+                            </span>
+                          )}
+                          <div className="relative mx-auto aspect-square w-full max-w-40">
+                            <Image
+                              src={variant.image.url}
+                              alt={product.name}
+                              fill
+                              sizes="(max-width: 640px) 45vw, (max-width: 1024px) 28vw, 180px"
+                              className="object-contain transition-transform duration-200 group-hover:scale-105"
+                            />
+                          </div>
+                          <p className="mt-2 line-clamp-2 text-center text-sm font-semibold text-foreground">{product.name}</p>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="rounded-2xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+                    Không có sản phẩm khả dụng cho nhóm này.
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+                Combo chưa có quy tắc chọn sản phẩm.
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* Selected products */}
+        <section
+          className={`${mobilePanel === "summary" ? "flex" : "hidden"} min-h-0 flex-1 flex-col md:flex md:w-2/5`}
+        >
+          <div className="flex shrink-0 items-start justify-between border-b border-border/60 p-4 sm:p-5">
+            <div className="min-w-0 pr-3">
+              <h3 className="text-lg font-bold text-foreground sm:text-xl">{combo.name}</h3>
+              <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground sm:text-sm">
                 {combo.description}
               </p>
+              {savings > 0 && (
+                <span className="mt-2 inline-flex rounded-full bg-green-100 px-2.5 py-1 text-xs font-semibold text-green-700">
+                  Tiết kiệm {formatVND(savings)}
+                </span>
+              )}
             </div>
             <button
-              onClick={() => {
-                onClose();
-              }}
-              className="p-2 rounded-lg hover:bg-muted text-muted-foreground shrink-0"
+              onClick={onClose}
+              className="hidden shrink-0 rounded-lg p-2 text-muted-foreground hover:bg-muted md:block"
             >
               <X size={18} />
             </button>
           </div>
 
-          {/* Rules */}
           <div
             data-combo-modal-scroll
-            className="flex-1 min-h-0 touch-pan-y overflow-y-auto overscroll-contain px-4 sm:px-5 space-y-3 sm:space-y-4 pb-2"
+            className="min-h-0 flex-1 space-y-3 touch-pan-y overflow-y-auto overscroll-contain p-4 sm:p-5"
           >
             {combo.rules.map((rule, ruleIdx) => {
-              const products = getProductsForRule(rule);
               const selectedSelections = comboSelections[ruleIdx] || [];
-              const isReplacing = replacingRule === ruleIdx;
               const isSlotReplacing = replacingSlot?.ruleIdx === ruleIdx;
-
+              const isRuleFilled = selectedSelections.length >= rule.requiredQuantity;
+              const remainingQuantity = Math.max(0, rule.requiredQuantity - selectedSelections.length);
               const slots = Array.from({ length: rule.requiredQuantity }, (_, slotIdx) => {
-                const sel = selectedSelections[slotIdx] || null;
-                const product = sel?.productId ? allProducts.find(p => p._id === sel.productId) : null;
-                const variant = sel?.sku
-                  ? product?.variants.find(v => v.sku === sel.sku) ||
+                const selection = selectedSelections[slotIdx] || null;
+                const product = selection?.productId
+                  ? allProducts.find(item => item._id === selection.productId)
+                  : null;
+                const variant = selection?.sku
+                  ? product?.variants.find(item => item.sku === selection.sku) ||
                     (rule.applicableSizes && rule.applicableSizes.length > 0
-                      ? product?.variants.find(v => rule.applicableSizes.includes(v.size))
+                      ? product?.variants.find(item => rule.applicableSizes.includes(item.size))
                       : product?.variants[0])
                   : null;
-                return { selection: sel, product, variant };
+                return { selection, product, variant };
               });
-
-              const isRuleFilled = selectedSelections.length >= rule.requiredQuantity;
 
               return (
                 <div
                   key={ruleIdx}
-                  ref={el => {
-                    ruleRefs.current[ruleIdx] = el;
-                  }}
-                  className="border border-border rounded-2xl p-4 bg-muted/10"
+                  className={`rounded-2xl border p-3 transition-colors ${
+                    isRuleFilled
+                      ? "border-green-200 bg-green-50/30 dark:border-green-800/50 dark:bg-green-950/10"
+                      : "border-orange-200 bg-orange-50/30 dark:border-orange-800/50 dark:bg-orange-950/10"
+                  }`}
                 >
-                  <div className="flex items-center justify-between mb-3">
-                    <p className="text-sm font-semibold text-foreground">
-                      {rule.groupName}
-                      <span className="text-xs text-muted-foreground ml-1 font-normal">
-                        ({selectedSelections.length}/{rule.requiredQuantity})
-                      </span>
-                    </p>
-                    {isSlotReplacing && (
-                      <button
-                        onClick={() => setReplacingSlot(null)}
-                        className="text-xs text-muted-foreground hover:text-foreground font-medium cursor-pointer"
-                      >
-                        Đóng
-                      </button>
-                    )}
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <p className="text-sm font-semibold text-foreground">{rule.groupName}</p>
+                    <span
+                      className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${
+                        isRuleFilled
+                          ? "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300"
+                          : "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300"
+                      }`}
+                    >
+                      {isRuleFilled && <Check size={12} strokeWidth={2.5} />}
+                      {selectedSelections.length}/{rule.requiredQuantity}
+                    </span>
                   </div>
 
-                  {/* Selected slots */}
                   {selectedSelections.length > 0 && (
                     <div className="space-y-2">
                       {slots.map((slot, slotIdx) =>
@@ -478,83 +619,82 @@ export default function ComboBuilderModal({
                               rule.applicableSizes && rule.applicableSizes.length > 0 ? rule.applicableSizes : undefined
                             }
                             onChangeVariant={handleChangeComboVariant}
-                            onReplace={(ri, si) => setReplacingSlot({ ruleIdx: ri, slotIdx: si })}
-                            showReplace={isRuleFilled && !isReplacing && !isSlotReplacing}
+                            onReplace={(selectedRuleIdx, selectedSlotIdx) => {
+                              setActiveRuleIndex(selectedRuleIdx);
+                              setActiveSlotIndex(selectedSlotIdx);
+                              setReplacingSlot({ ruleIdx: selectedRuleIdx, slotIdx: selectedSlotIdx });
+                              setMobilePanel("products");
+                            }}
+                            showReplace={!isSlotReplacing}
                           />
                         ) : null,
                       )}
                     </div>
                   )}
 
-                  {/* Product picker */}
-                  {(isReplacing || !isRuleFilled || isSlotReplacing) && products.length > 0 && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1">
-                      {products.map(product => {
-                        // Chọn variant đầu tiên khớp với applicableSizes của rule
-                        const repVariant =
-                          rule.applicableSizes && rule.applicableSizes.length > 0
-                            ? product.variants.find(v => rule.applicableSizes.includes(v.size))
-                            : product.variants[0];
-                        if (!repVariant) return null;
-                        const isSelected = selectedSelections.some(s => s.productId === product._id);
-                        return (
-                          <button
-                            key={product._id}
-                            onClick={() => handleSelectComboProduct(ruleIdx, repVariant.sku)}
-                            className={`p-3 rounded-xl border text-left transition-all ${
-                              isSelected
-                                ? "border-orange-500 bg-orange-50 ring-1 ring-orange-200"
-                                : "border-border bg-background hover:border-orange-300 hover:bg-orange-50/30"
-                            }`}
-                          >
-                            <div className="flex items-center gap-3">
-                              <div className="relative w-12 h-12 rounded-lg overflow-hidden shrink-0 bg-muted">
-                                <Image
-                                  src={repVariant.image.url}
-                                  alt={product.name}
-                                  fill
-                                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                                  className="object-cover"
-                                />
-                              </div>
-                              <div className="min-w-0">
-                                <p className="text-sm font-medium text-foreground">{product.name}</p>
-                              </div>
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-
-                  {products.length === 0 && <p className="text-xs text-muted-foreground italic">Không có sản phẩm khả dụng</p>}
+                  {!isSlotReplacing && !isRuleFilled ? (
+                    <button
+                      onClick={() => {
+                        setActiveRuleIndex(ruleIdx);
+                        setActiveSlotIndex(selectedSelections.length);
+                        setReplacingSlot(null);
+                        setMobilePanel("products");
+                      }}
+                      className="mt-2 w-full rounded-xl border border-dashed border-orange-300 px-3 py-2 text-xs font-semibold text-orange-600 hover:bg-orange-50"
+                    >
+                      Chọn thêm {remainingQuantity} sản phẩm
+                    </button>
+                  ) : null}
                 </div>
               );
             })}
           </div>
 
-          {/* Footer with price and add button */}
-          <div className="p-3 sm:p-5 border-t border-border space-y-2 shrink-0">
-            {isDynamic ? (
-              <div></div>
-            ) : (
+          <div className="hidden shrink-0 space-y-2 border-t border-border p-3 sm:p-5 md:block">
+            {!isDynamic && (
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground line-through">{formatVND(originalPrice)}</span>
-                <span className="text-green-600 text-xs font-medium">Tiết kiệm {formatVND(savings)}</span>
+                <span className="text-xs font-medium text-green-600">Tiết kiệm {formatVND(savings)}</span>
               </div>
             )}
             <button
               onClick={handleAddComboToCart}
               disabled={!allComboSelectionsFilled}
-              className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl transition-colors shadow-lg ${
+              className={`flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 shadow-lg transition-colors ${
                 allComboSelectionsFilled
-                  ? "bg-orange-500 text-white hover:bg-orange-600 shadow-orange-500/25"
-                  : "bg-muted text-muted-foreground cursor-not-allowed"
+                  ? "bg-orange-500 text-white shadow-orange-500/25 hover:bg-orange-600"
+                  : "cursor-not-allowed bg-muted text-muted-foreground"
               }`}
             >
-              <Plus size={18} /> Thêm combo vào giỏ - {formatVND(displayPrice)}
+              {allComboSelectionsFilled ? (
+                <>
+                  <Plus size={18} /> Thêm combo vào giỏ - {formatVND(displayPrice)}
+                </>
+              ) : (
+                <>Cần chọn thêm {totalRemainingSelections} sản phẩm - {formatVND(displayPrice)}</>
+              )}
             </button>
           </div>
+        </section>
+
+        <div className="shrink-0 border-t border-border bg-card p-3 md:hidden">
+          <button
+            onClick={handleAddComboToCart}
+            disabled={!allComboSelectionsFilled}
+            className={`flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold shadow-lg transition-colors ${
+              allComboSelectionsFilled
+                ? "bg-orange-500 text-white shadow-orange-500/25 hover:bg-orange-600"
+                : "cursor-not-allowed bg-muted text-muted-foreground shadow-none"
+            }`}
+          >
+            {allComboSelectionsFilled ? (
+              <>
+                <Plus size={18} /> Thêm combo vào giỏ - {formatVND(displayPrice)}
+              </>
+            ) : (
+              <>Cần chọn thêm {totalRemainingSelections} sản phẩm - {formatVND(displayPrice)}</>
+            )}
+          </button>
         </div>
       </div>
     </div>

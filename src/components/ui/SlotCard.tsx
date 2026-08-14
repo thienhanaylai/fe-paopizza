@@ -49,6 +49,13 @@ export default function SlotCard({
   );
   const isPizza = product.category?.slug?.toLowerCase().includes("pizza");
   const activeCrust = selectedCrust || parseCrustOptions(variant.crust)[0];
+  const canReplace = Boolean(showReplace && onReplace && slotIdx !== undefined);
+
+  const handleCardReplace = () => {
+    if (canReplace && onReplace && slotIdx !== undefined) {
+      onReplace(ruleIdx, slotIdx);
+    }
+  };
 
   const findVariantBySizeCrust = (size: string, crust?: string) => {
     return allVariants.find(v => {
@@ -82,7 +89,24 @@ export default function SlotCard({
   };
 
   return (
-    <div className="border border-orange-200 rounded-xl p-3 bg-orange-50/40">
+    <div
+      role={canReplace ? "button" : undefined}
+      tabIndex={canReplace ? 0 : undefined}
+      onClick={event => {
+        if ((event.target as HTMLElement).closest("button")) return;
+        handleCardReplace();
+      }}
+      onKeyDown={event => {
+        if (!canReplace || (event.key !== "Enter" && event.key !== " ")) return;
+        event.preventDefault();
+        handleCardReplace();
+      }}
+      className={`rounded-xl border border-orange-200 bg-orange-50/40 p-3 transition-all ${
+        canReplace
+          ? "cursor-pointer hover:border-orange-400 hover:bg-orange-50 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400 focus-visible:ring-offset-2"
+          : ""
+      }`}
+    >
       <div className="flex items-center gap-3">
         <div className="relative w-14 h-14 rounded-lg overflow-hidden shrink-0 bg-muted">
           <Image src={variant.image.url} alt={product.name} fill className="object-cover" />

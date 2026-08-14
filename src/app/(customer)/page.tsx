@@ -506,7 +506,7 @@ export default function IndexPage() {
               Khám phá các món pizza thủ công PaoPizza với nguyên liệu tươi ngon nhất
             </p>
           </div>
-          <div className="sticky top-[72px] w-full z-20 bg-white/90 backdrop-blur-md py-2 px-3 sm:px-2 border border-border/80 shadow-sm rounded-2xl sm:rounded-[24px]  sm:mx-auto max-w-7xl transition-all duration-300">
+          <div className="sticky top-[72px] w-full z-20 bg-white/90 backdrop-blur-md py-2 px-3 sm:px-2 border border-border/80 shadow-sm rounded-xl sm:rounded-[16px]  sm:mx-auto max-w-7xl transition-all duration-300">
             {isLoading && categories.length === 0 ? (
               <div className="flex flex-nowrap items-center gap-2 overflow-x-auto no-scrollbar py-1 w-full justify-start sm:justify-center">
                 {Array.from({ length: 5 }).map((_, i) => (
@@ -756,7 +756,7 @@ export default function IndexPage() {
                                   hanldeProduct(item);
                                 }}
                                 key={item._id}
-                                className="bg-card rounded-2xl border border-border overflow-hidden hover:shadow-xl transition-all duration-300 group flex flex-col"
+                                className="bg-card hover:bg-primary/600 rounded-2xl border border-border overflow-hidden hover:shadow-xl transition-all duration-300 group flex flex-col"
                               >
                                 <div className="relative aspect-square overflow-hidden">
                                   {!loadedImages.has(item.variants[0].image.url) && (
@@ -782,9 +782,6 @@ export default function IndexPage() {
                                       </span>
                                     ) : null;
                                   })()}
-                                  <span className="absolute bottom-3 left-3 px-2 py-1 bg-black/60 text-white text-[10px] rounded-full capitalize">
-                                    {categories.find(c => c.slug === item.category.slug)?.name}
-                                  </span>
                                 </div>
                                 <div className="p-5 flex flex-col flex-1">
                                   <h4 className="text-foreground mb-1 line-clamp-2">{item.name}</h4>

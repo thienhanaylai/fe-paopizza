@@ -6,6 +6,7 @@ import {
   Banknote,
   CheckCircle2,
   LoaderCircle,
+  MapPin,
   QrCode,
   ShoppingBag,
   TicketPercent,
@@ -23,9 +24,24 @@ import { checkPaymentStatus, PAYMENT_TIMEOUT_MS } from "@/src/services/payment.s
 import { applyPromoCode, PromoCodeResult } from "@/src/services/promotion.service";
 import { getCustomerAddresses, CustomerAddress } from "@/src/services/customer.service";
 import { formatVND } from "@/src/utils/formatVND";
+import { autocomplete } from "@/src/services/map.service";
 
 type CheckoutStep = "info" | "payment" | "success" | "failed";
 type OrderMethod = "carry_out" | "delivery" | "dine_in";
+type CheckoutFieldErrors = Partial<Record<"name" | "phone" | "address", string>>;
+type AddressSuggestion = { place_id: string; description: string };
+
+const PHONE_REGEX = /^(?:0|84|\+84)[35789]\d{8}$/;
+const AUTOCOMPLETE_DEBOUNCE_MS = 600;
+const AUTOCOMPLETE_CACHE_LIMIT = 50;
+
+const normalizePhone = (phone: string) => phone.replace(/[\s.-]/g, "");
+
+const getPhoneError = (phone: string) => {
+  if (!phone.trim()) return "Vui lòng nhập số điện thoại";
+  if (!PHONE_REGEX.test(normalizePhone(phone))) return "Số điện thoại không đúng định dạng Việt Nam";
+  return "";
+};
 
 export function CountdownTimer({ expiresAt, onExpire }: { expiresAt?: Date; onExpire: () => void }) {
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
@@ -82,6 +98,17 @@ export const CheckoutModal = () => {
   const [custNote, setCustNote] = useState("");
   const [imgQr, setImgQr] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<CheckoutFieldErrors>({});
+
+  const [addressSuggestions, setAddressSuggestions] = useState<AddressSuggestion[]>([]);
+  const [addressSuggestionsLoading, setAddressSuggestionsLoading] = useState(false);
+  const [showAddressSuggestions, setShowAddressSuggestions] = useState(false);
+  const addressSessionTokenRef = useRef(
+    typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(),
+  );
+  const addressAutocompleteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const addressAutocompleteCacheRef = useRef(new Map<string, AddressSuggestion[]>());
+  const addressAutocompleteQueryRef = useRef("");
 
   // Saved addresses for logged-in users
   const [savedAddresses, setSavedAddresses] = useState<CustomerAddress[]>([]);
@@ -98,6 +125,109 @@ export const CheckoutModal = () => {
   const [showExitConfirm, setShowExitConfirm] = useState(false);
 
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
+
+  const setFieldError = (field: keyof CheckoutFieldErrors, message: string) => {
+    setFieldErrors(previous => ({ ...previous, [field]: message }));
+  };
+
+  const validateCheckoutInfo = () => {
+    const errors: CheckoutFieldErrors = {};
+
+    if (!custName.trim()) errors.name = "Vui lòng nhập tên người nhận";
+
+    const phoneError = getPhoneError(custPhone);
+    if (phoneError) errors.phone = phoneError;
+
+    if (orderMethod === "delivery" && !custAddress.trim()) {
+      errors.address = "Vui lòng nhập địa chỉ giao hàng";
+    }
+
+    setFieldErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const resetAddressSuggestions = () => {
+    addressAutocompleteQueryRef.current = "";
+    if (addressAutocompleteTimerRef.current) {
+      clearTimeout(addressAutocompleteTimerRef.current);
+      addressAutocompleteTimerRef.current = null;
+    }
+    setAddressSuggestions([]);
+    setShowAddressSuggestions(false);
+    setAddressSuggestionsLoading(false);
+  };
+
+  const handleAddressInput = (value: string) => {
+    setCustAddress(value);
+    setSelectedAddressId("");
+    if (fieldErrors.address) {
+      setFieldError("address", value.trim() ? "" : "Vui lòng nhập địa chỉ giao hàng");
+    }
+
+    const query = value.trim().replace(/\s+/g, " ").toLocaleLowerCase("vi-VN");
+    addressAutocompleteQueryRef.current = query;
+
+    if (addressAutocompleteTimerRef.current) {
+      clearTimeout(addressAutocompleteTimerRef.current);
+    }
+
+    if (query.length < 2) {
+      setAddressSuggestions([]);
+      setShowAddressSuggestions(false);
+      setAddressSuggestionsLoading(false);
+      return;
+    }
+
+    const cachedSuggestions = addressAutocompleteCacheRef.current.get(query);
+    if (cachedSuggestions !== undefined) {
+      setAddressSuggestions(cachedSuggestions);
+      setShowAddressSuggestions(cachedSuggestions.length > 0);
+      setAddressSuggestionsLoading(false);
+      return;
+    }
+
+    setShowAddressSuggestions(true);
+    addressAutocompleteTimerRef.current = setTimeout(async () => {
+      if (addressAutocompleteQueryRef.current !== query) return;
+
+      setAddressSuggestionsLoading(true);
+      try {
+        const result = await autocomplete({
+          input: value.trim(),
+          sessiontoken: addressSessionTokenRef.current,
+          limit: 6,
+        });
+        if (addressAutocompleteQueryRef.current !== query) return;
+
+        const predictions = (result.predictions || []) as AddressSuggestion[];
+        const cache = addressAutocompleteCacheRef.current;
+        if (cache.size >= AUTOCOMPLETE_CACHE_LIMIT) {
+          cache.delete(cache.keys().next().value as string);
+        }
+        cache.set(query, predictions);
+        setAddressSuggestions(predictions);
+        setShowAddressSuggestions(predictions.length > 0);
+      } catch {
+        if (addressAutocompleteQueryRef.current === query) {
+          setAddressSuggestions([]);
+          setShowAddressSuggestions(false);
+        }
+      } finally {
+        if (addressAutocompleteQueryRef.current === query) {
+          setAddressSuggestionsLoading(false);
+        }
+      }
+    }, AUTOCOMPLETE_DEBOUNCE_MS);
+  };
+
+  const handleSelectAddressSuggestion = (description: string) => {
+    setCustAddress(description);
+    setSelectedAddressId("");
+    setFieldError("address", "");
+    resetAddressSuggestions();
+    addressSessionTokenRef.current =
+      typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : Date.now().toString();
+  };
 
   const stopPolling = () => {
     if (pollingRef.current) {
@@ -139,7 +269,12 @@ export const CheckoutModal = () => {
       }
     };
     fecthData();
-    return () => stopPolling();
+    return () => {
+      stopPolling();
+      if (addressAutocompleteTimerRef.current) {
+        clearTimeout(addressAutocompleteTimerRef.current);
+      }
+    };
   }, []);
 
   // lấy dánh sách địa chỉ đã lưu
@@ -174,6 +309,12 @@ export const CheckoutModal = () => {
     setCustName(addr.name || "");
     setCustPhone(addr.phone || "");
     setCustAddress(addr.address || "");
+    setFieldErrors({
+      name: addr.name?.trim() ? "" : "Vui lòng nhập tên người nhận",
+      phone: getPhoneError(addr.phone || ""),
+      address: addr.address?.trim() ? "" : "Vui lòng nhập địa chỉ giao hàng",
+    });
+    resetAddressSuggestions();
   };
 
   const clearData = async () => {
@@ -189,6 +330,8 @@ export const CheckoutModal = () => {
     setOrderMethod("carry_out");
     setPaymentMethod("cash");
     setIsPayment(false);
+    setFieldErrors({});
+    resetAddressSuggestions();
     await clearCart(user?.id);
   };
 
@@ -229,18 +372,29 @@ export const CheckoutModal = () => {
 
   const hanldeSubmit = async () => {
     if (isSubmitting) return;
+
+    if (!validateCheckoutInfo()) {
+      setCheckoutStep("info");
+      toast.warning("Vui lòng kiểm tra lại thông tin nhận hàng!");
+      return;
+    }
+
+    const currentStoreId = localStorage.getItem("selected_store") || storeId;
+    if (!currentStoreId) {
+      toast.warning("Vui lòng chọn cửa hàng trước khi đặt hàng!");
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
-      const currentStoreId = localStorage.getItem("selected_store") || storeId;
-
       const order: Order = {
         orderType: orderMethod,
         paymentMethod: paymentMethod,
         contact_info: {
-          full_name: custName,
-          phone: custPhone,
-          address: custAddress,
+          full_name: custName.trim(),
+          phone: normalizePhone(custPhone),
+          address: custAddress.trim(),
         },
         store_id: currentStoreId,
         items: cart
@@ -273,18 +427,6 @@ export const CheckoutModal = () => {
         promotion_code: appliedPromo?.valid ? appliedPromo.code : undefined,
         discount_amount: appliedPromo?.valid ? discountAmount : 0,
       };
-
-      if (!custName || !custPhone || !currentStoreId) {
-        toast.warning("Vui lòng nhập đầy đủ thông tin!");
-        setIsSubmitting(false);
-        return;
-      }
-
-      if (orderMethod === "delivery" && !custAddress) {
-        toast.warning("Vui lòng nhập địa chỉ giao hàng!");
-        setIsSubmitting(false);
-        return;
-      }
 
       const result = await createOrder(order, "customer");
       const res = result.data;
@@ -464,7 +606,11 @@ export const CheckoutModal = () => {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <button
                         type="button"
-                        onClick={() => setOrderMethod("carry_out")}
+                        onClick={() => {
+                          setOrderMethod("carry_out");
+                          setFieldError("address", "");
+                          resetAddressSuggestions();
+                        }}
                         className={`flex items-center gap-3 p-4 rounded-xl border-2 transition-all ${orderMethod === "carry_out" ? "border-primary bg-primary/5" : "border-border hover:border-primary/30"}`}
                       >
                         <div
@@ -504,7 +650,6 @@ export const CheckoutModal = () => {
                         onChange={e => handleSelectAddress(e.target.value)}
                         className="w-full px-4 py-2.5 rounded-xl border border-border bg-background text-sm text-muted-foreground focus:border-primary outline-none"
                       >
-                        <option value="">-- Chọn địa chỉ đã lưu --</option>
                         {savedAddresses.map(addr => (
                           <option key={addr._id} value={addr._id}>
                             {addr.name} - {addr.phone} - {addr.address} {addr.isDefault ? "(Mặc định)" : ""}
@@ -516,40 +661,121 @@ export const CheckoutModal = () => {
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm mb-1">Họ tên *</label>
+                      <label className="block text-sm mb-1">Tên người nhận *</label>
                       <input
                         value={custName}
-                        onChange={e => setCustName(e.target.value)}
+                        onChange={e => {
+                          const value = e.target.value;
+                          setCustName(value);
+                          if (fieldErrors.name) {
+                            setFieldError("name", value.trim() ? "" : "Vui lòng nhập tên người nhận");
+                          }
+                        }}
+                        onBlur={() => {
+                          if (!custName.trim()) setFieldError("name", "Vui lòng nhập tên người nhận");
+                        }}
                         placeholder="Nguyễn Văn A"
-                        className="w-full px-4 py-2.5 rounded-xl border border-border bg-background focus:border-primary outline-none"
+                        aria-invalid={!!fieldErrors.name}
+                        className={`w-full px-4 py-2.5 rounded-xl border bg-background outline-none transition-colors ${
+                          fieldErrors.name
+                            ? "border-red-500 focus:border-red-500 focus:ring-1 focus:ring-red-200"
+                            : "border-border focus:border-primary"
+                        }`}
                       />
+                      {fieldErrors.name && (
+                        <p className="mt-1.5 flex items-center gap-1 text-xs text-red-500">
+                          <AlertCircle size={12} /> {fieldErrors.name}
+                        </p>
+                      )}
                     </div>
                     <div>
                       <label className="block text-sm mb-1">Số điện thoại *</label>
                       <input
                         value={custPhone}
-                        onChange={e => setCustPhone(e.target.value)}
+                        onChange={e => {
+                          const value = e.target.value;
+                          setCustPhone(value);
+                          if (fieldErrors.phone) setFieldError("phone", getPhoneError(value));
+                        }}
+                        onBlur={() => setFieldError("phone", getPhoneError(custPhone))}
                         placeholder="0901234567"
-                        pattern="[0-9]*"
-                        inputMode="numeric"
-                        type="text"
-                        className="w-full px-4 py-2.5 rounded-xl border border-border bg-background focus:border-primary outline-none"
+                        inputMode="tel"
+                        type="tel"
+                        aria-invalid={!!fieldErrors.phone}
+                        className={`w-full px-4 py-2.5 rounded-xl border bg-background outline-none transition-colors ${
+                          fieldErrors.phone
+                            ? "border-red-500 focus:border-red-500 focus:ring-1 focus:ring-red-200"
+                            : "border-border focus:border-primary"
+                        }`}
                       />
+                      {fieldErrors.phone && (
+                        <p className="mt-1.5 flex items-center gap-1 text-xs text-red-500">
+                          <AlertCircle size={12} /> {fieldErrors.phone}
+                        </p>
+                      )}
                     </div>
                   </div>
 
                   {orderMethod === "delivery" && (
-                    <div>
+                    <div className="relative">
                       <label className="block text-sm mb-1">Địa chỉ giao hàng *</label>
-                      <input
-                        value={custAddress}
-                        onChange={e => {
-                          setCustAddress(e.target.value);
-                          setSelectedAddressId("");
-                        }}
-                        placeholder="Nhập địa chỉ chi tiết"
-                        className="w-full px-4 py-2.5 rounded-xl border border-border bg-background focus:border-primary outline-none"
-                      />
+                      <div className="relative">
+                        <input
+                          value={custAddress}
+                          onChange={e => handleAddressInput(e.target.value)}
+                          onFocus={() => {
+                            if (addressSuggestions.length > 0 || addressSuggestionsLoading) {
+                              setShowAddressSuggestions(true);
+                            }
+                          }}
+                          onBlur={() => {
+                            setTimeout(() => setShowAddressSuggestions(false), 150);
+                            if (!custAddress.trim()) setFieldError("address", "Vui lòng nhập địa chỉ giao hàng");
+                          }}
+                          placeholder="Nhập số nhà, tên đường, phường/xã..."
+                          autoComplete="off"
+                          aria-invalid={!!fieldErrors.address}
+                          className={`w-full px-4 py-2.5 pr-10 rounded-xl border bg-background outline-none transition-colors ${
+                            fieldErrors.address
+                              ? "border-red-500 focus:border-red-500 focus:ring-1 focus:ring-red-200"
+                              : "border-border focus:border-primary"
+                          }`}
+                        />
+                        {addressSuggestionsLoading && (
+                          <LoaderCircle
+                            size={16}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-muted-foreground"
+                          />
+                        )}
+                      </div>
+
+                      {fieldErrors.address && (
+                        <p className="mt-1.5 flex items-center gap-1 text-xs text-red-500">
+                          <AlertCircle size={12} /> {fieldErrors.address}
+                        </p>
+                      )}
+
+                      {showAddressSuggestions && (addressSuggestionsLoading || addressSuggestions.length > 0) && (
+                        <div className="absolute z-50 left-0 right-0 top-full mt-1 max-h-56 overflow-y-auto rounded-xl border border-border bg-card shadow-xl">
+                          {addressSuggestionsLoading && addressSuggestions.length === 0 && (
+                            <div className="flex items-center gap-2 px-4 py-3 text-xs text-muted-foreground">
+                              <LoaderCircle size={13} className="animate-spin" /> Đang tìm địa chỉ...
+                            </div>
+                          )}
+                          {addressSuggestions.map(suggestion => (
+                            <button
+                              key={suggestion.place_id}
+                              type="button"
+                              onMouseDown={event => event.preventDefault()}
+                              onClick={() => handleSelectAddressSuggestion(suggestion.description)}
+                              className="flex w-full items-start gap-2.5 border-b border-border/50 px-4 py-3 text-left text-sm text-foreground transition-colors last:border-b-0 hover:bg-muted"
+                            >
+                              <MapPin size={15} className="mt-0.5 shrink-0 text-primary" />
+                              <span>{suggestion.description}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -645,15 +871,9 @@ export const CheckoutModal = () => {
                   <button
                     type="button"
                     onClick={() => {
-                      const phoneRegex = /^(0|84|\+84)[35789]\d{8}$/;
-                      if (!phoneRegex.test(custPhone)) {
-                        toast.warning("Số điện thoại không hợp lệ. Vui lòng kiểm tra lại!");
-                        return;
-                      }
-                      setCheckoutStep("payment");
+                      if (validateCheckoutInfo()) setCheckoutStep("payment");
                     }}
-                    disabled={!custName || !custPhone || (orderMethod === "delivery" && !custAddress)}
-                    className="w-full bg-primary text-white py-3 rounded-xl hover:bg-primary/90 transition-colors shadow-lg shadow-primary/25 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                    className="w-full bg-primary text-white py-3 rounded-xl hover:bg-primary/90 transition-colors shadow-lg shadow-primary/25 font-medium"
                   >
                     Tiếp tục thanh toán
                   </button>

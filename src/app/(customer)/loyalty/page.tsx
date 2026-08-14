@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { Award, Gift, TicketPercent, Coins, Sparkles, Copy, Check, Clock, ArrowRight, Gem, Info, X, Hash } from "lucide-react";
+import { Award, Gift, TicketPercent, Coins, Sparkles, Copy, Check, Clock, ArrowRight, Gem, X, Hash, Store } from "lucide-react";
 import { useCustomerAuth } from "@/src/context/authCustomerContext";
 import {
   getRedeemablePromotions,
   getMyRedeemedPromotions,
   redeemPromotion,
   type Promotion,
+  type RedeemablePromotion,
   type RedeemResult,
   type RedeemedPromotion,
 } from "@/src/services/promotion.service";
@@ -70,16 +71,31 @@ function getDiscountLabel(type: string, value: number): string {
   return `Giảm ${formatVND(value)}`;
 }
 
+function getApplicableStoreLabel(stores: Promotion["applicableStore"], maxVisible?: number): string {
+  if (!stores?.length) return "Chưa có cửa hàng áp dụng";
+
+  const storeNames = stores
+    .filter((store): store is { _id: string; name: string } => typeof store !== "string")
+    .map(store => store.name)
+    .filter(Boolean);
+
+  if (storeNames.length === 0) return `${stores.length} cửa hàng áp dụng`;
+  if (!maxVisible || storeNames.length <= maxVisible) return storeNames.join(", ");
+
+  const remainingStoreCount = storeNames.length - maxVisible;
+  return `${storeNames.slice(0, maxVisible).join(", ")} +${remainingStoreCount} cửa hàng khác`;
+}
+
 export default function LoyaltyPage() {
   const { user, getInfo } = useCustomerAuth();
 
-  const [promotions, setPromotions] = useState<Promotion[]>([]);
+  const [promotions, setPromotions] = useState<RedeemablePromotion[]>([]);
   const [redeemedList, setRedeemedList] = useState<RedeemedPromotion[]>([]);
   const [loading, setLoading] = useState(true);
   const [redeemingId, setRedeemingId] = useState<string | null>(null);
-  const [confirmModal, setConfirmModal] = useState<Promotion | null>(null);
+  const [confirmModal, setConfirmModal] = useState<RedeemablePromotion | null>(null);
   const [resultModal, setResultModal] = useState<RedeemResult | null>(null);
-  const [detailPromo, setDetailPromo] = useState<Promotion | null>(null);
+  const [detailPromo, setDetailPromo] = useState<RedeemablePromotion | null>(null);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
@@ -111,7 +127,7 @@ export default function LoyaltyPage() {
     await getInfo();
   };
 
-  const handleRedeem = async (promotion: Promotion) => {
+  const handleRedeem = async (promotion: RedeemablePromotion) => {
     setRedeemingId(promotion._id);
     try {
       const result = await redeemPromotion(promotion._id);
@@ -248,29 +264,36 @@ export default function LoyaltyPage() {
                   return (
                     <div
                       key={promo._id}
-                      className={`relative group rounded-2xl border bg-card p-5 transition-all duration-200 hover:shadow-lg ${
+                      className={`group rounded-2xl border bg-card p-5 transition-all duration-200 hover:shadow-lg ${
                         canRedeem ? "border-border hover:border-primary/30" : "border-border opacity-60"
                       }`}
                     >
-                      <div className="absolute top-4 right-4">
-                        <span
-                          className={`px-2.5 py-1 rounded-full text-xs font-bold ${
-                            promo.type === "percentage"
-                              ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-                              : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
-                          }`}
-                        >
-                          {getDiscountLabel(promo.type, promo.value)}
-                        </span>
-                      </div>
-
                       <div className="space-y-4">
-                        <div>
-                          <p className="text-lg font-bold text-foreground font-mono tracking-wider">{promo.code}</p>
-                          <div className="flex items-center justify-between gap-1.5 mt-1">
+                        <div className="space-y-2.5">
+                          <span
+                            className={`inline-flex px-2.5 py-1 rounded-full text-sm font-bold ${
+                              promo.type === "percentage"
+                                ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                                : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+                            }`}
+                          >
+                            {getDiscountLabel(promo.type, promo.value)}
+                          </span>
+
+                          <div className="flex items-start gap-1.5 text-xs text-muted-foreground">
+                            <Store size={13} className="mt-0.5 shrink-0" />
+                            <span>
+                              Cửa hàng áp dụng:{" "}
+                              <span className="font-medium text-foreground">
+                                {getApplicableStoreLabel(promo.applicableStore, 2)}
+                              </span>
+                            </span>
+                          </div>
+
+                          <div className="flex items-center justify-between gap-2">
                             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                              <Clock size={12} />
-                              <span>HSD: {formatDateTime(promo.endDate)}</span>
+                              <Clock size={13} className="shrink-0" />
+                              <span>Hạn sử dụng: {formatDateTime(promo.endDate)}</span>
                             </div>
                             <button
                               onClick={e => {
@@ -432,8 +455,15 @@ export default function LoyaltyPage() {
               </div>
 
               <div className="bg-muted/50 rounded-xl p-4 space-y-1">
-                <p className="font-mono text-lg font-bold text-foreground">{confirmModal.code}</p>
-                <p className="text-sm text-muted-foreground">{getDiscountLabel(confirmModal.type, confirmModal.value)}</p>
+                <p className="text-lg font-bold text-primary">{getDiscountLabel(confirmModal.type, confirmModal.value)}</p>
+                <p className="flex items-start justify-center gap-1.5 text-xs text-muted-foreground">
+                  <Store size={13} className="mt-0.5 shrink-0" />
+                  <span>{getApplicableStoreLabel(confirmModal.applicableStore, 2)}</span>
+                </p>
+                <p className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
+                  <Clock size={13} className="shrink-0" />
+                  <span>Hạn sử dụng: {formatDateTime(confirmModal.endDate)}</span>
+                </p>
               </div>
 
               {confirmModal.point > 0 && (
@@ -540,12 +570,12 @@ export default function LoyaltyPage() {
             </div>
 
             <div className="space-y-4">
-              {/* Mã + loại */}
+              {/* Loại ưu đãi */}
               <div className="bg-muted/50 rounded-xl p-4">
-                <p className="font-mono text-xl font-extrabold text-foreground tracking-wider">{detailPromo.code}</p>
-                <div className="flex items-center gap-2 mt-2">
+                <p className="text-xs text-muted-foreground mb-2">Mức ưu đãi</p>
+                <div className="flex items-center gap-2">
                   <span
-                    className={`px-2.5 py-1 rounded-full text-xs font-bold ${
+                    className={`px-3 py-1.5 rounded-full text-base font-bold ${
                       detailPromo.type === "percentage"
                         ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
                         : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
@@ -553,6 +583,15 @@ export default function LoyaltyPage() {
                   >
                     {getDiscountLabel(detailPromo.type, detailPromo.value)}
                   </span>
+                </div>
+              </div>
+
+              {/* Cửa hàng áp dụng */}
+              <div className="flex items-start gap-3 p-3 rounded-xl bg-muted/50">
+                <Store size={20} className="text-primary shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm text-muted-foreground">Cửa hàng áp dụng</p>
+                  <p className="text-sm font-medium text-foreground">{getApplicableStoreLabel(detailPromo.applicableStore)}</p>
                 </div>
               </div>
 

@@ -16,9 +16,10 @@ import {
   UserIcon,
 } from "lucide-react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useCustomerAuth } from "@/src/context/authCustomerContext";
 import { useCart } from "@/src/context/cartContext";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { getAllStore, StoreData } from "@/src/services/store.service";
 import SelectStoreModal from "@/src/components/modals/SelectStoreModal";
 
@@ -44,6 +45,15 @@ const NavMenu = [
     link: "/contact",
   },
 ];
+
+const subscribeToHashChange = (callback: () => void) => {
+  window.addEventListener("hashchange", callback);
+  return () => window.removeEventListener("hashchange", callback);
+};
+
+const getHashSnapshot = () => window.location.hash;
+const getServerHashSnapshot = () => "";
+
 const tierBadges: Record<string, React.ReactNode> = {
   diamond: (
     <span className="px-2 py-0.5 text-[10px] font-black uppercase rounded-md tracking-wider bg-gradient-to-r from-cyan-400 via-sky-400 to-indigo-500 text-white border border-cyan-300/30 select-none shrink-0">
@@ -68,6 +78,7 @@ const tierBadges: Record<string, React.ReactNode> = {
 };
 
 export default function Header() {
+  const pathname = usePathname();
   const { isAuthenticated, user, logout, setAuthMode } = useCustomerAuth();
   const { setShowCart, cartCount } = useCart();
   const [isMounted, setIsMounted] = useState(false);
@@ -75,6 +86,7 @@ export default function Header() {
   const [showStorePicker, setShowStorePicker] = useState(false);
   const [showNavMenu, setShowNavMenu] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const currentHash = useSyncExternalStore(subscribeToHashChange, getHashSnapshot, getServerHashSnapshot);
 
   const fectData = async () => {
     const { data: liststr } = await getAllStore();
@@ -119,6 +131,24 @@ export default function Header() {
     window.addEventListener("selected-store-changed", syncStoreFromSelection);
     return () => window.removeEventListener("selected-store-changed", syncStoreFromSelection);
   }, []);
+
+  const isNavItemActive = (link: string) => {
+    if (link === "/") return pathname === "/" && currentHash !== "#menu";
+    if (link === "/#menu") return pathname === "/" && currentHash === "#menu";
+    return pathname === link || pathname.startsWith(`${link}/`);
+  };
+
+  const handleNavItemClick = (event: React.MouseEvent<HTMLAnchorElement>, link: string) => {
+    setShowMobileMenu(false);
+
+    if (link === "/" && pathname === "/") {
+      event.preventDefault();
+      window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
+      window.dispatchEvent(new Event("hashchange"));
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
+
   const handleCart = () => {
     setShowCart(true);
   };
@@ -152,11 +182,16 @@ export default function Header() {
             </div>
             <nav className="hidden md:flex items-center gap-6 text-sm text-muted-foreground">
               {NavMenu?.map(item => {
+                const isActive = isNavItemActive(item.link);
                 return (
                   <Link
                     key={item.link}
                     href={item.link}
-                    className={`hover:text-primary font-medium transition-colors`}
+                    onClick={event => handleNavItemClick(event, item.link)}
+                    aria-current={isActive ? "page" : undefined}
+                    className={`font-medium transition-colors hover:text-primary ${
+                      isActive ? "text-primary" : "text-muted-foreground"
+                    }`}
                   >
                     {item.name}
                   </Link>
@@ -185,31 +220,37 @@ export default function Header() {
                   <>
                     <div className="fixed inset-0 z-35" onClick={() => setShowMobileMenu(false)} />
                     <div className="absolute z-40 top-full right-0 mt-2 w-56 bg-card rounded-xl border border-border shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
-                      {NavMenu.map(item => (
-                        <Link
-                          key={item.link}
-                          href={item.link}
-                          onClick={() => {
-                            setShowMobileMenu(false);
-                          }}
-                          className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-foreground hover:bg-muted text-left"
-                        >
-                          {item.link === "/" ? (
-                            <Home size={16} className="text-muted-foreground" />
-                          ) : item.link.includes("#menu") ? (
-                            <Pizza size={16} className="text-muted-foreground" />
-                          ) : item.link.includes("tracking") ? (
-                            <PackageSearch size={16} className="text-muted-foreground" />
-                          ) : item.link.includes("about") ? (
-                            <Info size={16} className="text-muted-foreground" />
-                          ) : item.link.includes("contact") ? (
-                            <Phone size={16} className="text-muted-foreground" />
-                          ) : (
-                            <ChevronDown size={16} className="text-muted-foreground" />
-                          )}
-                          {item.name}
-                        </Link>
-                      ))}
+                      {NavMenu.map(item => {
+                        const isActive = isNavItemActive(item.link);
+                        const iconClassName = isActive ? "text-primary" : "text-muted-foreground";
+
+                        return (
+                          <Link
+                            key={item.link}
+                            href={item.link}
+                            onClick={event => handleNavItemClick(event, item.link)}
+                            aria-current={isActive ? "page" : undefined}
+                            className={`flex w-full items-center gap-2.5 px-4 py-2.5 text-left text-sm transition-colors hover:bg-muted ${
+                              isActive ? "bg-primary/5 font-medium text-primary" : "text-foreground"
+                            }`}
+                          >
+                            {item.link === "/" ? (
+                              <Home size={16} className={iconClassName} />
+                            ) : item.link.includes("#menu") ? (
+                              <Pizza size={16} className={iconClassName} />
+                            ) : item.link.includes("tracking") ? (
+                              <PackageSearch size={16} className={iconClassName} />
+                            ) : item.link.includes("about") ? (
+                              <Info size={16} className={iconClassName} />
+                            ) : item.link.includes("contact") ? (
+                              <Phone size={16} className={iconClassName} />
+                            ) : (
+                              <ChevronDown size={16} className={iconClassName} />
+                            )}
+                            {item.name}
+                          </Link>
+                        );
+                      })}
 
                       <div className="border-t border-border" />
 
