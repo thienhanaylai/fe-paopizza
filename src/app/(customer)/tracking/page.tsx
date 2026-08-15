@@ -48,17 +48,24 @@ export default function TrackingPage() {
       return;
     }
 
+    if (!isObjectId(trimmed)) {
+      toast.error("Mã đơn hàng không hợp lệ. Vui lòng kiểm tra lại.");
+      setOrders([]);
+      setHasSearched(false);
+      return;
+    }
+
     setLoading(true);
     setHasSearched(true);
 
     try {
-      // Tự động nhận diện: 24 ký tự hex → mã đơn
-      const isId = isObjectId(trimmed);
-      //    const phone = isId ? undefined : trimmed;
-      const orderId = isId ? trimmed : undefined;
-      const result = await trackOrder(orderId);
+      const result = await trackOrder(trimmed);
       setOrders(result);
-    } catch (error) {
+
+      if (result.length === 0) {
+        toast.error("Không tìm thấy đơn hàng. Vui lòng kiểm tra lại mã đơn.");
+      }
+    } catch {
       toast.error("Có lỗi xảy ra khi tra cứu. Vui lòng thử lại sau.");
       setOrders([]);
     } finally {
