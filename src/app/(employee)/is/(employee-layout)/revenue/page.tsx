@@ -834,7 +834,7 @@ export default function Revenue() {
                   <th className="px-5 py-3">Đơn hàng</th>
                   <th className="px-5 py-3">Khách hàng</th>
                   <th className="px-5 py-3">TB/đơn</th>
-                  <th className="px-5 py-3">Tăng trưởng</th>
+                  {/* <th className="px-5 py-3">Tăng trưởng</th> */}
                 </tr>
               </thead>
 
@@ -857,10 +857,6 @@ export default function Revenue() {
 
                 {!rankingLoading &&
                   storeRanking.map((item, index) => {
-                    const up = (item.changeValue ?? 0) >= 0;
-                    const changeLabel =
-                      item.changeValue === null ? "0%" : `${item.changeValue > 0 ? "+" : ""}${item.changeValue.toFixed(1)}%`;
-
                     return (
                       <tr key={item.id} className="border-t border-border/50 hover:bg-muted/30">
                         <td className="px-5 py-3">
@@ -882,13 +878,13 @@ export default function Revenue() {
                         <td className="px-5 py-3 text-muted-foreground">{item.totalOrders.toLocaleString("vi-VN")}</td>
                         <td className="px-5 py-3 text-muted-foreground">{item.customers.toLocaleString("vi-VN")}</td>
                         <td className="px-5 py-3 text-foreground">{formatVND(item.averageOrderValue)}</td>
-                        <td className="px-5 py-3">
+                        {/* <td className="px-5 py-3">
                           <span
                             className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full ${up ? "bg-green-50 text-green-600" : "bg-red-50 text-red-600"}`}
                           >
                             {up ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />} {changeLabel}
                           </span>
-                        </td>
+                        </td> */}
                       </tr>
                     );
                   })}
