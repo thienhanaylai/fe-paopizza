@@ -1844,7 +1844,7 @@ export default function POS() {
         </div>
       </div>
 
-      <div className="hidden lg:flex w-[24vw] border-l border-border bg-card flex-col shrink-0">
+      <div className="hidden lg:flex w-[26vw] border-l border-border bg-card flex-col shrink-0">
         <div className="flex items-center justify-between px-4 py-3 h-[62px] border-b border-border">
           <h3 className="text-foreground text-sm flex items-center gap-2">
             <Receipt size={16} className="text-primary" /> Đơn hàng mới
