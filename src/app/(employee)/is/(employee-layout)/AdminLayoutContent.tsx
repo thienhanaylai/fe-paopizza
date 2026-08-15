@@ -6,15 +6,15 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 
 export default function AdminLayoutContent({ children }: Readonly<{ children: React.ReactNode }>) {
-  const { isAuthenticated } = useEmployeeAuth();
+  const { isAuthenticated, isSessionReady } = useEmployeeAuth();
   const router = useRouter();
   const pathname = usePathname();
 
   useEffect(() => {
-    if (!isAuthenticated && pathname !== "/is") {
-      router.push("/is");
+    if (isSessionReady && !isAuthenticated && pathname !== "/is") {
+      router.replace("/is");
     }
-  }, [isAuthenticated, pathname, router]);
+  }, [isAuthenticated, isSessionReady, pathname, router]);
 
   return (
     <div className="flex min-h-screen bg-background">

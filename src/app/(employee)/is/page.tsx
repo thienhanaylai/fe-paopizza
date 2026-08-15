@@ -17,7 +17,7 @@ const roleOptions: { role: EmployeeRole; label: string; icon: React.ReactNode; d
 ];
 
 export default function IndexPage() {
-  const { employeeLogin, isAuthenticated } = useEmployeeAuth();
+  const { employeeLogin, isAuthenticated, isSessionReady } = useEmployeeAuth();
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -43,10 +43,10 @@ export default function IndexPage() {
   };
 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isSessionReady && isAuthenticated) {
       router.push("/is/dashboard");
     }
-  }, [isAuthenticated, router]);
+  }, [isAuthenticated, isSessionReady, router]);
 
   return (
     <div className="min-h-screen flex">

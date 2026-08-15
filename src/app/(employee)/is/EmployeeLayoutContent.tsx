@@ -5,15 +5,15 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 
 export default function EmployeeLayoutContent({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated } = useEmployeeAuth();
+  const { isAuthenticated, isSessionReady } = useEmployeeAuth();
   const router = useRouter();
   const pathname = usePathname();
 
   useEffect(() => {
-    if (!isAuthenticated && pathname !== "/is") {
-      router.push("/is");
+    if (isSessionReady && !isAuthenticated && pathname !== "/is") {
+      router.replace("/is");
     }
-  }, [isAuthenticated, pathname, router]);
+  }, [isAuthenticated, isSessionReady, pathname, router]);
 
   return (
     <>

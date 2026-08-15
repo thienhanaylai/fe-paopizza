@@ -88,6 +88,7 @@ function readStoredAuthMode(): AuthMode {
 interface AuthContextType {
   user: Employee | null;
   accessToken: string | null;
+  isSessionReady: boolean;
   employeeLogin: (
     username: string,
     password: string,
@@ -105,6 +106,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function EmployeeAuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<Employee | null>(() => readStoredUser());
   const [accessToken, setAccessToken] = useState<string | null>(() => readStoredToken());
+  const [isSessionReady, setIsSessionReady] = useState(false);
   const [authMode, setAuthMode] = useState<AuthMode>(() => readStoredAuthMode() ?? readStoredUser()?.role ?? null);
 
   const employeeLogin = async (username: string, password: string, preferredRole: AuthMode = "staff") => {
@@ -246,8 +248,48 @@ export function EmployeeAuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setAccessToken(null);
     clearStoredAuth();
-    window.location.reload();
+    window.location.replace("/is");
   };
+
+  useEffect(() => {
+    let isActive = true;
+    const storedToken = readStoredToken();
+
+    if (!storedToken) {
+      setUser(null);
+      setAccessToken(null);
+      setIsSessionReady(true);
+      return () => {
+        isActive = false;
+      };
+    }
+
+    const validateSession = async () => {
+      try {
+        await http("/api/v1/users/me", { method: "GET" });
+
+        if (isActive) {
+          setAccessToken(readStoredToken());
+        }
+      } catch (error) {
+        if ((error as { status?: number })?.status === 401 && isActive) {
+          setUser(null);
+          setAccessToken(null);
+          clearStoredAuth();
+        }
+      } finally {
+        if (isActive) {
+          setIsSessionReady(true);
+        }
+      }
+    };
+
+    void validateSession();
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -265,6 +307,7 @@ export function EmployeeAuthProvider({ children }: { children: ReactNode }) {
     () => ({
       user,
       accessToken,
+      isSessionReady,
       authMode,
       setAuthMode,
       employeeLogin,
@@ -272,7 +315,7 @@ export function EmployeeAuthProvider({ children }: { children: ReactNode }) {
       logout,
       isAuthenticated: !!user,
     }),
-    [user, accessToken, authMode],
+    [user, accessToken, isSessionReady, authMode],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
