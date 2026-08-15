@@ -285,10 +285,9 @@ export const updatePaymentStatusOrder = async (order_id: string, typeUser: strin
   }
 };
 
-export const trackOrder = async (phone?: string, orderId?: string): Promise<OrderHistory[]> => {
+export const trackOrder = async (orderId?: string): Promise<OrderHistory[]> => {
   try {
     const params = new URLSearchParams();
-    if (phone) params.append("phone", phone);
     if (orderId) params.append("orderId", orderId);
 
     const response = await http(`/api/v1/orders/track?${params.toString()}`, { method: "GET" }, "customer", {

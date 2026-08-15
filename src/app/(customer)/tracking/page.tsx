@@ -44,7 +44,7 @@ export default function TrackingPage() {
 
     const trimmed = searchValue.trim();
     if (!trimmed) {
-      toast.warning("Vui lòng nhập số điện thoại hoặc mã đơn hàng");
+      toast.warning("Vui lòng nhập mã đơn hàng");
       return;
     }
 
@@ -52,11 +52,11 @@ export default function TrackingPage() {
     setHasSearched(true);
 
     try {
-      // Tự động nhận diện: 24 ký tự hex → mã đơn, còn lại → số điện thoại
+      // Tự động nhận diện: 24 ký tự hex → mã đơn
       const isId = isObjectId(trimmed);
-      const phone = isId ? undefined : trimmed;
+      //    const phone = isId ? undefined : trimmed;
       const orderId = isId ? trimmed : undefined;
-      const result = await trackOrder(phone, orderId);
+      const result = await trackOrder(orderId);
       setOrders(result);
     } catch (error) {
       toast.error("Có lỗi xảy ra khi tra cứu. Vui lòng thử lại sau.");
@@ -93,7 +93,7 @@ export default function TrackingPage() {
                     type="text"
                     value={searchValue}
                     onChange={e => setSearchValue(e.target.value)}
-                    placeholder="Nhập số điện thoại hoặc mã đơn hàng..."
+                    placeholder="Nhập mã đơn hàng để tra cứu..."
                     className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-muted/50 border border-border focus:border-primary focus:ring-1 focus:ring-primary outline-none text-base sm:text-sm text-foreground placeholder:text-muted-foreground"
                   />
                 </div>
@@ -107,9 +107,7 @@ export default function TrackingPage() {
                 </button>
               </div>
 
-              <p className="text-xs text-muted-foreground mt-3">
-                Nhập mã đơn hàng hoặc số điện thoại đặt hàng — chỉ tra cứu được đơn trong vòng 24h gần nhất
-              </p>
+              <p className="text-xs text-muted-foreground mt-3">Chỉ tra cứu được đơn trong vòng 24h gần nhất</p>
             </form>
           </div>
 
