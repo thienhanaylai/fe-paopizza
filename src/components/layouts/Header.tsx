@@ -161,7 +161,13 @@ export default function Header() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-2">
-              <Link href={"/"} className="flex items-center gap-2.5">
+              <Link
+                onClick={() => {
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }}
+                href={"/"}
+                className="flex items-center gap-2.5"
+              >
                 <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center">
                   <Pizza size={20} className="text-white" />
                 </div>
