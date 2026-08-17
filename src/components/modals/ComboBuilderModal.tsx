@@ -6,7 +6,7 @@ import { Check, ChevronLeft, ChevronRight, Plus, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { useCustomerAuth } from "@/src/context/authCustomerContext";
-import { useCart, areComboSelectionsEqual } from "@/src/context/cartContext";
+import { useCart, areComboSelectionsEqual, resolveComboId } from "@/src/context/cartContext";
 import type { ToppingRef, ProductPopulated } from "@/src/context/cartContext";
 import type { ComboSelectionPayload } from "@/src/services/cart.service";
 import { removeFromCartApi } from "@/src/services/cart.service";
@@ -54,7 +54,7 @@ function ComboBuilderContent({
   onClose,
 }: ComboBuilderModalProps) {
   const { user } = useCustomerAuth();
-  const { addToCart, fetchCart, cart, cartCount, setShowCart } = useCart();
+  const { addToCart, fetchCart, updateQuantity, cart, cartCount, setShowCart } = useCart();
   useModalScrollLock();
 
   const hasMobileCheckoutBar = cartCount > 0;
@@ -113,6 +113,22 @@ function ComboBuilderContent({
   };
 
   const displayPrice = isDynamic ? computeDynamicComboPrice() : combo.price;
+
+  const currentSelectionKeys = useMemo(
+    () => combo.rules.flatMap((_, idx) => comboSelections[idx] || []).map(selection => ({ sku: selection.sku })),
+    [combo.rules, comboSelections],
+  );
+  const existingComboItem = useMemo(() => {
+    if (!cart) return undefined;
+    if (editOldSku) return cart.items.find(item => item.item_type === "combo" && item.sku === editOldSku);
+    return cart.items.find(
+      item =>
+        item.item_type === "combo" &&
+        resolveComboId(item.combo) === combo._id &&
+        areComboSelectionsEqual(item.combo_selections, currentSelectionKeys),
+    );
+  }, [cart, combo._id, currentSelectionKeys, editOldSku]);
+  const hasExistingCombo = Boolean(existingComboItem);
 
   const totalRemainingSelections = useMemo(() => {
     return combo.rules.reduce((total, rule, idx) => {
@@ -231,6 +247,23 @@ function ComboBuilderContent({
       }
       return { ...prev, [ruleIndex]: current };
     });
+  };
+
+  const handleAddOneComboToCart = async () => {
+    if (!existingComboItem) return;
+
+    await updateQuantity({
+      userId: user?.id,
+      item_type: "combo",
+      combo: combo._id,
+      sku: existingComboItem.sku,
+      size: existingComboItem.size,
+      currentQty: existingComboItem.quantity,
+      change: 1,
+      combo_selections: existingComboItem.combo_selections,
+    });
+
+    toast.success("Đã thêm 1 combo vào giỏ hàng", { duration: 2000, position: "top-right" });
   };
 
   const handleAddComboToCart = async () => {
@@ -634,6 +667,14 @@ function ComboBuilderContent({
                 <span className="text-xs font-medium text-green-600">Tiết kiệm {formatVND(savings)}</span>
               </div>
             )}
+            {hasExistingCombo && allComboSelectionsFilled && (
+              <button
+                onClick={handleAddOneComboToCart}
+                className="flex w-full items-center justify-center gap-2 rounded-xl border border-orange-500 bg-card px-4 py-3 text-orange-600 transition-colors hover:bg-orange-50"
+              >
+                <Plus size={18} /> Thêm 1 combo vào giỏ
+              </button>
+            )}
             <button
               onClick={handleAddComboToCart}
               disabled={!allComboSelectionsFilled}
@@ -645,7 +686,7 @@ function ComboBuilderContent({
             >
               {allComboSelectionsFilled ? (
                 <>
-                  <Plus size={18} /> Thêm combo vào giỏ - {formatVND(displayPrice)}
+                  <Plus size={18} /> {hasExistingCombo ? "Cập nhật combo" : "Thêm combo vào giỏ"} - {formatVND(displayPrice)}
                 </>
               ) : (
                 <>Cần chọn thêm {totalRemainingSelections} sản phẩm - {formatVND(displayPrice)}</>
@@ -655,6 +696,14 @@ function ComboBuilderContent({
         </section>
 
         <div className="shrink-0 border-t border-border bg-card p-3 md:hidden">
+          {hasExistingCombo && allComboSelectionsFilled && (
+            <button
+              onClick={handleAddOneComboToCart}
+              className="mb-2 flex w-full items-center justify-center gap-2 rounded-xl border border-orange-500 bg-card px-4 py-3 text-sm font-semibold text-orange-600 transition-colors hover:bg-orange-50"
+            >
+              <Plus size={18} /> Thêm 1 combo vào giỏ
+            </button>
+          )}
           <button
             onClick={handleAddComboToCart}
             disabled={!allComboSelectionsFilled}
@@ -666,7 +715,7 @@ function ComboBuilderContent({
           >
             {allComboSelectionsFilled ? (
               <>
-                <Plus size={18} /> Thêm combo vào giỏ - {formatVND(displayPrice)}
+                <Plus size={18} /> {hasExistingCombo ? "Cập nhật combo" : "Thêm combo vào giỏ"} - {formatVND(displayPrice)}
               </>
             ) : (
               <>Cần chọn thêm {totalRemainingSelections} sản phẩm - {formatVND(displayPrice)}</>

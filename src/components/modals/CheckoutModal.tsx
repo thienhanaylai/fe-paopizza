@@ -529,10 +529,10 @@ export const CheckoutModal = () => {
   }
 
   return (
-    <div className="fixed inset-0 z-50 m-0 flex items-center justify-center bg-black/50 pt-[max(1rem,env(safe-area-inset-top,0px))] pr-[max(1rem,env(safe-area-inset-right,0px))] pb-[max(1rem,env(safe-area-inset-bottom,0px))] pl-[max(1rem,env(safe-area-inset-left,0px))]">
+    <div className="fixed inset-0 z-50 m-0 flex items-center justify-center bg-black/50 pt-[max(0rem,env(safe-area-inset-top,0px))] pr-[max(0.5rem,env(safe-area-inset-right,0px))] pb-[max(0rem,env(safe-area-inset-bottom,0px))] pl-[max(0.5rem,env(safe-area-inset-left,0px))]">
       <div
         data-modal-scroll
-        className="bg-card rounded-2xl w-full max-w-xl shadow-2xl max-h-[92dvh] touch-pan-y overflow-y-auto overscroll-contain scrollbar-hide animate-fade-up animate-duration-300"
+        className="bg-card rounded-2xl w-full max-w-2xl shadow-2xl max-h-[96dvh] touch-pan-y overflow-y-auto overscroll-contain scrollbar-hide animate-fade-up animate-duration-300"
         onClick={e => e.stopPropagation()}
       >
         {checkoutStep === "success" && (

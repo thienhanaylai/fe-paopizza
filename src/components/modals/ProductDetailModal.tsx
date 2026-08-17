@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useCallback } from "react";
 import useEmblaCarousel from "embla-carousel-react";
-import { ChevronLeft, ChevronRight, Plus, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, SquarePen, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { useCustomerAuth } from "@/src/context/authCustomerContext";
@@ -39,7 +39,7 @@ export default function ProductDetailModal({
   onClose,
 }: ProductDetailModalProps) {
   const { user } = useCustomerAuth();
-  const { addToCart, fetchCart, cart, cartCount, setShowCart } = useCart();
+  const { addToCart, fetchCart, updateQuantity, cart, cartCount, setShowCart } = useCart();
 
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [selectedSize, setSelectedSize] = useState<string>("");
@@ -245,10 +245,12 @@ export default function ProductDetailModal({
     Number(selectedVariant.discount) > 0 &&
     (selectedVariant.discountType === "percent" || selectedVariant.discountType === "amount");
 
-  const isEditMode = useMemo(() => {
-    if (!selectedVariant || !cart) return false;
-    return cart.items.some(item => item.sku === selectedVariant.sku);
+  const existingCartItem = useMemo(() => {
+    if (!selectedVariant || !cart) return undefined;
+    return cart.items.find(item => item.item_type === "product" && item.sku === selectedVariant.sku);
   }, [cart, selectedVariant]);
+
+  const isEditMode = Boolean(existingCartItem);
 
   const syncNoteBySku = (sku: string) => {
     const productInCart = cart?.items.find(item => item.sku === sku);
@@ -281,7 +283,23 @@ export default function ProductDetailModal({
     setSelectedExtraToppingIds(prev => (prev.includes(toppingId) ? prev.filter(id => id !== toppingId) : [...prev, toppingId]));
   };
 
-  const handleAddToCart = async () => {
+  const handleAddOneToCart = async () => {
+    if (!selectedProduct || !selectedVariant || !existingCartItem) return;
+
+    await updateQuantity({
+      userId: user?.id,
+      item_type: "product",
+      product_id: selectedProduct._id,
+      sku: existingCartItem.sku,
+      size: existingCartItem.size,
+      currentQty: existingCartItem.quantity,
+      change: 1,
+    });
+
+    toast.success("Đã thêm 1 sản phẩm vào giỏ hàng", { duration: 2000, position: "top-right" });
+  };
+
+  const handleUpdateCart = async () => {
     if (!selectedProduct || !selectedVariant) return;
     const wasInCart = cart?.items.some(item => item.sku === selectedVariant.sku);
 
@@ -590,13 +608,21 @@ export default function ProductDetailModal({
                             </div>
 
                             {/* Add to cart button */}
-                            <div className="p-4 sm:p-5 border-t border-border shrink-0">
+                            <div className="p-3 sm:p-5 border-t border-border shrink-0">
+                              {isEditMode && (
+                                <button
+                                  onClick={handleAddOneToCart}
+                                  className="mb-1 flex w-full items-center justify-center gap-2 rounded-xl border border-primary bg-card px-4 py-3 text-primary transition-colors hover:bg-primary/5"
+                                >
+                                  <Plus size={18} /> Thêm 1 vào giỏ hàng
+                                </button>
+                              )}
                               <button
-                                onClick={handleAddToCart}
+                                onClick={handleUpdateCart}
                                 className="w-full flex items-center justify-between gap-2 bg-primary text-white pl-5 pr-4 py-3 rounded-xl hover:bg-primary/90 transition-colors shadow-lg shadow-primary/25"
                               >
                                 <span className="flex items-center gap-2">
-                                  <Plus size={18} /> {isEditMode ? "Cập nhật giỏ hàng" : "Thêm vào giỏ"}
+                                  <SquarePen size={18} /> {isEditMode ? "Cập nhật giỏ hàng" : "Thêm vào giỏ"}
                                 </span>
                                 <span className="flex items-center gap-2">
                                   {hasDiscount && (
