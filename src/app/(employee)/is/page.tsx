@@ -43,6 +43,15 @@ export default function IndexPage() {
   };
 
   useEffect(() => {
+    const authNotice = sessionStorage.getItem("auth_notice");
+    if (!authNotice) return;
+
+    sessionStorage.removeItem("auth_notice");
+    const noticeTimer = window.setTimeout(() => setError(authNotice), 0);
+    return () => window.clearTimeout(noticeTimer);
+  }, []);
+
+  useEffect(() => {
     if (isSessionReady && isAuthenticated) {
       router.push("/is/dashboard");
     }

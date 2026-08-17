@@ -5,6 +5,12 @@ import { X, Eye, EyeOff } from "lucide-react";
 import { useCustomerAuth } from "@/src/context/authCustomerContext";
 import { PasswordResetForm } from "@/src/components/auth/PasswordResetForm";
 
+const LOGIN_ERROR_MESSAGES: Record<string, string> = {
+  RATE_LIMIT: "Vui lòng đăng nhập lại sau 1 giờ!",
+  ACCOUNT_NOT_FOUND: "Không tìm thấy tài khoản!",
+  ACCOUNT_LOCKED: "Tài khoản đã bị khóa. Vui lòng liên hệ quản trị viên.",
+};
+
 export const AuthModal = () => {
   const { authMode, setAuthMode, customerLogin, customerRegister } = useCustomerAuth();
 
@@ -76,10 +82,11 @@ export const AuthModal = () => {
       if (result.success) {
         handleClose();
       } else {
-        if (result.message === "RATE_LIMIT") setError(result.message === "RATE_LIMIT" ? "Vui lòng đăng nhập lại sau 1 giờ!" : "");
-        if (result.message === "ACCOUNT_NOT_FOUND")
-          setError(result.message === "ACCOUNT_NOT_FOUND" ? "Không tìm thấy tài khoản!" : "");
-        else setError(result.message ? result.message : "Lỗi đăng nhập!");
+        setError(
+          (result.message && LOGIN_ERROR_MESSAGES[result.message]) ||
+            result.message ||
+            "Lỗi đăng nhập!",
+        );
       }
     }
   };

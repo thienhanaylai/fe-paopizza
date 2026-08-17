@@ -6,6 +6,7 @@ import { http } from "../utils/config.api";
 const ACCESS_TOKEN_KEY = "employee_access_token";
 const USER_KEY = "employee";
 const AUTH_MODE_KEY = "employee_auth_mode";
+const ACCOUNT_LOCKED_MESSAGE = "Tài khoản đã bị khóa. Vui lòng liên hệ quản trị viên.";
 
 export type EmployeeRole = null | "admin" | "manager" | "staff";
 export type EmployeeLevel = "intern" | "fresher" | "junior" | "senior" | "store_manager";
@@ -188,8 +189,16 @@ export function EmployeeAuthProvider({ children }: { children: ReactNode }) {
         message: data.message || "Đăng nhập thành công",
       };
     } catch (error) {
-      const status = (error as { status?: number; data?: { message?: string } })?.status;
-      const message = (error as { data?: { message?: string } })?.data?.message;
+      const status = (error as { status?: number; data?: { message?: string; errorCode?: string } })?.status;
+      const errorData = (error as { data?: { message?: string; errorCode?: string } })?.data;
+      const message = errorData?.message;
+
+      if (errorData?.errorCode === "ACCOUNT_LOCKED" || message === "ACCOUNT_LOCKED") {
+        return {
+          success: false,
+          message: ACCOUNT_LOCKED_MESSAGE,
+        };
+      }
 
       if (status === 401 || status === 404) {
         return {
@@ -245,6 +254,16 @@ export function EmployeeAuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => {
+    void http(
+      "/api/v1/auth/logout",
+      {
+        method: "POST",
+        body: JSON.stringify({ userType: "Employee" }),
+        keepalive: true,
+      },
+      null,
+      { skipUnauthorized: true },
+    ).catch(() => undefined);
     setUser(null);
     setAccessToken(null);
     clearStoredAuth();

@@ -1,5 +1,6 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type MouseEvent } from "react";
+import { createPortal } from "react-dom";
 import {
   Search,
   Filter,
@@ -24,6 +25,14 @@ import { SortableHeader } from "@/src/components/ui/SortableHeader";
 import { toast, Toaster } from "sonner";
 import Pagination from "@/src/components/ui/Pagination";
 type UserRole = "admin" | "manager" | "staff";
+
+type ActionMenuPosition = {
+  top: number;
+  left: number;
+  openUp: boolean;
+};
+
+const ACTION_MENU_WIDTH = 176;
 
 const statusConfig: Record<boolean, { label: string; color: string }> = {
   true: { label: "Hoạt động", color: "bg-green-100 text-green-700" },
@@ -69,7 +78,10 @@ export default function Accounts() {
   const [statusFilter, setStatusFilter] = useState<"all" | boolean>("all");
   const [showModal, setShowModal] = useState(false);
   const [editAccount, setEditAccount] = useState<User | null>(null);
+  const [deleteAccount, setDeleteAccount] = useState<User | null>(null);
+  const [deleteConfirmationId, setDeleteConfirmationId] = useState("");
   const [actionMenu, setActionMenu] = useState<string | null>(null);
+  const [actionMenuPosition, setActionMenuPosition] = useState<ActionMenuPosition | null>(null);
   const [listUser, setListUser] = useState<User[]>();
   const [listStore, setListStore] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -105,12 +117,58 @@ export default function Accounts() {
     setPage(1);
   }, [search, roleFilter, statusFilter]);
 
+  useEffect(() => {
+    if (!actionMenu) return;
+
+    const closeActionMenu = () => {
+      setActionMenu(null);
+      setActionMenuPosition(null);
+    };
+
+    window.addEventListener("resize", closeActionMenu);
+    window.addEventListener("scroll", closeActionMenu, true);
+
+    return () => {
+      window.removeEventListener("resize", closeActionMenu);
+      window.removeEventListener("scroll", closeActionMenu, true);
+    };
+  }, [actionMenu]);
+
+  const handleActionMenuToggle = (event: MouseEvent<HTMLButtonElement>, account: User) => {
+    if (actionMenu === account._id) {
+      setActionMenu(null);
+      setActionMenuPosition(null);
+      return;
+    }
+
+    const buttonRect = event.currentTarget.getBoundingClientRect();
+    const estimatedMenuHeight = account.role === "admin" ? 88 : 124;
+    const openUp =
+      window.innerHeight - buttonRect.bottom < estimatedMenuHeight + 8 &&
+      buttonRect.top > estimatedMenuHeight + 8;
+    const left = Math.max(
+      8,
+      Math.min(
+        buttonRect.right - ACTION_MENU_WIDTH,
+        window.innerWidth - ACTION_MENU_WIDTH - 8,
+      ),
+    );
+
+    setActionMenuPosition({
+      top: openUp ? buttonRect.top - 4 : buttonRect.bottom + 4,
+      left,
+      openUp,
+    });
+    setActionMenu(account._id);
+  };
+
   const handleTogleStatus = async (account: User) => {
     setIsLoading(true);
     try {
       await updateUserStatus(account._id, { status: !account.status });
       toast.success(account.status ? "Khóa tài khoản thành công!" : "Mở khóa thành công!");
       setActionMenu(null);
+      setActionMenuPosition(null);
     } catch (error) {
       toast.error(`Cập nhật trạng thái thất bại: ${error}`);
     } finally {
@@ -118,12 +176,32 @@ export default function Accounts() {
     }
   };
 
-  const handleDeleteAccount = async (account: User) => {
+  const openDeleteConfirmation = (account: User) => {
+    setDeleteAccount(account);
+    setDeleteConfirmationId("");
+    setActionMenu(null);
+    setActionMenuPosition(null);
+  };
+
+  const closeDeleteConfirmation = () => {
+    if (isLoading) return;
+    setDeleteAccount(null);
+    setDeleteConfirmationId("");
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!deleteAccount || deleteConfirmationId.trim() !== deleteAccount._id) {
+      return;
+    }
+
     setIsLoading(true);
     try {
-      await deleteUser(account._id);
+      await deleteUser(deleteAccount._id);
       toast.success("Xóa tài khoản thành công!");
+      setDeleteAccount(null);
+      setDeleteConfirmationId("");
       setActionMenu(null);
+      setActionMenuPosition(null);
     } catch (error) {
       toast.error(`Xóa tài khoản thất bại: ${error}`);
     } finally {
@@ -447,62 +525,75 @@ export default function Accounts() {
                       <td className="px-4 py-3 text-right">
                         <div className="relative">
                           <button
-                            onClick={() => setActionMenu(actionMenu === account._id ? null : account._id)}
+                            onClick={event => handleActionMenuToggle(event, account)}
                             className="p-2 rounded-lg hover:bg-muted text-muted-foreground transition-colors"
                           >
                             <MoreVertical size={16} />
                           </button>
-                          {actionMenu === account._id && (
-                            <div className="absolute right-0 mt-1 w-44 bg-card rounded-xl border border-border shadow-xl z-10 py-1">
-                              <button
-                                onClick={() => {
-                                  setEditAccount(account);
-                                  const isCustomer = account.user_type === "Customer" || account.role === null;
-                                  setFormData({
-                                    role: isCustomer ? "customer" : account.role || "staff",
-                                    name: account.ref_id?.name || "",
-                                    email: account.ref_id?.email || "",
-                                    phone: account.ref_id?.phone || "",
-                                    address: account.ref_id?.address || "",
-                                    birthday: !isCustomer ? toDateInputValue((account.ref_id as any)?.birthday) : "",
-                                    station: !isCustomer ? (account.ref_id as any)?.station || "kitchen" : "kitchen",
-                                    salary: !isCustomer ? (account.ref_id as any)?.salary || 0 : 0,
-                                    salaryType: !isCustomer ? (account.ref_id as any)?.salaryType || "monthly" : "monthly",
-                                    store_id: !isCustomer ? (account.ref_id as any)?.store_id || "" : "",
-                                    username: account.username || "",
-                                    password: "",
-                                  });
-                                  setShowModal(true);
-                                  setActionMenu(null);
+                          {actionMenu === account._id &&
+                            actionMenuPosition &&
+                            createPortal(
+                              <div
+                                className="fixed w-44 bg-card rounded-xl border border-border shadow-xl z-[101] py-1"
+                                style={{
+                                  top: actionMenuPosition.top,
+                                  left: actionMenuPosition.left,
+                                  transform: actionMenuPosition.openUp ? "translateY(-100%)" : undefined,
                                 }}
-                                className="w-full flex items-center gap-2 px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors"
                               >
-                                <Edit2 size={14} /> Chỉnh sửa
-                              </button>
-                              <button
-                                onClick={() => handleTogleStatus(account)}
-                                className="w-full flex items-center gap-2 px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors"
-                              >
-                                {account.status === false ? (
-                                  <>
-                                    <Unlock size={14} /> Mở khóa
-                                  </>
-                                ) : (
-                                  <>
-                                    <Lock size={14} /> Khóa tài khoản
-                                  </>
-                                )}
-                              </button>
-                              {account.role !== "admin" && (
                                 <button
-                                  onClick={() => handleDeleteAccount(account)}
-                                  className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                                  onClick={() => {
+                                    setEditAccount(account);
+                                    const isCustomer = account.user_type === "Customer" || account.role === null;
+                                    setFormData({
+                                      role: isCustomer ? "customer" : account.role || "staff",
+                                      name: account.ref_id?.name || "",
+                                      email: account.ref_id?.email || "",
+                                      phone: account.ref_id?.phone || "",
+                                      address: account.ref_id?.address || "",
+                                      birthday: !isCustomer ? toDateInputValue((account.ref_id as any)?.birthday) : "",
+                                      station: !isCustomer ? (account.ref_id as any)?.station || "kitchen" : "kitchen",
+                                      salary: !isCustomer ? (account.ref_id as any)?.salary || 0 : 0,
+                                      salaryType: !isCustomer
+                                        ? (account.ref_id as any)?.salaryType || "monthly"
+                                        : "monthly",
+                                      store_id: !isCustomer ? (account.ref_id as any)?.store_id || "" : "",
+                                      username: account.username || "",
+                                      password: "",
+                                    });
+                                    setShowModal(true);
+                                    setActionMenu(null);
+                                    setActionMenuPosition(null);
+                                  }}
+                                  className="w-full flex items-center gap-2 px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors"
                                 >
-                                  <Trash2 size={14} /> Xóa tài khoản
+                                  <Edit2 size={14} /> Chỉnh sửa
                                 </button>
-                              )}
-                            </div>
-                          )}
+                                <button
+                                  onClick={() => handleTogleStatus(account)}
+                                  className="w-full flex items-center gap-2 px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors"
+                                >
+                                  {account.status === false ? (
+                                    <>
+                                      <Unlock size={14} /> Mở khóa
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Lock size={14} /> Khóa tài khoản
+                                    </>
+                                  )}
+                                </button>
+                                {account.role !== "admin" && (
+                                  <button
+                                    onClick={() => openDeleteConfirmation(account)}
+                                    className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                                  >
+                                    <Trash2 size={14} /> Xóa tài khoản
+                                  </button>
+                                )}
+                              </div>,
+                              document.body,
+                            )}
                         </div>
                       </td>
                     </tr>
@@ -722,7 +813,88 @@ export default function Accounts() {
         </div>
       )}
 
-      {actionMenu && <div className="fixed inset-0 z-0" onClick={() => setActionMenu(null)} />}
+      {deleteAccount && (
+        <div
+          className="fixed inset-0 z-[120] flex items-center justify-center bg-black/50 p-4"
+          onClick={closeDeleteConfirmation}
+        >
+          <form
+            className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl"
+            onClick={event => event.stopPropagation()}
+            onSubmit={event => {
+              event.preventDefault();
+              void handleDeleteAccount();
+            }}
+          >
+            <div className="mb-5 flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-600">
+                <Trash2 size={19} />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-foreground">Xác nhận xóa tài khoản</h3>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Thao tác này không thể hoàn tác. Hãy nhập chính xác ID tài khoản để tiếp tục.
+                </p>
+              </div>
+            </div>
+
+            <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3">
+              <p className="text-sm font-medium text-red-700">
+                {deleteAccount.ref_id?.name || deleteAccount.username}
+              </p>
+              <p className="mt-1 break-all font-mono text-xs text-red-600">{deleteAccount._id}</p>
+            </div>
+
+            <label htmlFor="delete-account-id" className="mb-1.5 block text-sm font-medium text-foreground">
+              ID tài khoản
+            </label>
+            <input
+              id="delete-account-id"
+              value={deleteConfirmationId}
+              onChange={event => setDeleteConfirmationId(event.target.value)}
+              placeholder="Nhập ID tài khoản"
+              autoComplete="off"
+              spellCheck={false}
+              autoFocus
+              disabled={isLoading}
+              className="w-full rounded-xl border border-border bg-background px-4 py-2.5 font-mono text-sm outline-none transition-colors focus:border-red-500 focus:ring-2 focus:ring-red-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+            />
+            {deleteConfirmationId && deleteConfirmationId.trim() !== deleteAccount._id && (
+              <p className="mt-2 text-xs text-red-600">ID tài khoản không khớp.</p>
+            )}
+
+            <div className="mt-6 flex gap-3">
+              <button
+                type="button"
+                onClick={closeDeleteConfirmation}
+                disabled={isLoading}
+                className="flex-1 rounded-xl border border-border py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Hủy
+              </button>
+              <button
+                type="submit"
+                disabled={isLoading || deleteConfirmationId.trim() !== deleteAccount._id}
+                className="flex-1 rounded-xl bg-red-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isLoading ? "Đang xóa..." : "Xóa tài khoản"}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {actionMenu &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[100]"
+            onClick={() => {
+              setActionMenu(null);
+              setActionMenuPosition(null);
+            }}
+          />,
+          document.body,
+        )}
       <Toaster position="top-right" richColors />
     </div>
   );

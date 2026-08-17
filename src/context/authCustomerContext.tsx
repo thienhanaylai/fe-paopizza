@@ -1,10 +1,11 @@
 "use client";
-import React, { createContext, useContext, useState, ReactNode } from "react";
+import React, { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { http } from "../utils/config.api";
 import { useRouter } from "next/navigation";
 
 const ACCESS_TOKEN_KEY = "customer_access_token";
 const USER_KEY = "customer";
+const ACCOUNT_LOCKED_MESSAGE = "Tài khoản đã bị khóa. Vui lòng liên hệ quản trị viên.";
 
 type AuthMode = null | "login" | "register";
 
@@ -200,8 +201,16 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
         message: data.message || "Đăng nhập thành công",
       };
     } catch (error) {
-      const status = (error as { status?: number; data?: { message?: string } })?.status;
-      const message = (error as { data?: { message?: string } })?.data?.message;
+      const status = (error as { status?: number; data?: { message?: string; errorCode?: string } })?.status;
+      const errorData = (error as { data?: { message?: string; errorCode?: string } })?.data;
+      const message = errorData?.message;
+
+      if (errorData?.errorCode === "ACCOUNT_LOCKED" || message === "ACCOUNT_LOCKED") {
+        return {
+          success: false,
+          message: ACCOUNT_LOCKED_MESSAGE,
+        };
+      }
       if (status === 429) {
         return {
           success: false,
@@ -270,11 +279,32 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => {
+    void http(
+      "/api/v1/auth/logout",
+      {
+        method: "POST",
+        body: JSON.stringify({ userType: "Customer" }),
+        keepalive: true,
+      },
+      "customer",
+      { skipUnauthorized: true },
+    ).catch(() => undefined);
     setUser(null);
     setAccessToken(null);
     clearStoredAuth();
     router.push("/");
   };
+
+  useEffect(() => {
+    const handleUnauthorized = () => {
+      setUser(null);
+      setAccessToken(null);
+      setAuthMode("login");
+    };
+
+    window.addEventListener("customer_unauthorized", handleUnauthorized);
+    return () => window.removeEventListener("customer_unauthorized", handleUnauthorized);
+  }, []);
 
   const value = {
     user,
