@@ -1,5 +1,6 @@
 import { http } from "../utils/config.api";
 
+//thời gian tự động huỷ đơn
 export const PAYMENT_TIMEOUT_MS = 10 * 60 * 1000;
 
 export interface PaymentRequestData {

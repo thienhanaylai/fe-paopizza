@@ -143,16 +143,8 @@ export default function Accounts() {
 
     const buttonRect = event.currentTarget.getBoundingClientRect();
     const estimatedMenuHeight = account.role === "admin" ? 88 : 124;
-    const openUp =
-      window.innerHeight - buttonRect.bottom < estimatedMenuHeight + 8 &&
-      buttonRect.top > estimatedMenuHeight + 8;
-    const left = Math.max(
-      8,
-      Math.min(
-        buttonRect.right - ACTION_MENU_WIDTH,
-        window.innerWidth - ACTION_MENU_WIDTH - 8,
-      ),
-    );
+    const openUp = window.innerHeight - buttonRect.bottom < estimatedMenuHeight + 8 && buttonRect.top > estimatedMenuHeight + 8;
+    const left = Math.max(8, Math.min(buttonRect.right - ACTION_MENU_WIDTH, window.innerWidth - ACTION_MENU_WIDTH - 8));
 
     setActionMenuPosition({
       top: openUp ? buttonRect.top - 4 : buttonRect.bottom + 4,
@@ -554,9 +546,7 @@ export default function Accounts() {
                                       birthday: !isCustomer ? toDateInputValue((account.ref_id as any)?.birthday) : "",
                                       station: !isCustomer ? (account.ref_id as any)?.station || "kitchen" : "kitchen",
                                       salary: !isCustomer ? (account.ref_id as any)?.salary || 0 : 0,
-                                      salaryType: !isCustomer
-                                        ? (account.ref_id as any)?.salaryType || "monthly"
-                                        : "monthly",
+                                      salaryType: !isCustomer ? (account.ref_id as any)?.salaryType || "monthly" : "monthly",
                                       store_id: !isCustomer ? (account.ref_id as any)?.store_id || "" : "",
                                       username: account.username || "",
                                       password: "",
@@ -814,10 +804,7 @@ export default function Accounts() {
       )}
 
       {deleteAccount && (
-        <div
-          className="fixed inset-0 z-[120] flex items-center justify-center bg-black/50 p-4"
-          onClick={closeDeleteConfirmation}
-        >
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/50 p-4" onClick={closeDeleteConfirmation}>
           <form
             className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl"
             onClick={event => event.stopPropagation()}
@@ -839,9 +826,7 @@ export default function Accounts() {
             </div>
 
             <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3">
-              <p className="text-sm font-medium text-red-700">
-                {deleteAccount.ref_id?.name || deleteAccount.username}
-              </p>
+              <p className="text-sm font-medium text-red-700">{deleteAccount.ref_id?.name || deleteAccount.username}</p>
               <p className="mt-1 break-all font-mono text-xs text-red-600">{deleteAccount._id}</p>
             </div>
 

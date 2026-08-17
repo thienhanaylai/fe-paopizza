@@ -39,6 +39,7 @@ export default function Orders() {
   const [loading, setLoading] = useState(false);
   const [detailOrder, setDetailOrder] = useState<OrderHistory | null>(null);
   const [paymentOrder, setPaymentOrder] = useState<OrderHistory | null>(null);
+  const [currentTime, setCurrentTime] = useState<number | null>(null);
 
   const fecthData = async (page: number = 1) => {
     setLoading(true);
@@ -51,6 +52,11 @@ export default function Orders() {
   };
   useEffect(() => {
     fecthData(1);
+  }, []);
+
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(Date.now()), 1000);
+    return () => clearInterval(timer);
   }, []);
 
   const handleCancelOrder = async (oder_id: string) => {
@@ -66,11 +72,11 @@ export default function Orders() {
 
   const isPaymentExpired = (order: OrderHistory) => {
     const expiredAt = new Date(new Date(order.createdAt).getTime() + PAYMENT_TIMEOUT_MS);
-    return Date.now() > expiredAt.getTime();
+    return currentTime === null || currentTime > expiredAt.getTime();
   };
 
   const canPayOnline = (order: OrderHistory) => {
-    return ["qrCode", "ewallet", "card"].includes(order.paymentMethod);
+    return ["qrCode", "ewallet"].includes(order.paymentMethod);
   };
 
   const handlePaymentSuccess = () => {
@@ -137,7 +143,10 @@ export default function Orders() {
                         !isPaymentExpired(order) &&
                         canPayOnline(order) && (
                           <button
-                            onClick={() => setPaymentOrder(order)}
+                            onClick={event => {
+                              event.stopPropagation();
+                              setPaymentOrder(order);
+                            }}
                             className="text-xs text-primary hover:underline font-medium"
                           >
                             Thanh toán

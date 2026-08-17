@@ -1,12 +1,14 @@
 "use client";
 
 import { Search, PackageSearch } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast, Toaster } from "sonner";
 import { trackOrder, OrderHistory } from "@/src/services/order.service";
 import { formatVND } from "@/src/utils/formatVND";
 import { formatDateTime } from "@/src/utils/formatDateTime";
 import OrderDetailModal from "@/src/components/modals/OrderDetailModal";
+import PaymentQRModal from "@/src/components/modals/PaymentQRModal";
+import { PAYMENT_TIMEOUT_MS } from "@/src/services/payment.service";
 
 const orderStatusConfig: Record<string, { label: string; color: string }> = {
   pending: { label: "Chờ xử lý", color: "bg-yellow-100 text-yellow-700" },
@@ -38,6 +40,34 @@ export default function TrackingPage() {
   const [loading, setLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const [detailOrder, setDetailOrder] = useState<OrderHistory | null>(null);
+  const [paymentOrder, setPaymentOrder] = useState<OrderHistory | null>(null);
+  const [currentTime, setCurrentTime] = useState<number | null>(null);
+
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const isPaymentExpired = (order: OrderHistory) => {
+    const expiredAt = new Date(new Date(order.createdAt).getTime() + PAYMENT_TIMEOUT_MS);
+    return currentTime === null || currentTime > expiredAt.getTime();
+  };
+
+  const canPayOnline = (order: OrderHistory) => {
+    return ["qrCode", "ewallet"].includes(order.paymentMethod);
+  };
+
+  const refreshTrackedOrders = async () => {
+    const orderId = searchValue.trim();
+    if (!isObjectId(orderId)) return;
+
+    try {
+      const result = await trackOrder(orderId);
+      setOrders(result);
+    } catch {
+      toast.error("Không thể cập nhật trạng thái đơn hàng. Vui lòng tra cứu lại.");
+    }
+  };
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -175,8 +205,25 @@ export default function TrackingPage() {
                         <span className={`text-xs px-2 py-0.5 rounded-full ${pt.color}`}>{pt.label}</span>
                       </div>
                       <div className="flex items-center gap-2">
+                        {order.paymentStatus === "pending" &&
+                          order.status === "pending" &&
+                          !isPaymentExpired(order) &&
+                          canPayOnline(order) && (
+                            <button
+                              onClick={event => {
+                                event.stopPropagation();
+                                setPaymentOrder(order);
+                              }}
+                              className="text-xs text-primary hover:underline font-medium"
+                            >
+                              Thanh toán
+                            </button>
+                          )}
                         <button
-                          onClick={() => setDetailOrder(order)}
+                          onClick={event => {
+                            event.stopPropagation();
+                            setDetailOrder(order);
+                          }}
                           className="text-xs text-primary hover:underline font-medium"
                         >
                           Chi tiết
@@ -202,6 +249,13 @@ export default function TrackingPage() {
 
       {/* Order Detail Modal */}
       {detailOrder && <OrderDetailModal order={detailOrder} onClose={() => setDetailOrder(null)} />}
+      {paymentOrder && (
+        <PaymentQRModal
+          order={paymentOrder}
+          onClose={() => setPaymentOrder(null)}
+          onPaymentSuccess={() => void refreshTrackedOrders()}
+        />
+      )}
 
       <Toaster position="top-right" richColors />
     </>
