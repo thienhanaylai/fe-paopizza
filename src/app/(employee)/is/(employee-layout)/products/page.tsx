@@ -417,13 +417,7 @@ export default function Products() {
     if (comboIsAllSelected) {
       setComboSelectedIds(new Set());
     } else {
-      setComboSelectedIds(
-        new Set(
-          paginatedCombos.map((c: any) => {
-            if (c.isActive) return c._id;
-          }),
-        ),
-      );
+      setComboSelectedIds(new Set(paginatedCombos.filter((c: any) => c.isActive).map((c: any) => c._id)));
     }
   };
 
@@ -482,7 +476,15 @@ export default function Products() {
       // Strip imageFile for JSON, pass separately for FormData upload
       const { imageFile, ...cleanPayload } = payload;
       if (comboEditItem) {
-        await updateCombo({ combo_id: comboEditItem._id, ...cleanPayload }, imageFile);
+        await updateCombo(
+          {
+            combo_id: comboEditItem._id,
+            ...cleanPayload,
+            // Giữ nguyên trạng thái hiện tại khi chỉ chỉnh sửa dữ liệu combo.
+            isActive: comboEditItem.isActive !== false,
+          },
+          imageFile,
+        );
         toast.success("Cập nhật combo thành công!");
       } else {
         await addCombo(cleanPayload, imageFile);
@@ -500,7 +502,10 @@ export default function Products() {
   const comboToggleStatus = async (id: string) => {
     setComboIsLoading(true);
     try {
-      await updateComboStatus(id);
+      const combo = combos.find(item => item._id === id);
+      if (!combo) throw new Error("Không tìm thấy combo");
+
+      await updateComboStatus(id, !combo.isActive);
       toast.success("Cập nhật trạng thái combo thành công!");
     } catch (e) {
       toast.error(`Lỗi: ${e}`);
@@ -534,7 +539,10 @@ export default function Products() {
     let fail = 0;
     for (const id of comboSelectedIds) {
       try {
-        await updateComboStatus(id);
+        const combo = combos.find(item => item._id === id);
+        if (!combo) throw new Error("Không tìm thấy combo");
+
+        await updateComboStatus(id, !combo.isActive);
         ok++;
       } catch {
         fail++;

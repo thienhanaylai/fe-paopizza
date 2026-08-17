@@ -148,10 +148,11 @@ const buildComboJson = async (data: Record<string, unknown>, imageFile?: File | 
   return JSON.stringify({ ...data, image: base64 });
 };
 
-export const updateComboStatus = async (combo_id: string) => {
+export const updateComboStatus = async (combo_id: string, isActive: boolean) => {
   try {
     const response = await http(`/api/v1/combos/updateStatus/${combo_id}`, {
       method: "PATCH",
+      body: JSON.stringify({ isActive }),
     });
     return response.data;
   } catch (error) {
