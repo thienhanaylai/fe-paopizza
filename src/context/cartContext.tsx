@@ -10,13 +10,21 @@ import {
   removeFromCartApi,
   updateCartItemApi,
 } from "@/src/services/cart.service";
+import { getDiscountedVariantPrice } from "@/src/utils/variantPricing";
 
 const GUEST_CART_STORAGE_KEY = "guest_cart";
 
 export type ProductPopulated = {
   _id: string;
   name: string;
-  variants: { image: { url: string }; size: string; price: number }[];
+  variants: {
+    image: { url: string };
+    sku?: string;
+    size: string;
+    price: number;
+    discountType?: "percent" | "amount";
+    discount?: number;
+  }[];
   image?: string;
 };
 
@@ -184,13 +192,19 @@ const normalizeProduct = (product: unknown): string | ProductPopulated | undefin
             return null;
           }
 
-          return {
+          const normalized: ProductPopulated["variants"][number] = {
             size: normalizedVariant.size,
             price: normalizedVariant.price,
             image: {
               url: typeof normalizedVariant.image?.url === "string" ? normalizedVariant.image.url : "",
             },
           };
+
+          if (normalizedVariant.sku) normalized.sku = normalizedVariant.sku;
+          if (normalizedVariant.discountType) normalized.discountType = normalizedVariant.discountType;
+          if (typeof normalizedVariant.discount === "number") normalized.discount = normalizedVariant.discount;
+
+          return normalized;
         })
         .filter((variant): variant is ProductPopulated["variants"][number] => variant !== null)
     : [];
@@ -347,10 +361,11 @@ const normalizeCartItem = (item: unknown): CartItem | null => {
         .filter((selection): selection is ComboSelection => selection !== null)
     : undefined;
 
-  const variantBasePrice =
+  const selectedVariant =
     normalizedProduct && typeof normalizedProduct !== "string"
-      ? normalizedProduct.variants.find(variant => variant.size.toLowerCase() === source.size!.toLowerCase())?.price
+      ? normalizedProduct.variants.find(variant => variant.size.toLowerCase() === source.size!.toLowerCase())
       : undefined;
+  const variantBasePrice = selectedVariant ? getDiscountedVariantPrice(selectedVariant) : undefined;
 
   const toppingTotal = sumToppingPrice(normalizedToppings);
 
@@ -399,7 +414,7 @@ const normalizeCartItem = (item: unknown): CartItem | null => {
       finalPrice = computedPrice ?? sourcePrice;
     }
   } else {
-    finalPrice = typeof variantBasePrice !== "number" ? sourcePrice : Math.max(sourcePrice, variantBasePrice + toppingTotal);
+    finalPrice = typeof variantBasePrice !== "number" ? sourcePrice : variantBasePrice + toppingTotal;
   }
 
   return {
@@ -788,7 +803,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
           added_topping: added_topping ?? existingItem.added_topping,
         };
       } else {
-        const fallbackPrice = product?.variants.find(variant => variant.size === size)?.price ?? 0;
+        const fallbackVariant = product?.variants.find(variant => variant.size === size);
+        const fallbackPrice = fallbackVariant ? getDiscountedVariantPrice(fallbackVariant) : 0;
         nextItems.push({
           item_type: item_type ?? "product",
           product_id: item_type === "combo" ? undefined : (product ?? product_id),

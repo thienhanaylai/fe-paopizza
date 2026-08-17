@@ -11,6 +11,7 @@ import { useCart } from "@/src/context/cartContext";
 import { Textarea } from "@/src/components/ui/textarea";
 import { formatVND } from "@/src/utils/formatVND";
 import { formatCrustLabel } from "@/src/utils/formatCrustLabel";
+import { getDiscountedVariantPrice } from "@/src/utils/variantPricing";
 import type { Product } from "@/src/services/menu.service";
 import { parseCrustOptions } from "@/src/app/(customer)/utils";
 import type { ExtraTopping } from "@/src/app/(customer)/types";
@@ -236,16 +237,8 @@ export default function ProductDetailModal({
 
   const discountedPrice = useMemo(() => {
     if (!selectedVariant) return unitPrice;
-    const discount = Number(selectedVariant.discount) || 0;
-    if (discount <= 0) return unitPrice;
-    if (selectedVariant.discountType === "percent") {
-      return Math.round(unitPrice * (1 - discount / 100));
-    }
-    if (selectedVariant.discountType === "amount") {
-      return Math.max(0, unitPrice - discount);
-    }
-    return unitPrice;
-  }, [unitPrice, selectedVariant]);
+    return getDiscountedVariantPrice(selectedVariant) + extraToppingTotal;
+  }, [extraToppingTotal, selectedVariant, unitPrice]);
 
   const hasDiscount =
     selectedVariant &&
@@ -304,8 +297,11 @@ export default function ProductDetailModal({
         name: selectedProduct.name,
         variants: selectedProduct.variants.map(v => ({
           image: { url: v.image.url },
+          sku: v.sku,
           size: v.size,
           price: v.price,
+          discountType: v.discountType,
+          discount: v.discount,
         })),
       },
       sku: selectedVariant.sku,
@@ -313,7 +309,7 @@ export default function ProductDetailModal({
       crust: selectedCrust || undefined,
       quantity: 1,
       note: finalNote,
-      price: unitPrice,
+      price: discountedPrice,
       added_topping: selectedExtraToppingIds,
     });
 
