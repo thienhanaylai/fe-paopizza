@@ -40,6 +40,12 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: "https",
+        hostname: "vietqr.app",
+        port: "",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
         hostname: "*",
         port: "",
         pathname: "/**",
