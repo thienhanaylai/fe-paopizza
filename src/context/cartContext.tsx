@@ -144,8 +144,8 @@ interface CartContextType {
   cartTotal: number;
   editingSku: string | null;
   setEditingSku: (sku: string | null) => void;
-  editingComboId: string | null;
-  setEditingComboId: (id: string | null) => void;
+  editingComboItem: CartItem | null;
+  setEditingComboItem: (item: CartItem | null) => void;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -585,7 +585,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [showCart, setShowCart] = useState(false);
   const [checkout, setCheckout] = useState(false);
   const [editingSku, setEditingSku] = useState<string | null>(null);
-  const [editingComboId, setEditingComboId] = useState<string | null>(null);
+  const [editingComboItem, setEditingComboItem] = useState<CartItem | null>(null);
   const syncGuestCartPromiseRef = useRef<Promise<boolean> | null>(null);
   const cartRef = useRef<Cart | null>(null);
 
@@ -1031,8 +1031,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
       cartTotal,
       editingSku,
       setEditingSku,
-      editingComboId,
-      setEditingComboId,
+      editingComboItem,
+      setEditingComboItem,
       checkout,
       setCheckout,
     }),
@@ -1048,7 +1048,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       cartCount,
       cartTotal,
       editingSku,
-      editingComboId,
+      editingComboItem,
     ],
   );
 

@@ -20,7 +20,7 @@ import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import useEmblaCarousel from "embla-carousel-react";
 import { getAllCategories } from "@/src/services/category.service";
 import { useCustomerAuth } from "@/src/context/authCustomerContext";
-import { useCart, resolveComboId } from "@/src/context/cartContext";
+import { useCart, resolveComboId, type CartItem } from "@/src/context/cartContext";
 import { Skeleton } from "@/src/components/ui/skeleton";
 import { formatVND } from "@/src/utils/formatVND";
 import { getMenuByStoreId, MenuData, Product, Combo } from "@/src/services/menu.service";
@@ -56,8 +56,8 @@ export default function IndexPage() {
     clearCart,
     editingSku,
     setEditingSku,
-    editingComboId,
-    setEditingComboId,
+    editingComboItem,
+    setEditingComboItem,
   } = useCart();
 
   const [activeCategory, setActiveCategory] = useState<string>("all");
@@ -83,7 +83,7 @@ export default function IndexPage() {
 
   // Initial state for combo editing flow (passed to ComboBuilderModal)
   const [editComboSelections, setEditComboSelections] = useState<Record<number, ComboSlotSelection[]> | undefined>(undefined);
-  const [editComboOldSku, setEditComboOldSku] = useState<string | null>(null);
+  const [editComboCartItem, setEditComboCartItem] = useState<CartItem | null>(null);
 
   // scroll category right/left
   const categoryScrollRef = useRef<HTMLDivElement>(null);
@@ -342,19 +342,17 @@ export default function IndexPage() {
 
   // Mở modal chỉnh sửa combo từ cart
   useEffect(() => {
-    if (!editingComboId || !menu) return;
+    if (!editingComboItem || !menu) return;
 
-    const cartItem = cart?.items.find(item => resolveComboId(item.combo) === editingComboId || item.sku === editingComboId);
-    if (!cartItem) {
-      setEditingComboId(null);
-      return;
-    }
+    // Dùng trực tiếp item được bấm trong CartModal để không nhầm combo cùng ID/SKU nhưng khác selection.
+    const cartItem = editingComboItem;
 
     // Tìm combo trong menu
-    const menuEntry = menu.combos?.find(entry => entry.combo._id === editingComboId || entry._id === editingComboId);
+    const comboId = resolveComboId(cartItem.combo);
+    const menuEntry = menu.combos?.find(entry => entry.combo._id === comboId || entry._id === comboId);
     const combo = menuEntry?.combo;
     if (!combo) {
-      setEditingComboId(null);
+      setEditingComboItem(null);
       return;
     }
 
@@ -376,10 +374,10 @@ export default function IndexPage() {
     });
 
     setEditComboSelections(restoredSelections);
-    setEditComboOldSku(cartItem.sku);
+    setEditComboCartItem(cartItem);
     setSelectedCombo(combo);
-    setEditingComboId(null);
-  }, [editingComboId, menu, cart?.items, setEditingComboId]);
+    setEditingComboItem(null);
+  }, [editingComboItem, menu, setEditingComboItem]);
 
   const hanldeProduct = (selectedProduct: Product) => {
     setEditProductState(null);
@@ -407,7 +405,7 @@ export default function IndexPage() {
 
   const handleOpenCombo = (combo: Combo) => {
     setEditComboSelections(undefined);
-    setEditComboOldSku(null);
+    setEditComboCartItem(null);
     setSelectedCombo(combo);
   };
 
@@ -908,7 +906,7 @@ export default function IndexPage() {
           combo={selectedCombo}
           allProducts={menu?.products ?? []}
           initialSelections={editComboSelections}
-          editOldSku={editComboOldSku}
+          editCartItem={editComboCartItem}
           onClose={() => setSelectedCombo(null)}
         />
       )}

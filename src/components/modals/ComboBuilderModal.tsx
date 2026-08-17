@@ -7,7 +7,7 @@ import { toast } from "sonner";
 
 import { useCustomerAuth } from "@/src/context/authCustomerContext";
 import { useCart, areComboSelectionsEqual, resolveComboId } from "@/src/context/cartContext";
-import type { ToppingRef, ProductPopulated } from "@/src/context/cartContext";
+import type { CartItem, ToppingRef, ProductPopulated } from "@/src/context/cartContext";
 import type { ComboSelectionPayload } from "@/src/services/cart.service";
 import { removeFromCartApi } from "@/src/services/cart.service";
 import { formatVND } from "@/src/utils/formatVND";
@@ -22,8 +22,8 @@ interface ComboBuilderModalProps {
   allProducts: Product[];
   /** Initial selections for editing flow (restore from cart item) */
   initialSelections?: Record<number, ComboSlotSelection[]>;
-  /** Old SKU when editing an existing combo cart item */
-  editOldSku?: string | null;
+  /** Exact cart item being edited; combo ID and legacy guest SKU may not be unique. */
+  editCartItem?: CartItem | null;
   onClose: () => void;
 }
 
@@ -43,16 +43,15 @@ function computeComboSavings(combo: Combo): number {
 }
 
 export default function ComboBuilderModal(props: ComboBuilderModalProps) {
-  return <ComboBuilderContent key={props.combo._id} {...props} />;
+  const editSelectionKey = props.editCartItem?.combo_selections
+    ?.map(selection => `${selection.sku}:${selection.size}:${selection.crust || ""}`)
+    .join("|");
+  return (
+    <ComboBuilderContent key={`${props.combo._id}:${props.editCartItem?.sku || "new"}:${editSelectionKey || ""}`} {...props} />
+  );
 }
 
-function ComboBuilderContent({
-  combo,
-  allProducts,
-  initialSelections,
-  editOldSku,
-  onClose,
-}: ComboBuilderModalProps) {
+function ComboBuilderContent({ combo, allProducts, initialSelections, editCartItem, onClose }: ComboBuilderModalProps) {
   const { user } = useCustomerAuth();
   const { addToCart, fetchCart, updateQuantity, cart, cartCount, setShowCart } = useCart();
   useModalScrollLock();
@@ -67,8 +66,7 @@ function ComboBuilderContent({
   const [activeSlotIndex, setActiveSlotIndex] = useState(0);
   const [mobilePanel, setMobilePanel] = useState<"products" | "summary">("products");
   const [replacingSlot, setReplacingSlot] = useState<{ ruleIdx: number; slotIdx: number } | null>(null);
-  const editingComboOldSkuRef = useRef<string | null>(editOldSku || null);
-  const comboCounterRef = useRef(0);
+  const editingComboItemRef = useRef<CartItem | null>(editCartItem || null);
 
   // --- Computed ---
 
@@ -120,14 +118,14 @@ function ComboBuilderContent({
   );
   const existingComboItem = useMemo(() => {
     if (!cart) return undefined;
-    if (editOldSku) return cart.items.find(item => item.item_type === "combo" && item.sku === editOldSku);
+    if (editCartItem) return editCartItem;
     return cart.items.find(
       item =>
         item.item_type === "combo" &&
         resolveComboId(item.combo) === combo._id &&
         areComboSelectionsEqual(item.combo_selections, currentSelectionKeys),
     );
-  }, [cart, combo._id, currentSelectionKeys, editOldSku]);
+  }, [cart, combo._id, currentSelectionKeys, editCartItem]);
   const hasExistingCombo = Boolean(existingComboItem);
 
   const totalRemainingSelections = useMemo(() => {
@@ -208,16 +206,9 @@ function ComboBuilderContent({
     }
 
     if (isFillingNewSlot) {
-      const currentStepIndex = selectionSteps.findIndex(
-        step => step.ruleIdx === ruleIndex && step.slotIdx === targetSlotIndex,
-      );
-      const orderedRemainingSteps = [
-        ...selectionSteps.slice(currentStepIndex + 1),
-        ...selectionSteps.slice(0, currentStepIndex),
-      ];
-      const nextIncompleteStep = orderedRemainingSteps.find(
-        step => !comboSelections[step.ruleIdx]?.[step.slotIdx],
-      );
+      const currentStepIndex = selectionSteps.findIndex(step => step.ruleIdx === ruleIndex && step.slotIdx === targetSlotIndex);
+      const orderedRemainingSteps = [...selectionSteps.slice(currentStepIndex + 1), ...selectionSteps.slice(0, currentStepIndex)];
+      const nextIncompleteStep = orderedRemainingSteps.find(step => !comboSelections[step.ruleIdx]?.[step.slotIdx]);
 
       if (nextIncompleteStep) {
         setActiveRuleIndex(nextIncompleteStep.ruleIdx);
@@ -267,44 +258,45 @@ function ComboBuilderContent({
   };
 
   const handleAddComboToCart = async () => {
-    const oldSku = editingComboOldSkuRef.current;
-    if (oldSku) {
-      const oldCartItem = cart?.items.find(item => item.sku === oldSku);
-      if (oldCartItem) {
-        if (user?.id) {
-          try {
-            await removeFromCartApi({
-              userId: user.id,
-              item_type: "combo",
-              combo: combo._id,
-              sku: oldSku,
-              size: oldCartItem.size,
-              combo_selections: oldCartItem.combo_selections?.map(sel => ({
-                product_id: typeof sel.product_id === "string" ? sel.product_id : sel.product_id?._id || "",
-                sku: sel.sku,
-                size: sel.size,
-                crust: sel.crust,
-              })),
-            });
-          } catch {
-            /* ignore */
-          }
-        } else {
-          const guestCart = JSON.parse(localStorage.getItem("guest_cart") || "{}");
-          if (guestCart.items) {
-            guestCart.items = guestCart.items.filter(
-              (item: { sku: string; combo_selections?: Array<{ sku: string }> }) =>
-                !(item.sku === oldSku && areComboSelectionsEqual(item.combo_selections, oldCartItem.combo_selections)),
-            );
-            localStorage.setItem("guest_cart", JSON.stringify(guestCart));
-          }
+    const oldCartItem = editingComboItemRef.current;
+    const oldSku = oldCartItem?.sku;
+    if (oldCartItem && oldSku) {
+      if (user?.id) {
+        try {
+          await removeFromCartApi({
+            userId: user.id,
+            item_type: "combo",
+            combo: combo._id,
+            sku: oldSku,
+            size: oldCartItem.size,
+            combo_selections: oldCartItem.combo_selections?.map(sel => ({
+              product_id: typeof sel.product_id === "string" ? sel.product_id : sel.product_id?._id || "",
+              sku: sel.sku,
+              size: sel.size,
+              crust: sel.crust,
+            })),
+          });
+        } catch {
+          /* ignore */
+        }
+      } else {
+        const guestCart = JSON.parse(localStorage.getItem("guest_cart") || "{}");
+        if (guestCart.items) {
+          guestCart.items = guestCart.items.filter(
+            (item: { sku: string; combo_selections?: Array<{ sku: string }> }) =>
+              !(item.sku === oldSku && areComboSelectionsEqual(item.combo_selections, oldCartItem.combo_selections)),
+          );
+          localStorage.setItem("guest_cart", JSON.stringify(guestCart));
         }
       }
-      editingComboOldSkuRef.current = null;
+      editingComboItemRef.current = null;
     }
 
-    comboCounterRef.current += 1;
-    const newSku = `combo-${combo._id}-${comboCounterRef.current}`;
+    const uniqueSuffix =
+      typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const newSku = `combo-${combo._id}-${uniqueSuffix}`;
 
     const comboSelectionsPayload: ComboSelectionPayload[] = [];
     const populatedSelections: Array<{
@@ -368,6 +360,7 @@ function ComboBuilderContent({
 
     await fetchCart(user?.id);
     onClose();
+    setShowCart(true);
     toast.success(
       <span>
         {oldSku ? (
@@ -485,9 +478,7 @@ function ComboBuilderContent({
             {activeRule ? (
               <>
                 <p className={`mb-3 text-xs ${activeSlotSelection ? "text-green-700" : "text-muted-foreground"}`}>
-                  {activeSlotSelection
-                    ? "Đã chọn món này. Bấm món khác để thay thế."
-                    : "Chọn một sản phẩm để tiếp tục."}
+                  {activeSlotSelection ? "Đã chọn món này. Bấm món khác để thay thế." : "Chọn một sản phẩm để tiếp tục."}
                 </p>
 
                 {activeRuleProducts.length > 0 ? (
@@ -545,33 +536,23 @@ function ComboBuilderContent({
         </section>
 
         {/* Selected products */}
-        <section
-          className={`${mobilePanel === "summary" ? "flex" : "hidden"} min-h-0 flex-1 flex-col md:flex md:w-2/5`}
-        >
+        <section className={`${mobilePanel === "summary" ? "flex" : "hidden"} min-h-0 flex-1 flex-col md:flex md:w-2/5`}>
           <div className="flex shrink-0 items-start justify-between border-b border-border/60 p-4 sm:p-5">
             <div className="min-w-0 pr-3">
               <h3 className="text-lg font-bold text-foreground sm:text-xl">{combo.name}</h3>
-              <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground sm:text-sm">
-                {combo.description}
-              </p>
+              <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground sm:text-sm">{combo.description}</p>
               {savings > 0 && (
                 <span className="mt-2 inline-flex rounded-full bg-green-100 px-2.5 py-1 text-xs font-semibold text-green-700">
                   Tiết kiệm {formatVND(savings)}
                 </span>
               )}
             </div>
-            <button
-              onClick={onClose}
-              className="hidden shrink-0 rounded-lg p-2 text-muted-foreground hover:bg-muted md:block"
-            >
+            <button onClick={onClose} className="hidden shrink-0 rounded-lg p-2 text-muted-foreground hover:bg-muted md:block">
               <X size={18} />
             </button>
           </div>
 
-          <div
-            data-modal-scroll
-            className="min-h-0 flex-1 space-y-3 touch-pan-y overflow-y-auto overscroll-contain p-4 sm:p-5"
-          >
+          <div data-modal-scroll className="min-h-0 flex-1 space-y-3 touch-pan-y overflow-y-auto overscroll-contain p-4 sm:p-5">
             {combo.rules.map((rule, ruleIdx) => {
               const selectedSelections = comboSelections[ruleIdx] || [];
               const isSlotReplacing = replacingSlot?.ruleIdx === ruleIdx;
@@ -579,9 +560,7 @@ function ComboBuilderContent({
               const remainingQuantity = Math.max(0, rule.requiredQuantity - selectedSelections.length);
               const slots = Array.from({ length: rule.requiredQuantity }, (_, slotIdx) => {
                 const selection = selectedSelections[slotIdx] || null;
-                const product = selection?.productId
-                  ? allProducts.find(item => item._id === selection.productId)
-                  : null;
+                const product = selection?.productId ? allProducts.find(item => item._id === selection.productId) : null;
                 const variant = selection?.sku
                   ? product?.variants.find(item => item.sku === selection.sku) ||
                     (rule.applicableSizes && rule.applicableSizes.length > 0
@@ -689,7 +668,9 @@ function ComboBuilderContent({
                   <Plus size={18} /> {hasExistingCombo ? "Cập nhật combo" : "Thêm combo vào giỏ"} - {formatVND(displayPrice)}
                 </>
               ) : (
-                <>Cần chọn thêm {totalRemainingSelections} sản phẩm - {formatVND(displayPrice)}</>
+                <>
+                  Cần chọn thêm {totalRemainingSelections} sản phẩm - {formatVND(displayPrice)}
+                </>
               )}
             </button>
           </div>
@@ -718,7 +699,9 @@ function ComboBuilderContent({
                 <Plus size={18} /> {hasExistingCombo ? "Cập nhật combo" : "Thêm combo vào giỏ"} - {formatVND(displayPrice)}
               </>
             ) : (
-              <>Cần chọn thêm {totalRemainingSelections} sản phẩm - {formatVND(displayPrice)}</>
+              <>
+                Cần chọn thêm {totalRemainingSelections} sản phẩm - {formatVND(displayPrice)}
+              </>
             )}
           </button>
         </div>
