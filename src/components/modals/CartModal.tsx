@@ -37,6 +37,8 @@ export const CartModal = () => {
   const [selectedStoreId, setSelectedStoreId] = useState<string>("");
   const [storeMenuSkus, setStoreMenuSkus] = useState<string[] | null>(null);
   const [storeMenuData, setStoreMenuData] = useState<MenuData | null>(null);
+  const [isStoreMenuLoading, setIsStoreMenuLoading] = useState(false);
+  const [validatedStoreId, setValidatedStoreId] = useState("");
   const [expandedToppingKeys, setExpandedToppingKeys] = useState<Set<string>>(new Set());
   const [editingNoteKey, setEditingNoteKey] = useState<string | null>(null);
   const [noteDraft, setNoteDraft] = useState("");
@@ -69,28 +71,44 @@ export const CartModal = () => {
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
+
     const loadStoreMenuSkus = async () => {
       if (!showCart || !selectedStoreId) {
         setStoreMenuSkus(null);
         setStoreMenuData(null);
+        setIsStoreMenuLoading(false);
+        setValidatedStoreId("");
         return;
       }
 
+      setIsStoreMenuLoading(true);
+      setValidatedStoreId("");
       try {
         const menu = await getMenuByStoreId(selectedStoreId);
+        if (cancelled) return;
         setStoreMenuData(menu || null);
         const skuList =
           menu?.products?.flatMap((product: { variants: Array<{ sku: string }> }) =>
             product.variants.map(variant => variant.sku),
           ) || [];
         setStoreMenuSkus(skuList);
+        setValidatedStoreId(selectedStoreId);
       } catch {
+        if (cancelled) return;
         setStoreMenuSkus(null);
         setStoreMenuData(null);
+        setValidatedStoreId(selectedStoreId);
+      } finally {
+        if (!cancelled) setIsStoreMenuLoading(false);
       }
     };
 
     loadStoreMenuSkus();
+
+    return () => {
+      cancelled = true;
+    };
   }, [selectedStoreId, showCart]);
 
   const cartItems = useMemo(() => cart?.items || [], [cart?.items]);
@@ -125,7 +143,9 @@ export const CartModal = () => {
 
   const unavailableCount = unavailableSkuSet.size;
   const selectedUnavailableCount = selectedCartItems.filter(item => unavailableSkuSet.has(item.sku)).length;
-  //const allItemsSelected = cartItems.length > 0 && selectedCartItems.length === cartItems.length;
+  const isStoreMenuChecking =
+    showCart && Boolean(selectedStoreId) && (isStoreMenuLoading || validatedStoreId !== selectedStoreId);
+  const allItemsSelected = cartItems.length > 0 && selectedCartItems.length === cartItems.length;
 
   if (!showCart) return null;
 
@@ -156,6 +176,7 @@ export const CartModal = () => {
                 <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-foreground">
                   <input
                     type="checkbox"
+                    checked={allItemsSelected}
                     onChange={event => {
                       if (event.target.checked) selectAllCartItems();
                       else clearCartSelection();
@@ -202,7 +223,10 @@ export const CartModal = () => {
                 const toppingNames =
                   toppingNamesFromItem.length > 0
                     ? toppingNamesFromItem
-                    : extraToppingText?.split(",").map(name => name.trim()).filter(Boolean) || [];
+                    : extraToppingText
+                        ?.split(",")
+                        .map(name => name.trim())
+                        .filter(Boolean) || [];
                 const isToppingExpanded = expandedToppingKeys.has(cartItemKey);
                 const visibleToppingNames = isToppingExpanded ? toppingNames : toppingNames.slice(0, 3);
 
@@ -286,7 +310,10 @@ export const CartModal = () => {
                               <div className="mt-1 text-xs text-muted-foreground">
                                 <div className="flex flex-wrap gap-1">
                                   {visibleToppingNames.map((toppingName, toppingIndex) => (
-                                    <span key={`${cartItemKey}-topping-${toppingIndex}`} className="rounded-full bg-primary/10 px-2 py-0.5">
+                                    <span
+                                      key={`${cartItemKey}-topping-${toppingIndex}`}
+                                      className="rounded-full bg-primary/10 px-2 py-0.5"
+                                    >
                                       + {toppingName}
                                     </span>
                                   ))}
@@ -531,10 +558,12 @@ export const CartModal = () => {
               onClick={() => {
                 setCheckout(true);
               }}
-              disabled={selectedCartCount === 0 || selectedUnavailableCount > 0}
+              disabled={isStoreMenuChecking || selectedCartCount === 0 || selectedUnavailableCount > 0}
               className="w-full bg-primary text-primary-foreground py-3.5 rounded-xl font-medium hover:bg-primary/90 transition-all active:scale-[0.98] shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {selectedCartCount === 0
+              {isStoreMenuChecking
+                ? "Đang kiểm tra món..."
+                : selectedCartCount === 0
                 ? "Vui lòng chọn món muốn mua"
                 : selectedUnavailableCount > 0
                   ? "Bỏ chọn món không khả dụng để tiếp tục"

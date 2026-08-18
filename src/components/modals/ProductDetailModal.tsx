@@ -50,6 +50,7 @@ export default function ProductDetailModal({
   const [selectedSize, setSelectedSize] = useState<string>("");
   const [selectedCrust, setSelectedCrust] = useState<string>("");
   const [selectedExtraToppingIds, setSelectedExtraToppingIds] = useState<string[]>([]);
+  const [showAllExtraToppings, setShowAllExtraToppings] = useState(false);
   const [note, setNote] = useState<string>("");
   const hasMobileCheckoutBar = cartCount > 0;
   const mobileModalHeightClass = hasMobileCheckoutBar
@@ -89,6 +90,7 @@ export default function ProductDetailModal({
       setSelectedSize(firstVariant?.size || "");
       setSelectedCrust(isPizza ? firstCrust : "");
       setSelectedExtraToppingIds([]);
+      setShowAllExtraToppings(false);
 
       const productInCart = cart?.items.find(i => i.sku === firstVariant?.sku);
       setNote(productInCart ? productInCart.note : "");
@@ -226,6 +228,8 @@ export default function ProductDetailModal({
         !["drink", "dough", "other"].includes(item.category),
     );
   }, [baseIngredientIdSet, extraToppings]);
+
+  const visibleExtraToppingOptions = showAllExtraToppings ? extraToppingOptions : extraToppingOptions.slice(0, 3);
 
   const selectedExtraToppings = useMemo(() => {
     return extraToppingOptions.filter(item => selectedExtraToppingIds.includes(item._id));
@@ -623,7 +627,7 @@ export default function ProductDetailModal({
                                   <div>
                                     <p className="text-sm font-semibold text-foreground mb-2">Chọn extra topping</p>
                                     <div className="grid grid-cols-2 gap-2">
-                                      {extraToppingOptions.map(item => {
+                                      {visibleExtraToppingOptions.map(item => {
                                         const active = selectedExtraToppingIds.includes(item._id);
                                         return (
                                           <button
@@ -636,6 +640,15 @@ export default function ProductDetailModal({
                                           </button>
                                         );
                                       })}
+                                      {extraToppingOptions.length > 3 && (
+                                        <button
+                                          type="button"
+                                          onClick={() => setShowAllExtraToppings(previous => !previous)}
+                                          className="min-h-[66px] rounded-lg border border-dashed border-primary/40 bg-primary/5 px-3 py-2 text-center text-sm font-medium text-primary transition-colors hover:bg-primary/10"
+                                        >
+                                          {showAllExtraToppings ? "Thu gọn" : `Xem thêm (${extraToppingOptions.length - 3})`}
+                                        </button>
+                                      )}
                                     </div>
                                   </div>
                                 )}

@@ -722,9 +722,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const fetchCart = useCallback(async (userId?: string) => {
     if (!userId) {
-      if (cartOwnerRef.current !== "guest") {
+      const isNewCartOwner = cartOwnerRef.current !== "guest";
+      if (isNewCartOwner) {
         cartOwnerRef.current = "guest";
-        setExcludedCartItemKeys(new Set());
       }
       mergePromptedUserRef.current = null;
       setPendingCartMerge(null);
@@ -732,13 +732,16 @@ export function CartProvider({ children }: { children: ReactNode }) {
       const guestCart = readGuestCart();
       cartRef.current = guestCart;
       setCart(guestCart);
+      if (isNewCartOwner) {
+        setExcludedCartItemKeys(new Set(guestCart.items.map(getCartItemKey)));
+      }
       return guestCart;
     }
 
     try {
-      if (cartOwnerRef.current !== userId) {
+      const isNewCartOwner = cartOwnerRef.current !== userId;
+      if (isNewCartOwner) {
         cartOwnerRef.current = userId;
-        setExcludedCartItemKeys(new Set());
       }
       const prevCart = cartRef.current;
       const data = await getCart(userId);
@@ -781,6 +784,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
       cartRef.current = normalized;
       setCart(normalized);
+      if (isNewCartOwner) {
+        setExcludedCartItemKeys(new Set(normalized.items.map(getCartItemKey)));
+      }
 
       const guestCart = readGuestCart();
       if (guestCart.items.length === 0) {
@@ -830,7 +836,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       const normalized = normalizeCart(data);
       cartRef.current = normalized;
       setCart(normalized);
-      setExcludedCartItemKeys(new Set());
+      setExcludedCartItemKeys(new Set(normalized.items.map(getCartItemKey)));
       setPendingCartMerge(null);
     } catch (error) {
       setCartMergeError(error instanceof Error ? error.message : "Không thể gộp giỏ hàng. Vui lòng thử lại.");
