@@ -113,6 +113,16 @@ function getCustomerUpdateErrorMessage(error: unknown) {
   return errorMessages[message] || message || "Lỗi khi cập nhật thông tin";
 }
 
+function getAddressActionErrorMessage(error: unknown, fallback: string) {
+  const message = error instanceof Error ? error.message : "";
+  const errorMessages: Record<string, string> = {
+    ADDRESS_NOT_FOUND: "Không tìm thấy địa chỉ này. Vui lòng tải lại danh sách.",
+    CUSTOMER_NOT_FOUND: "Không tìm thấy thông tin khách hàng.",
+  };
+
+  return errorMessages[message] || message || fallback;
+}
+
 export default function Profile() {
   const { user, getInfo } = useCustomerAuth();
 
@@ -299,15 +309,23 @@ export default function Profile() {
   };
 
   const handleDeleteAddress = async (addr: CustomerAddress) => {
+    const confirmed = window.confirm("Bạn có chắc muốn xóa địa chỉ này không?");
+    if (!confirmed) return;
+
     const payload: DeleteCustomerAddressPayload = {
       user_id: user.id,
       address_id: addr?._id || "",
     };
-    const res = await deleteCustomerAddress(payload, "customer");
-    if (res) {
-      toast.success(res.message);
-      setAddressFormState("list");
-      fecthData();
+
+    try {
+      const res = await deleteCustomerAddress(payload, "customer");
+      if (res) {
+        await fecthData();
+        toast.success(res.message);
+        setAddressFormState("list");
+      }
+    } catch (error) {
+      toast.error(getAddressActionErrorMessage(error, "Không thể xóa địa chỉ. Vui lòng thử lại."));
     }
   };
 
@@ -321,11 +339,15 @@ export default function Profile() {
       phone: normalizePhone(formAddressPhone),
       isDefault: formAddressIsDefault,
     };
-    const res = await addCustomerAddress(payload, "customer");
-    if (res) {
-      toast.success(res.message);
-      setAddressFormState("list");
-      fecthData();
+    try {
+      const res = await addCustomerAddress(payload, "customer");
+      if (res) {
+        await fecthData();
+        toast.success(res.message);
+        setAddressFormState("list");
+      }
+    } catch (error) {
+      toast.error(getAddressActionErrorMessage(error, "Không thể thêm địa chỉ. Vui lòng thử lại."));
     }
   };
 
@@ -335,12 +357,16 @@ export default function Profile() {
       address_id: addr?._id || "",
     };
 
-    const res = await setDefaultAddress(payload, "customer");
+    try {
+      const res = await setDefaultAddress(payload, "customer");
 
-    if (res) {
-      toast.success(res.message);
-      setAddressFormState("list");
-      fecthData();
+      if (res) {
+        await fecthData();
+        toast.success(res.message);
+        setAddressFormState("list");
+      }
+    } catch (error) {
+      toast.error(getAddressActionErrorMessage(error, "Không thể đặt địa chỉ mặc định. Vui lòng thử lại."));
     }
   };
 
@@ -356,12 +382,16 @@ export default function Profile() {
       isDefault: formAddressIsDefault,
     };
 
-    const res = await updateCustomerAddress(payload, "customer");
+    try {
+      const res = await updateCustomerAddress(payload, "customer");
 
-    if (res) {
-      toast.success(res.message);
-      setAddressFormState("list");
-      fecthData();
+      if (res) {
+        await fecthData();
+        toast.success(res.message);
+        setAddressFormState("list");
+      }
+    } catch (error) {
+      toast.error(getAddressActionErrorMessage(error, "Không thể cập nhật địa chỉ. Vui lòng thử lại."));
     }
   };
 
