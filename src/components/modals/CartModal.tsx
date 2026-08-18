@@ -172,7 +172,6 @@ export const CartModal = () => {
               )}
 
               {cart.items.map((item, index) => {
-                console.log(item);
                 const product = typeof item.product_id === "string" ? null : item.product_id;
                 const productId = typeof item.product_id === "string" ? item.product_id : item.product_id?._id;
                 const isCombo = item.item_type === "combo";

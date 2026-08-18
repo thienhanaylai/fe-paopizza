@@ -250,8 +250,9 @@ export default function ProductDetailModal({
     Number(selectedVariant.discount) > 0 &&
     (selectedVariant.discountType === "percent" || selectedVariant.discountType === "amount");
 
-  const existingCartItem = useMemo(() => {
-    if (editCartItem) return editCartItem;
+  // Item đang được chọn trong modal. Khi modal được mở từ CartModal,
+  // editCartItem luôn là đúng dòng cũ; nếu mở từ menu thì tìm theo variant hiện tại.
+  const selectedCartItem = useMemo(() => {
     if (!selectedVariant || !cart) return undefined;
     return cart.items.find(
       item =>
@@ -259,7 +260,9 @@ export default function ProductDetailModal({
         item.sku === selectedVariant.sku &&
         (isPizzaProduct ? (item.crust || "") === (selectedCrust || "") : !item.crust),
     );
-  }, [cart, editCartItem, isPizzaProduct, selectedCrust, selectedVariant]);
+  }, [cart, isPizzaProduct, selectedCrust, selectedVariant]);
+
+  const existingCartItem = editCartItem || selectedCartItem;
 
   const isEditMode = Boolean(existingCartItem);
 
@@ -295,16 +298,16 @@ export default function ProductDetailModal({
   };
 
   const handleAddOneToCart = async () => {
-    if (!selectedProduct || !selectedVariant || !existingCartItem) return;
+    if (!selectedProduct || !selectedVariant || !selectedCartItem) return;
 
     await updateQuantity({
       userId: user?.id,
       item_type: "product",
       product_id: selectedProduct._id,
-      sku: existingCartItem.sku,
-      size: existingCartItem.size,
-      crust: existingCartItem.crust,
-      currentQty: existingCartItem.quantity,
+      sku: selectedCartItem.sku,
+      size: selectedCartItem.size,
+      crust: selectedCartItem.crust,
+      currentQty: selectedCartItem.quantity,
       change: 1,
     });
 

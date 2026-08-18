@@ -304,6 +304,8 @@ export default function IndexPage() {
         item =>
           item.item_type === "product" &&
           editingCartItem.item_type === "product" &&
+          (typeof item.product_id === "string" ? item.product_id : item.product_id?._id) ===
+            (typeof editingCartItem.product_id === "string" ? editingCartItem.product_id : editingCartItem.product_id?._id) &&
           item.sku === editingCartItem.sku &&
           item.size === editingCartItem.size &&
           (item.crust || "") === (editingCartItem.crust || ""),
