@@ -441,7 +441,7 @@ export default function IndexPage() {
                   <Phone size={18} /> {menu?.store.phone}
                 </a>
               </div>
-              <div className="flex items-center gap-8 mt-10">
+              {/* <div className="flex items-center gap-8 mt-10">
                 <div className="text-center">
                   <p className="text-2xl text-foreground">50K+</p>
                   <p className="text-xs text-muted-foreground">Khách hàng</p>
@@ -458,7 +458,7 @@ export default function IndexPage() {
                   <p className="text-2xl text-foreground">30</p>
                   <p className="text-xs text-muted-foreground">Giao hàng</p>
                 </div>
-              </div>
+              </div> */}
             </div>
             <div className="relative">
               <div className="relative rounded-3xl overflow-hidden aspect-[4/3] shadow-2xl">
