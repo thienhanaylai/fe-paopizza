@@ -144,6 +144,7 @@ interface CartContextType {
   setCheckout: (show: boolean) => void;
   fetchCart: (userId?: string) => Promise<Cart | null>;
   updateQuantity: (payload: UpdateQuantityInput) => Promise<void>;
+  updateCartItemNote: (payload: { userId?: string; item: CartItem; note: string }) => Promise<void>;
   removeItem: (payload: RemoveItemInput) => Promise<void>;
   addToCart: (payload: AddToCartInput) => Promise<void>;
   clearCart: (userId?: string) => Promise<void>;
@@ -1040,6 +1041,46 @@ export function CartProvider({ children }: { children: ReactNode }) {
     [],
   );
 
+  const updateCartItemNote = useCallback(
+    async ({ userId, item, note }: { userId?: string; item: CartItem; note: string }) => {
+      try {
+        if (userId) {
+          const updatedCart = await updateCartItemApi({
+            userId,
+            item_type: item.item_type,
+            product_id: resolveProductId(item.product_id),
+            combo: resolveComboId(item.combo),
+            sku: item.sku,
+            size: item.size,
+            crust: item.item_type === "product" ? item.crust : undefined,
+            note,
+            combo_selections: item.item_type === "combo" ? (mapComboSelectionsToPayload(item.combo_selections) ?? []) : undefined,
+          });
+          const normalized = normalizeCart(updatedCart);
+          cartRef.current = normalized;
+          setCart(normalized);
+          return;
+        }
+
+        const currentGuestCart = readGuestCart();
+        const targetIndex = currentGuestCart.items.findIndex(candidate => getCartItemKey(candidate) === getCartItemKey(item));
+        if (targetIndex === -1) return;
+
+        const nextGuestCart: Cart = {
+          ...currentGuestCart,
+          items: currentGuestCart.items.map((candidate, index) => (index === targetIndex ? { ...candidate, note } : candidate)),
+        };
+        persistGuestCart(nextGuestCart);
+        cartRef.current = nextGuestCart;
+        setCart(nextGuestCart);
+      } catch (error) {
+        console.error("Lỗi cập nhật ghi chú giỏ hàng:", error);
+        throw error;
+      }
+    },
+    [],
+  );
+
   const updateQuantity = useCallback(
     async ({ userId, item_type, product_id, combo, sku, size, crust, currentQty, change, combo_selections }: UpdateQuantityInput) => {
       const newQuantity = currentQty + change;
@@ -1309,6 +1350,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       setShowCart,
       fetchCart,
       updateQuantity,
+      updateCartItemNote,
       removeItem,
       addToCart,
       updateCartProduct,
@@ -1341,6 +1383,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       checkout,
       fetchCart,
       updateQuantity,
+      updateCartItemNote,
       removeItem,
       addToCart,
       updateCartProduct,

@@ -1,7 +1,7 @@
 "use client";
 
-import { Minus, PenLine, Plus, ShoppingCart, X } from "lucide-react";
-import { useCart, resolveComboId } from "@/src/context/cartContext";
+import { Check, ChevronDown, ChevronUp, Minus, PenLine, Plus, ShoppingCart, X } from "lucide-react";
+import { getCartItemKey, useCart, resolveComboId } from "@/src/context/cartContext";
 import { useCustomerAuth } from "@/src/context/authCustomerContext";
 import Image from "next/image";
 import { formatVND } from "@/src/utils/formatVND";
@@ -19,6 +19,7 @@ export const CartModal = () => {
     showCart,
     setShowCart,
     updateQuantity,
+    updateCartItemNote,
     removeItem,
     cartCount,
     selectedCartItems,
@@ -36,6 +37,10 @@ export const CartModal = () => {
   const [selectedStoreId, setSelectedStoreId] = useState<string>("");
   const [storeMenuSkus, setStoreMenuSkus] = useState<string[] | null>(null);
   const [storeMenuData, setStoreMenuData] = useState<MenuData | null>(null);
+  const [expandedToppingKeys, setExpandedToppingKeys] = useState<Set<string>>(new Set());
+  const [editingNoteKey, setEditingNoteKey] = useState<string | null>(null);
+  const [noteDraft, setNoteDraft] = useState("");
+  const [savingNoteKey, setSavingNoteKey] = useState<string | null>(null);
 
   useEffect(() => {
     const syncSelectedStore = () => {
@@ -179,7 +184,8 @@ export const CartModal = () => {
                 const comboId = resolveComboId(item.combo);
                 const combo = typeof item.combo === "object" ? item.combo : undefined;
                 const size = item.size;
-                const itemKey = `${item.item_type}-${item.sku}-${item.size}-${item.crust || ""}-${index}`;
+                const cartItemKey = getCartItemKey(item);
+                const itemKey = `${cartItemKey}-${index}`;
                 const productSize = product?.variants.find(variant => variant.size === size);
                 const isUnavailable = unavailableSkuSet.has(item.sku);
                 const isSelected = isCartItemSelected(item);
@@ -190,6 +196,15 @@ export const CartModal = () => {
                 const extraToppingPart = noteParts.find(part => part.toLowerCase().startsWith("extra topping:"));
                 const extraToppingText = extraToppingPart?.replace(/extra topping:/i, "").trim();
                 const customNote = noteParts.filter(part => !part.toLowerCase().startsWith("extra topping:")).join(" | ");
+                const toppingNamesFromItem = item.added_topping
+                  .map(topping => (typeof topping === "string" ? "" : topping.name.trim()))
+                  .filter(Boolean);
+                const toppingNames =
+                  toppingNamesFromItem.length > 0
+                    ? toppingNamesFromItem
+                    : extraToppingText?.split(",").map(name => name.trim()).filter(Boolean) || [];
+                const isToppingExpanded = expandedToppingKeys.has(cartItemKey);
+                const visibleToppingNames = isToppingExpanded ? toppingNames : toppingNames.slice(0, 3);
 
                 const comboSelection =
                   isCombo && item.combo_selections
@@ -267,7 +282,41 @@ export const CartModal = () => {
                                 ))}
                               </div>
                             )}
-                            {extraToppingText && <p className="text-xs text-muted-foreground mt-0.5">+ {extraToppingText}</p>}
+                            {toppingNames.length > 0 && (
+                              <div className="mt-1 text-xs text-muted-foreground">
+                                <div className="flex flex-wrap gap-1">
+                                  {visibleToppingNames.map((toppingName, toppingIndex) => (
+                                    <span key={`${cartItemKey}-topping-${toppingIndex}`} className="rounded-full bg-primary/10 px-2 py-0.5">
+                                      + {toppingName}
+                                    </span>
+                                  ))}
+                                </div>
+                                {toppingNames.length > 3 && (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setExpandedToppingKeys(previous => {
+                                        const next = new Set(previous);
+                                        if (next.has(cartItemKey)) next.delete(cartItemKey);
+                                        else next.add(cartItemKey);
+                                        return next;
+                                      })
+                                    }
+                                    className="mt-1 inline-flex items-center gap-0.5 font-medium text-primary hover:underline"
+                                  >
+                                    {isToppingExpanded ? (
+                                      <>
+                                        Thu gọn <ChevronUp size={13} />
+                                      </>
+                                    ) : (
+                                      <>
+                                        Xem thêm ({toppingNames.length - 3}) <ChevronDown size={13} />
+                                      </>
+                                    )}
+                                  </button>
+                                )}
+                              </div>
+                            )}
                           </div>
                           <div className="flex shrink-0 items-center gap-0.5">
                             {!isUnavailable && (
@@ -312,7 +361,54 @@ export const CartModal = () => {
                           </div>
                         </div>
 
-                        {customNote && <p className="text-[11px] text-muted-foreground italic mt-1">Note: {customNote}</p>}
+                        {editingNoteKey === cartItemKey ? (
+                          <div className="mt-2 flex items-center gap-1.5">
+                            <input
+                              value={noteDraft}
+                              onChange={event => setNoteDraft(event.target.value)}
+                              placeholder="Nhập ghi chú cho bánh"
+                              className="min-w-0 flex-1 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs text-foreground outline-none focus:border-primary"
+                              autoFocus
+                            />
+                            <button
+                              type="button"
+                              disabled={savingNoteKey === cartItemKey}
+                              onClick={async () => {
+                                setSavingNoteKey(cartItemKey);
+                                try {
+                                  const nextNote = [noteDraft.trim(), extraToppingPart].filter(Boolean).join(" | ");
+                                  await updateCartItemNote({ userId: user?.id, item, note: nextNote });
+                                  setEditingNoteKey(null);
+                                } finally {
+                                  setSavingNoteKey(null);
+                                }
+                              }}
+                              className="rounded-md bg-primary p-1.5 text-primary-foreground disabled:opacity-50"
+                              aria-label="Lưu ghi chú"
+                            >
+                              <Check size={14} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setEditingNoteKey(null)}
+                              className="rounded-md border border-border p-1.5 text-muted-foreground hover:text-foreground"
+                              aria-label="Hủy sửa ghi chú"
+                            >
+                              <X size={14} />
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingNoteKey(cartItemKey);
+                              setNoteDraft(customNote);
+                            }}
+                            className="mt-1 text-left text-[11px] italic text-muted-foreground hover:text-primary"
+                          >
+                            {customNote ? `Ghi chú: ${customNote}` : "+ Thêm ghi chú"}
+                          </button>
+                        )}
                         {isUnavailable && !isCombo && (
                           <p className="text-xs text-amber-700 mt-1 font-medium">Không có trong menu cửa hàng hiện tại</p>
                         )}
