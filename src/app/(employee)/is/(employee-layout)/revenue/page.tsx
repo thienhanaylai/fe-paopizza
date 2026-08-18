@@ -8,7 +8,12 @@ import { getRevenue, getStoresRevenue } from "@/src/services/revenue.service";
 import { getAllStore, type StoreData } from "@/src/services/store.service";
 import { formatVND } from "@/src/utils/formatVND";
 
-type Period = "day" | "month" | "quarter" | "year";
+type Period = "day" | "month" | "quarter" | "year" | "custom";
+
+type DateRange = {
+  startDate: string;
+  endDate: string;
+};
 
 type EmployeeInfo = {
   ref_id?: {
@@ -54,6 +59,7 @@ type StoreRankingRow = {
 };
 
 const periodLabels: Record<Period, string> = {
+  custom: "Tùy chọn",
   day: "Ngày",
   month: "Tháng",
   quarter: "Quý",
@@ -87,6 +93,11 @@ const chartMeta: Record<Period, { title: string; size: number; makeLabel: (index
       return `Th${month}/${year}`;
     },
   },
+  custom: {
+    title: "Doanh thu theo khoảng thời gian",
+    size: 0,
+    makeLabel: () => "",
+  },
 };
 
 const periodSeriesKeys: Record<Period, string[]> = {
@@ -94,6 +105,7 @@ const periodSeriesKeys: Record<Period, string[]> = {
   month: ["weekly_revenue", "revenue_by_week", "weekly", "by_week", "weeks", "timeline", "data"],
   quarter: ["weekly_revenue", "revenue_by_week", "weekly", "by_week", "weeks", "timeline", "data"],
   year: ["monthly_revenue", "revenue_by_month", "monthly", "by_month", "months", "timeline", "data"],
+  custom: ["daily_revenue", "revenue_by_day", "daily", "by_day", "timeline", "data"],
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -122,6 +134,23 @@ function formatDateInput(dateObj: Date) {
   const m = (dateObj.getMonth() + 1).toString().padStart(2, "0");
   const d = dateObj.getDate().toString().padStart(2, "0");
   return `${y}-${m}-${d}`;
+}
+
+function parseDateInput(value: string) {
+  const [year, month, day] = value.split("-").map(Number);
+  if (!year || !month || !day) return null;
+
+  const date = new Date(year, month - 1, day);
+  return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day ? date : null;
+}
+
+function formatDateInputLabel(value: unknown) {
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const [year, month, day] = value.split("-");
+    return `${day}-${month}-${year}`;
+  }
+
+  return typeof value === "string" ? formatDateOnly(value) : "";
 }
 
 function getDateNow() {
@@ -370,10 +399,14 @@ function getDefaultRangeStart(period: Period) {
     return new Date(now.getFullYear(), 0, 1);
   }
 
+  if (period === "custom") {
+    return parseDateInput(getCurrentMonthRange().start) ?? new Date();
+  }
+
   return new Date(now.getFullYear(), now.getMonth(), now.getDate(), 10, 0, 0, 0);
 }
 
-function getRangeByPeriod(targetPeriod: Period) {
+function getRangeByPeriod(targetPeriod: Period, customRange?: DateRange) {
   if (targetPeriod === "day") {
     const today = getDateNow();
     return { startDate: today, endDate: today };
@@ -389,11 +422,15 @@ function getRangeByPeriod(targetPeriod: Period) {
     return { startDate: quarterRange.start, endDate: quarterRange.end };
   }
 
+  if (targetPeriod === "custom" && customRange) {
+    return customRange;
+  }
+
   const yearRange = getCurrentYearRange();
   return { startDate: yearRange.start, endDate: yearRange.end };
 }
 
-function getBucketRangesByPeriod(period: Period) {
+function getBucketRangesByPeriod(period: Period, customRange?: DateRange) {
   if (period === "month") {
     const now = new Date();
     const year = now.getFullYear();
@@ -442,6 +479,23 @@ function getBucketRangesByPeriod(period: Period) {
     });
   }
 
+  if (period === "custom" && customRange) {
+    const start = parseDateInput(customRange.startDate);
+    const end = parseDateInput(customRange.endDate);
+    if (!start || !end || start > end) return [] as Array<{ start: string; end: string }>;
+
+    const totalDays = Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    const bucketSize = totalDays <= 31 ? 1 : 7;
+    const buckets: Array<{ start: string; end: string }> = [];
+
+    for (let cursor = new Date(start); cursor <= end; cursor = addDays(cursor, bucketSize)) {
+      const bucketEnd = new Date(Math.min(addDays(cursor, bucketSize - 1).getTime(), end.getTime()));
+      buckets.push({ start: formatDateInput(cursor), end: formatDateInput(bucketEnd) });
+    }
+
+    return buckets;
+  }
+
   return [] as Array<{ start: string; end: string }>;
 }
 
@@ -473,8 +527,8 @@ function getOptionalMetricNumber(metrics: unknown, keys: string[]) {
   return null;
 }
 
-async function getTimelineSeries(period: Period, storeId: string) {
-  const buckets = getBucketRangesByPeriod(period);
+async function getTimelineSeries(period: Period, storeId: string, customRange?: DateRange) {
+  const buckets = getBucketRangesByPeriod(period, customRange);
   if (buckets.length === 0) return [] as RevenueSeriesPoint[];
 
   const results = await Promise.allSettled(buckets.map(bucket => getRevenue(bucket.start, bucket.end, storeId, "", "", "")));
@@ -501,18 +555,30 @@ export default function Revenue() {
   const [stores, setStores] = useState<StoreData[]>([]);
   const [storeRanking, setStoreRanking] = useState<StoreRankingRow[]>([]);
   const [rankingLoading, setRankingLoading] = useState(false);
+  const defaultCustomRange = getCurrentMonthRange();
+  const [customStartDate, setCustomStartDate] = useState(defaultCustomRange.start);
+  const [customEndDate, setCustomEndDate] = useState(getDateNow());
+  const [appliedCustomRange, setAppliedCustomRange] = useState<DateRange>({
+    startDate: defaultCustomRange.start,
+    endDate: getDateNow(),
+  });
+  const [customRangeError, setCustomRangeError] = useState("");
 
   const isAdmin = user?.role === "admin";
 
   const loadRevenueByPeriod = useCallback(
-    async (targetPeriod: Period, options: { storeValue: string; employeeInfo?: EmployeeInfo | null }) => {
+    async (
+      targetPeriod: Period,
+      options: { storeValue: string; employeeInfo?: EmployeeInfo | null; customRange?: DateRange },
+    ) => {
       const employeeInfo = options.employeeInfo ?? null;
       const storeId = isAdmin ? (options.storeValue === "all" ? "" : options.storeValue) : employeeInfo?.ref_id?.store_id || "";
-      const { startDate, endDate } = getRangeByPeriod(targetPeriod);
+      const customRange = options.customRange ?? { startDate: getDateNow(), endDate: getDateNow() };
+      const { startDate, endDate } = getRangeByPeriod(targetPeriod, customRange);
 
       const [response, timeline] = await Promise.all([
         getRevenue(startDate, endDate, storeId, "", "", ""),
-        getTimelineSeries(targetPeriod, storeId),
+        getTimelineSeries(targetPeriod, storeId, customRange),
       ]);
 
       setRevenue({
@@ -524,6 +590,11 @@ export default function Revenue() {
 
       if (targetPeriod === "day") {
         setDateRanger(startDate);
+        return;
+      }
+
+      if (targetPeriod === "custom") {
+        setDateRanger(`${formatDateInputLabel(startDate)} - ${formatDateInputLabel(endDate)}`);
         return;
       }
 
@@ -545,7 +616,7 @@ export default function Revenue() {
     const fetchStoreRanking = async () => {
       try {
         setRankingLoading(true);
-        const { startDate, endDate } = getRangeByPeriod(period);
+        const { startDate, endDate } = getRangeByPeriod(period, appliedCustomRange);
 
         // 1 call duy nhất thay vì N calls (mỗi store 1 call)
         const storesRevenue = await getStoresRevenue(startDate, endDate, "");
@@ -589,7 +660,7 @@ export default function Revenue() {
     return () => {
       cancelled = true;
     };
-  }, [isAdmin, period, stores]);
+  }, [appliedCustomRange, isAdmin, period, stores]);
 
   useEffect(() => {
     let cancelled = false;
@@ -625,10 +696,37 @@ export default function Revenue() {
   }, [getInfo, isAdmin, loadRevenueByPeriod]);
 
   const handleDate = async (nextPeriod: Period) => {
+    if (nextPeriod === "custom" && (!parseDateInput(customStartDate) || !parseDateInput(customEndDate) || customStartDate > customEndDate)) {
+      setCustomRangeError("Vui lòng chọn khoảng ngày hợp lệ.");
+      setPeriod("custom");
+      return;
+    }
+
+    setCustomRangeError("");
+    if (nextPeriod === "custom") {
+      setAppliedCustomRange({ startDate: customStartDate, endDate: customEndDate });
+    }
     setPeriod(nextPeriod);
     await loadRevenueByPeriod(nextPeriod, {
       storeValue: isAdmin ? selectedStore : employee?.ref_id?.store_id || "all",
       employeeInfo: employee,
+      customRange: { startDate: customStartDate, endDate: customEndDate },
+    });
+  };
+
+  const applyCustomRange = async () => {
+    if (!parseDateInput(customStartDate) || !parseDateInput(customEndDate) || customStartDate > customEndDate) {
+      setCustomRangeError("Vui lòng chọn khoảng ngày hợp lệ.");
+      return;
+    }
+
+    setCustomRangeError("");
+    setAppliedCustomRange({ startDate: customStartDate, endDate: customEndDate });
+    setPeriod("custom");
+    await loadRevenueByPeriod("custom", {
+      storeValue: isAdmin ? selectedStore : employee?.ref_id?.store_id || "all",
+      employeeInfo: employee,
+      customRange: { startDate: customStartDate, endDate: customEndDate },
     });
   };
 
@@ -649,6 +747,14 @@ export default function Revenue() {
   const chartData = useMemo(() => {
     const meta = chartMeta[period];
     const series = getRevenueSeriesByPeriod(revenue, period);
+
+    if (period === "custom") {
+      return series.map(point => ({
+        label: formatDateInputLabel(point.startDate ?? point.date ?? point.label),
+        revenue: getPointRevenue(point),
+      }));
+    }
+
     const rangeStart = parseDate(revenue.range?.startDate) ?? getDefaultRangeStart(period);
     const buckets: ChartPoint[] = Array.from({ length: meta.size }, (_, index) => ({
       label: meta.makeLabel(index, rangeStart),
@@ -679,7 +785,7 @@ export default function Revenue() {
         </div>
 
         <div className="flex items-center gap-1 bg-card border border-border rounded-xl p-1">
-          {(["day", "month", "quarter", "year"] as Period[]).map(itemPeriod => (
+          {(["day", "month", "quarter", "year", "custom"] as Period[]).map(itemPeriod => (
             <button
               key={itemPeriod}
               onClick={() => {
@@ -694,6 +800,39 @@ export default function Revenue() {
           ))}
         </div>
       </div>
+
+      {period === "custom" && (
+        <div className="flex flex-col sm:flex-row sm:items-end gap-3 bg-card border border-border rounded-xl p-4">
+          <label className="flex flex-col gap-1 text-sm text-muted-foreground">
+            <span>Từ ngày</span>
+            <input
+              type="date"
+              value={customStartDate}
+              max={customEndDate}
+              onChange={event => setCustomStartDate(event.target.value)}
+              className="rounded-lg border border-border bg-background px-3 py-2 text-foreground"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-sm text-muted-foreground">
+            <span>Đến ngày</span>
+            <input
+              type="date"
+              value={customEndDate}
+              min={customStartDate}
+              onChange={event => setCustomEndDate(event.target.value)}
+              className="rounded-lg border border-border bg-background px-3 py-2 text-foreground"
+            />
+          </label>
+          <button
+            type="button"
+            onClick={applyCustomRange}
+            className="rounded-lg bg-primary px-4 py-2 text-sm text-white hover:bg-primary/90"
+          >
+            Áp dụng
+          </button>
+          {customRangeError && <p className="text-sm text-red-500 sm:pb-2">{customRangeError}</p>}
+        </div>
+      )}
 
       <div className="flex flex-col sm:flex-row gap-3">
         {isAdmin && (
@@ -718,7 +857,11 @@ export default function Revenue() {
                     onClick={async () => {
                       setSelectedStore("all");
                       setShowStoreDropdown(false);
-                      await loadRevenueByPeriod(period, { storeValue: "all", employeeInfo: employee });
+                        await loadRevenueByPeriod(period, {
+                          storeValue: "all",
+                          employeeInfo: employee,
+                          customRange: appliedCustomRange,
+                        });
                     }}
                     className={`w-full text-left px-4 py-2.5 text-sm hover:bg-muted transition-colors flex items-center gap-2 ${
                       selectedStore === "all" ? "bg-primary/5 text-primary" : "text-foreground"
@@ -733,7 +876,11 @@ export default function Revenue() {
                       onClick={async () => {
                         setSelectedStore(item._id);
                         setShowStoreDropdown(false);
-                        await loadRevenueByPeriod(period, { storeValue: item._id, employeeInfo: employee });
+                        await loadRevenueByPeriod(period, {
+                          storeValue: item._id,
+                          employeeInfo: employee,
+                          customRange: appliedCustomRange,
+                        });
                       }}
                       className={`w-full text-left px-4 py-2.5 text-sm hover:bg-muted transition-colors flex items-center gap-2 ${
                         selectedStore === item._id ? "bg-primary/5 text-primary" : "text-foreground"
