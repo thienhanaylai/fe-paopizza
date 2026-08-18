@@ -359,8 +359,10 @@ function ComboBuilderContent({ combo, allProducts, initialSelections, editCartIt
     });
 
     await fetchCart(user?.id);
-    onClose();
-    setShowCart(true);
+    if (oldSku) {
+      onClose();
+      setShowCart(true);
+    }
     toast.success(
       <span>
         {oldSku ? (

@@ -558,7 +558,7 @@ export const CheckoutModal = () => {
                 <Copy size={15} />
               </button>
             </div>
-            <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+            <p className="mb-4 max-w-md mx-auto rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
               Hãy lưu lại mã đơn hàng để tra cứu trạng thái đơn sau này.
             </p>
             <p className="text-sm text-muted-foreground mb-6">
@@ -1133,11 +1133,35 @@ export const CheckoutModal = () => {
                 <h3 className="text-lg font-semibold text-foreground">Xác nhận thoát</h3>
                 <p className="text-sm text-muted-foreground">
                   {isPayment
-                    ? "Bạn đang trong quá trình thanh toán. Nếu thoát, bạn có thể truy cập vào phần lịch sử và thanh toán lại trong vòng 10 phút!."
+                    ? "Bạn đang trong quá trình thanh toán. Nếu thoát, bạn vẫn có thể thanh toán lại trong vòng 10 phút tại trang tracking."
                     : "Bạn có chắc muốn huỷ đơn hàng và thoát?"}
                 </p>
               </div>
             </div>
+            {isPayment && idOrder && (
+              <div className="mb-5 rounded-xl border border-primary/20 bg-primary/5 p-3">
+                <p className="mb-1 text-xs text-muted-foreground">Mã đơn hàng</p>
+                <div className="flex items-center gap-2">
+                  <p className="min-w-0 flex-1 break-all font-mono text-sm font-semibold text-primary">{idOrder}</p>
+                  <button
+                    type="button"
+                    onClick={handleCopyOrderId}
+                    className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/20 bg-background text-primary transition-colors hover:bg-primary/10"
+                    aria-label="Sao chép mã đơn hàng"
+                    title="Sao chép mã đơn hàng"
+                  >
+                    <Copy size={16} />
+                  </button>
+                </div>
+                <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+                  Hãy lưu mã đơn hàng này. Bạn có thể mở{" "}
+                  <a href="/tracking" className="font-medium text-primary underline underline-offset-2">
+                    trang tracking
+                  </a>{" "}
+                  và thanh toán lại trong vòng 10 phút.
+                </p>
+              </div>
+            )}
             <div className="flex gap-3 justify-end">
               <button
                 onClick={() => setShowExitConfirm(false)}

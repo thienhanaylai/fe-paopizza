@@ -334,8 +334,10 @@ export default function ProductDetailModal({
     const fetchedCart = (await fetchCart(user?.id)) as { items?: Array<{ sku: string; note?: string }> } | undefined | null;
     const productInCart = fetchedCart?.items?.find(item => item.sku === selectedVariant.sku);
     setNote(productInCart?.note || "");
-    onClose();
-    setShowCart(true);
+    if (wasInCart) {
+      onClose();
+      setShowCart(true);
+    }
     toast.success(
       <span>
         {wasInCart ? (
