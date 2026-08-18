@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { X, Clock, Copy, CheckCircle2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { OrderHistory } from "@/src/services/order.service";
@@ -16,9 +16,10 @@ interface PaymentQRModalProps {
   order: OrderHistory;
   onClose: () => void;
   onPaymentSuccess?: () => void;
+  typeUser?: "customer" | "employee";
 }
 
-export default function PaymentQRModal({ order, onClose, onPaymentSuccess }: PaymentQRModalProps) {
+export default function PaymentQRModal({ order, onClose, onPaymentSuccess, typeUser = "customer" }: PaymentQRModalProps) {
   const [paymentData, setPaymentData] = useState<PaymentRequestData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -30,11 +31,13 @@ export default function PaymentQRModal({ order, onClose, onPaymentSuccess }: Pay
   // Dùng ref để tránh startPolling phụ thuộc vào onClose, onPaymentSuccess
   const onCloseRef = useRef(onClose);
   const onPaymentSuccessRef = useRef(onPaymentSuccess);
-  onCloseRef.current = onClose;
-  onPaymentSuccessRef.current = onPaymentSuccess;
+  useEffect(() => {
+    onCloseRef.current = onClose;
+    onPaymentSuccessRef.current = onPaymentSuccess;
+  }, [onClose, onPaymentSuccess]);
 
   // Tính thời gian hết hạn dựa trên createdAt + timeout
-  const expiredAt = new Date(new Date(order.createdAt).getTime() + PAYMENT_TIMEOUT_MS);
+  const expiredAt = useMemo(() => new Date(new Date(order.createdAt).getTime() + PAYMENT_TIMEOUT_MS), [order.createdAt]);
 
   // Format thời gian còn lại
   const formatTimeLeft = (seconds: number) => {
@@ -58,13 +61,15 @@ export default function PaymentQRModal({ order, onClose, onPaymentSuccess }: Pay
     try {
       setLoading(true);
       setError(null);
-      const data = await createPaymentRequest(order._id, "customer");
+      const data = await createPaymentRequest(order._id, typeUser);
       setPaymentData(data);
       setLoading(false);
       // Bắt đầu poll sau khi có payment data (giống cơ chế CheckoutModal)
       startPolling();
-    } catch (err: any) {
-      setError(err?.data?.message || err?.message || "Không thể tạo mã thanh toán");
+    } catch (err: unknown) {
+      const data = typeof err === "object" && err !== null && "data" in err ? err.data : null;
+      const message = typeof data === "object" && data !== null && "message" in data ? data.message : null;
+      setError(typeof message === "string" ? message : err instanceof Error ? err.message : "Không thể tạo mã thanh toán");
       setLoading(false);
     }
   };
@@ -81,7 +86,7 @@ export default function PaymentQRModal({ order, onClose, onPaymentSuccess }: Pay
     stopPolling();
     pollRef.current = setInterval(async () => {
       try {
-        const status = await checkPaymentStatus(order._id, "customer");
+        const status = await checkPaymentStatus(order._id, typeUser);
         if (status.paymentStatus === "success") {
           stopPolling();
           if (countdownRef.current) clearInterval(countdownRef.current);
@@ -119,6 +124,8 @@ export default function PaymentQRModal({ order, onClose, onPaymentSuccess }: Pay
 
   // Fetch payment data on mount
   useEffect(() => {
+    // The modal must load the QR immediately when it opens.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchPaymentData();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 

@@ -805,7 +805,7 @@ export default function POS() {
     setIsApplyingPromo(true);
     setPromoError("");
     try {
-      const result = await applyPromoCode(code, subtotal, user.store_id, null);
+      const result = await applyPromoCode(code, subtotal, user.store_id, "employee");
       if (result.valid) {
         setAppliedPromo(result);
         setPromoCode(result.code);
@@ -819,6 +819,9 @@ export default function POS() {
           PROMOTION_EXPIRED: "Mã khuyến mãi đã hết hạn.",
           PROMOTION_NOT_APPLICABLE: "Mã không áp dụng cho cửa hàng này.",
           PROMOTION_USAGE_LIMIT_REACHED: "Mã khuyến mãi đã hết lượt sử dụng.",
+          PROMOTION_MAX_USAGE_PER_USER_REACHED: "Khách hàng đã sử dụng mã này quá số lần cho phép.",
+          PROMOTION_NOT_REDEEMED: "Khách hàng chưa đổi mã này bằng điểm.",
+          PROMOTION_REQUIRES_CUSTOMER: "Mã này cần gắn với khách hàng trước khi áp dụng tại POS.",
           PROMOTION_REQUIRES_POINTS: "Mã này chỉ dành cho khách hàng đã đổi điểm.",
         };
         setAppliedPromo(null);
@@ -2014,7 +2017,10 @@ export default function POS() {
         <>
           <div
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 m-0"
-            onClick={() => setContactModal(false)}
+            onClick={() => {
+              if (order?.payment) {
+              } else setContactModal(false);
+            }}
           >
             <div className="bg-card rounded-2xl p-6 w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-6">
@@ -2025,8 +2031,10 @@ export default function POS() {
                 </div>
                 <button
                   onClick={() => {
-                    setContactModal(false);
+                    if (order?.payment) {
+                    } else setContactModal(false);
                   }}
+                  disabled={order?.payment}
                   className="p-2 rounded-lg hover:bg-muted text-muted-foreground transition-colors cursor-pointer"
                 >
                   <X size={18} />
@@ -2086,28 +2094,28 @@ export default function POS() {
                   <div>
                     <label className="block text-sm mb-1.5 font-medium">Địa chỉ *</label>
                     <div className="relative">
-                    <input
-                      placeholder="42 pham nhu tang"
-                      value={customerAddress}
-                      required
-                      autoComplete="off"
-                      onChange={e => handleAddressInput(e.target.value)}
-                      onFocus={() => {
-                        if (addressSuggestions.length > 0 || addressSuggestionsLoading) {
-                          setShowAddressSuggestions(true);
-                        }
-                      }}
-                      onBlur={() => {
-                        setTimeout(() => setShowAddressSuggestions(false), 350);
-                      }}
-                      className="w-full px-4 py-2.5 pr-10 rounded-xl border border-border bg-background focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
-                    />
-                    {addressSuggestionsLoading && (
-                      <LoaderCircle
-                        size={16}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-muted-foreground"
+                      <input
+                        placeholder="42 pham nhu tang"
+                        value={customerAddress}
+                        required
+                        autoComplete="off"
+                        onChange={e => handleAddressInput(e.target.value)}
+                        onFocus={() => {
+                          if (addressSuggestions.length > 0 || addressSuggestionsLoading) {
+                            setShowAddressSuggestions(true);
+                          }
+                        }}
+                        onBlur={() => {
+                          setTimeout(() => setShowAddressSuggestions(false), 350);
+                        }}
+                        className="w-full px-4 py-2.5 pr-10 rounded-xl border border-border bg-background focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
                       />
-                    )}
+                      {addressSuggestionsLoading && (
+                        <LoaderCircle
+                          size={16}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-muted-foreground"
+                        />
+                      )}
                     </div>
                     {showAddressSuggestions && (addressSuggestionsLoading || addressSuggestions.length > 0) && (
                       <div className="relative z-50 mt-1 max-h-56 overflow-y-auto rounded-xl border border-border bg-card shadow-xl">

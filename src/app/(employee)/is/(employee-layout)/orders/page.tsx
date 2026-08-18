@@ -15,6 +15,7 @@ import {
   CircleCheckBig,
   RefreshCcw,
   Banknote,
+  QrCode,
   Ban,
   LoaderCircle,
 } from "lucide-react";
@@ -35,6 +36,7 @@ import { Skeleton } from "@/src/components/ui/skeleton";
 import { formatVND } from "@/src/utils/formatVND";
 import Pagination from "@/src/components/ui/Pagination";
 import { formatCrustLabel } from "@/src/utils/formatCrustLabel";
+import PaymentQRModal from "@/src/components/modals/PaymentQRModal";
 
 const ORDER_POLLING_INTERVAL_MS = 10_000;
 
@@ -126,6 +128,8 @@ export default function Orders() {
   const [actioningId, setActioningId] = useState<string | null>(null);
 
   const [modalPayment, setModalPayment] = useState(false);
+  const [paymentOrder, setPaymentOrder] = useState<OrderHistory | null>(null);
+  const [modalCompletePayment, setModalCompletePayment] = useState(false);
   const statusWeight = {
     pending: 1,
     confirmed: 2,
@@ -275,6 +279,11 @@ export default function Orders() {
       const currentIndex = flow.indexOf(order.status);
       if (currentIndex !== -1 && currentIndex < flow.length - 1) {
         const nextStatus = flow[currentIndex + 1];
+        if (nextStatus === "completed" && order.paymentStatus !== "success") {
+          setSelectedOrder(order);
+          setModalCompletePayment(true);
+          return;
+        }
         await updateStatusOrder(nextStatus, order._id, "");
         toast.success("Cập nhật trạng thái thành công!");
         fecthData();
@@ -284,6 +293,17 @@ export default function Orders() {
     } finally {
       setActioningId(null);
     }
+  };
+
+  const isQrPayment = (order: OrderHistory) => order.paymentMethod === "qrCode" || order.paymentMethod === "ewallet";
+
+  const openPaymentForOrder = (order: OrderHistory) => {
+    if (isQrPayment(order)) {
+      setPaymentOrder(order);
+      return;
+    }
+
+    void quickPayment(order);
   };
 
   const quickPayment = async (order: OrderHistory) => {
@@ -338,6 +358,16 @@ export default function Orders() {
   };
 
   const handleUpdateOrder = async () => {
+    if (!selectedOrder || !selectedOrder.orderType) return;
+
+    const flow = flowConfig[selectedOrder.orderType];
+    const currentIndex = flow?.indexOf(selectedOrder.status) ?? -1;
+    const nextStatus = currentIndex >= 0 ? flow[currentIndex + 1] : undefined;
+    if (nextStatus === "completed" && selectedOrder.paymentStatus !== "success") {
+      setModalCompletePayment(true);
+      return;
+    }
+
     setIsLoading(true);
     try {
       if (!selectedOrder || !selectedOrder.orderType) {
@@ -360,6 +390,24 @@ export default function Orders() {
       }
     } catch (error) {
       toast.error(`Cập nhật trạng thái thất bại: ${error}`);
+    }
+  };
+
+  const confirmCompleteUnpaidOrder = async () => {
+    if (!selectedOrder) return;
+
+    setModalCompletePayment(false);
+    setIsLoading(true);
+    try {
+      await updatePaymentStatusOrder(selectedOrder._id, "");
+      await updateStatusOrder("completed", selectedOrder._id, "");
+      toast.success("Đã xác nhận thanh toán và hoàn thành đơn hàng!");
+      setSelectedOrder(null);
+      fecthData();
+    } catch (error) {
+      toast.error(`Không thể hoàn thành đơn hàng: ${error}`);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -561,16 +609,16 @@ export default function Orders() {
                               </button>
                               {order.paymentStatus !== "success" && (
                                 <button
-                                  onClick={() => quickPayment(order)}
+                                  onClick={() => openPaymentForOrder(order)}
                                   disabled={actioningId === order._id}
                                   className="p-1.5 rounded-lg hover:bg-green-50 text-green-600 transition-colors disabled:opacity-50"
                                   title="Thanh toán"
                                 >
-                                  {actioningId === order._id ? (
-                                    <LoaderCircle size={15} className="animate-spin" />
-                                  ) : (
-                                    <Banknote size={15} />
-                                  )}
+                                {actioningId === order._id ? (
+                                  <LoaderCircle size={15} className="animate-spin" />
+                                ) : (
+                                  isQrPayment(order) ? <QrCode size={15} /> : <Banknote size={15} />
+                                )}
                                 </button>
                               )}
                               <button
@@ -620,7 +668,7 @@ export default function Orders() {
         />
       )}
 
-      {selectedOrder && (
+      {selectedOrder && !modalCompletePayment && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 m-0"
           onClick={() => setSelectedOrder(null)}
@@ -792,7 +840,7 @@ export default function Orders() {
                   </button>
                   {selectedOrder.paymentStatus != "success" && (
                     <button
-                      onClick={() => setModalPayment(true)}
+                      onClick={() => openPaymentForOrder(selectedOrder)}
                       className="flex-1 py-2.5 rounded-xl border border-green-200 text-green-600 hover:bg-green-50 transition-colors"
                     >
                       Thanh toán
@@ -854,6 +902,37 @@ export default function Orders() {
           </div>
         </>
       )}
+      {modalCompletePayment && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 m-0"
+          onClick={() => setModalCompletePayment(false)}
+        >
+          <div
+            className="bg-card rounded-2xl p-6 w-full max-w-lg shadow-2xl"
+            onClick={e => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-semibold text-foreground">Xác nhận hoàn thành đơn hàng</h3>
+            <p className="mt-3 text-sm text-muted-foreground">
+              Đơn hàng này chưa được ghi nhận thanh toán. Bạn xác nhận khách hàng đã thanh toán đủ {formatVND(selectedOrder?.total || 0)}?
+            </p>
+            <div className="flex gap-3 pt-5">
+              <button
+                onClick={() => setModalCompletePayment(false)}
+                className="flex-1 py-2.5 rounded-xl border border-border text-foreground hover:bg-muted transition-colors"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={() => void confirmCompleteUnpaidOrder()}
+                disabled={isLoading}
+                className="flex-1 py-2.5 rounded-xl bg-primary text-white hover:bg-primary/90 disabled:opacity-50 transition-colors"
+              >
+                Đã thanh toán, hoàn thành
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {modalPayment && (
         <>
           <div
@@ -870,7 +949,7 @@ export default function Orders() {
 
               <div className="flex gap-3 pt-3">
                 <button
-                  onClick={() => setModalConfirm(false)}
+                  onClick={() => setModalPayment(false)}
                   className="flex-1 py-2.5 rounded-xl border border-red-200 text-black hover:bg-red-50 transition-colors"
                 >
                   Thoát
@@ -887,6 +966,14 @@ export default function Orders() {
             </div>
           </div>
         </>
+      )}
+      {paymentOrder && (
+        <PaymentQRModal
+          order={paymentOrder}
+          typeUser="employee"
+          onClose={() => setPaymentOrder(null)}
+          onPaymentSuccess={() => void fecthData({ showLoading: false, resetPage: false })}
+        />
       )}
       <Toaster position="top-right" richColors />
     </div>
