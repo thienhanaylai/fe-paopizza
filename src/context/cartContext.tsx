@@ -162,8 +162,19 @@ interface CartContextType {
   cartMergeError: string;
   confirmCartMerge: () => Promise<void>;
   dismissCartMerge: () => void;
-  editingSku: string | null;
-  setEditingSku: (sku: string | null) => void;
+  updateCartProduct: (payload: {
+    userId?: string;
+    item: CartItem;
+    productId: string;
+    sku: string;
+    size: string;
+    crust?: string;
+    note: string;
+    addedTopping: string[];
+    price: number;
+  }) => Promise<void>;
+  editingCartItem: CartItem | null;
+  setEditingCartItem: (item: CartItem | null) => void;
   editingComboItem: CartItem | null;
   setEditingComboItem: (item: CartItem | null) => void;
 }
@@ -630,7 +641,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [cart, setCart] = useState<Cart | null>(null);
   const [showCart, setShowCart] = useState(false);
   const [checkout, setCheckout] = useState(false);
-  const [editingSku, setEditingSku] = useState<string | null>(null);
+  const [editingCartItem, setEditingCartItem] = useState<CartItem | null>(null);
   const [editingComboItem, setEditingComboItem] = useState<CartItem | null>(null);
   const [excludedCartItemKeys, setExcludedCartItemKeys] = useState<Set<string>>(new Set());
   const [pendingCartMerge, setPendingCartMerge] = useState<CartMergePrompt | null>(null);
@@ -947,6 +958,88 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const updateCartProduct = useCallback(
+    async ({
+      userId,
+      item,
+      productId,
+      sku,
+      size,
+      crust,
+      note,
+      addedTopping,
+      price,
+    }: {
+      userId?: string;
+      item: CartItem;
+      productId: string;
+      sku: string;
+      size: string;
+      crust?: string;
+      note: string;
+      addedTopping: string[];
+      price: number;
+    }) => {
+      try {
+        if (userId) {
+          const updatedCart = await updateCartItemApi({
+            userId,
+            item_type: "product",
+            product_id: productId,
+            sku: item.sku,
+            size: item.size,
+            crust: item.crust,
+            new_sku: sku,
+            new_size: size,
+            new_crust: crust || "",
+            note,
+            added_topping: addedTopping,
+          });
+          const normalized = normalizeCart(updatedCart);
+          cartRef.current = normalized;
+          setCart(normalized);
+          return;
+        }
+
+        const currentGuestCart = readGuestCart();
+        const targetIndex = currentGuestCart.items.findIndex(
+          candidate =>
+            candidate.item_type === "product" &&
+            item.item_type === "product" &&
+            resolveProductId(candidate.product_id) === productId &&
+            candidate.sku === item.sku &&
+            candidate.size === item.size &&
+            (candidate.crust || "") === (item.crust || ""),
+        );
+
+        if (targetIndex === -1) return;
+
+        const nextItems = [...currentGuestCart.items];
+        nextItems[targetIndex] = {
+          ...nextItems[targetIndex],
+          sku,
+          size,
+          crust: crust || "",
+          note,
+          added_topping: addedTopping,
+          price,
+        };
+
+        const nextGuestCart: Cart = {
+          ...currentGuestCart,
+          items: nextItems,
+        };
+        persistGuestCart(nextGuestCart);
+        cartRef.current = nextGuestCart;
+        setCart(nextGuestCart);
+      } catch (error) {
+        console.error("Lỗi cập nhật sản phẩm trong giỏ hàng:", error);
+        throw error;
+      }
+    },
+    [],
+  );
+
   const updateQuantity = useCallback(
     async ({ userId, item_type, product_id, combo, sku, size, crust, currentQty, change, combo_selections }: UpdateQuantityInput) => {
       const newQuantity = currentQty + change;
@@ -1218,6 +1311,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       updateQuantity,
       removeItem,
       addToCart,
+      updateCartProduct,
       clearCart,
       removeSelectedItems,
       cartCount,
@@ -1234,8 +1328,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
       cartMergeError,
       confirmCartMerge,
       dismissCartMerge,
-      editingSku,
-      setEditingSku,
+      editingCartItem,
+      setEditingCartItem,
       editingComboItem,
       setEditingComboItem,
       checkout,
@@ -1249,6 +1343,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       updateQuantity,
       removeItem,
       addToCart,
+      updateCartProduct,
       clearCart,
       removeSelectedItems,
       cartCount,
@@ -1265,7 +1360,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       cartMergeError,
       confirmCartMerge,
       dismissCartMerge,
-      editingSku,
+      editingCartItem,
       editingComboItem,
     ],
   );

@@ -656,7 +656,7 @@ export default function Accounts() {
                 </div>
               </div>
               <div>
-                <label className="block text-sm mb-1">Địa chỉ *</label>
+                <label className="block text-sm mb-1">Địa chỉ</label>
                 <input
                   name="address"
                   value={formData.address}

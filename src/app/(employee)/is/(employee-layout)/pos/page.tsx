@@ -22,6 +22,7 @@ import {
   ArrowLeft,
   Clock,
   LoaderCircle,
+  MapPin,
   TicketPercent,
 } from "lucide-react";
 import { getRoleLabel, getRoleColor, useEmployeeAuth } from "@/src/context/authEmployeeContext";
@@ -45,6 +46,7 @@ import { generateInvoicePDF, type InvoiceData, type InvoiceItem } from "@/src/ut
 import { getAllStore, type StoreData } from "@/src/services/store.service";
 import { applyPromoCode, type PromoCodeResult } from "@/src/services/promotion.service";
 import { http } from "@/src/utils/config.api";
+import { autocomplete } from "@/src/services/map.service";
 import type {
   ComboRule,
   ProductCategory,
@@ -66,6 +68,10 @@ type MenuCategoryUI = {
 
 type MenuTab = "all" | "products" | "combos" | "toppings";
 type PosStep = "order" | "pricing" | "payment";
+type AddressSuggestion = { place_id: string; description: string };
+
+const AUTOCOMPLETE_DEBOUNCE_MS = 500;
+const AUTOCOMPLETE_CACHE_LIMIT = 50;
 
 export type { ProductCategory, ProductImage, Ingredient, RecipeIngredient, ProductVariant };
 export type { Product };
@@ -207,6 +213,15 @@ export default function POS() {
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [customerAddress, setCustomerAddress] = useState("");
+  const [addressSuggestions, setAddressSuggestions] = useState<AddressSuggestion[]>([]);
+  const [addressSuggestionsLoading, setAddressSuggestionsLoading] = useState(false);
+  const [showAddressSuggestions, setShowAddressSuggestions] = useState(false);
+  const addressSessionTokenRef = useRef(
+    typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(),
+  );
+  const addressAutocompleteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const addressAutocompleteCacheRef = useRef(new Map<string, AddressSuggestion[]>());
+  const addressAutocompleteQueryRef = useRef("");
   const [order, setOder] = useState();
   const [testtime, setTestime] = useState<Date>();
   const [storeInfo, setStoreInfo] = useState<StoreData | null>(null);
@@ -244,6 +259,91 @@ export default function POS() {
       }
     }, 3000);
   };
+
+  const resetAddressSuggestions = () => {
+    addressAutocompleteQueryRef.current = "";
+    if (addressAutocompleteTimerRef.current) {
+      clearTimeout(addressAutocompleteTimerRef.current);
+      addressAutocompleteTimerRef.current = null;
+    }
+    setAddressSuggestions([]);
+    setShowAddressSuggestions(false);
+    setAddressSuggestionsLoading(false);
+  };
+
+  const handleAddressInput = (value: string) => {
+    setCustomerAddress(value);
+
+    const query = value.trim().replace(/\s+/g, " ").toLocaleLowerCase("vi-VN");
+    addressAutocompleteQueryRef.current = query;
+
+    if (addressAutocompleteTimerRef.current) {
+      clearTimeout(addressAutocompleteTimerRef.current);
+    }
+
+    if (query.length < 3) {
+      setAddressSuggestions([]);
+      setShowAddressSuggestions(false);
+      setAddressSuggestionsLoading(false);
+      return;
+    }
+
+    const cachedSuggestions = addressAutocompleteCacheRef.current.get(query);
+    if (cachedSuggestions !== undefined) {
+      setAddressSuggestions(cachedSuggestions);
+      setShowAddressSuggestions(cachedSuggestions.length > 0);
+      setAddressSuggestionsLoading(false);
+      return;
+    }
+
+    setShowAddressSuggestions(true);
+    addressAutocompleteTimerRef.current = setTimeout(async () => {
+      if (addressAutocompleteQueryRef.current !== query) return;
+
+      setAddressSuggestionsLoading(true);
+      try {
+        const result = await autocomplete({
+          input: value.trim(),
+          sessiontoken: addressSessionTokenRef.current,
+          limit: 6,
+        });
+        if (addressAutocompleteQueryRef.current !== query) return;
+
+        const predictions = (result.predictions || []) as AddressSuggestion[];
+        const cache = addressAutocompleteCacheRef.current;
+        if (cache.size >= AUTOCOMPLETE_CACHE_LIMIT) {
+          cache.delete(cache.keys().next().value as string);
+        }
+        cache.set(query, predictions);
+        setAddressSuggestions(predictions);
+        setShowAddressSuggestions(predictions.length > 0);
+      } catch {
+        if (addressAutocompleteQueryRef.current === query) {
+          setAddressSuggestions([]);
+          setShowAddressSuggestions(false);
+        }
+      } finally {
+        if (addressAutocompleteQueryRef.current === query) {
+          setAddressSuggestionsLoading(false);
+        }
+      }
+    }, AUTOCOMPLETE_DEBOUNCE_MS);
+  };
+
+  const handleSelectAddressSuggestion = (description: string) => {
+    setCustomerAddress(description);
+    resetAddressSuggestions();
+    addressSessionTokenRef.current =
+      typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : Date.now().toString();
+  };
+
+  useEffect(() => {
+    return () => {
+      if (addressAutocompleteTimerRef.current) {
+        clearTimeout(addressAutocompleteTimerRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const fectData = async () => {
@@ -873,6 +973,7 @@ export default function POS() {
     setCustomerName("");
     setCustomerPhone("");
     setCustomerAddress("");
+    resetAddressSuggestions();
     setPaymentMethod("cash");
     setCashReceived("");
     setOrderNote("");
@@ -1984,13 +2085,51 @@ export default function POS() {
                   </div>
                   <div>
                     <label className="block text-sm mb-1.5 font-medium">Địa chỉ *</label>
+                    <div className="relative">
                     <input
                       placeholder="42 pham nhu tang"
                       value={customerAddress}
                       required
-                      onChange={e => setCustomerAddress(e.target.value)}
-                      className="w-full px-4 py-2.5 rounded-xl border border-border bg-background focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                      autoComplete="off"
+                      onChange={e => handleAddressInput(e.target.value)}
+                      onFocus={() => {
+                        if (addressSuggestions.length > 0 || addressSuggestionsLoading) {
+                          setShowAddressSuggestions(true);
+                        }
+                      }}
+                      onBlur={() => {
+                        setTimeout(() => setShowAddressSuggestions(false), 350);
+                      }}
+                      className="w-full px-4 py-2.5 pr-10 rounded-xl border border-border bg-background focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
                     />
+                    {addressSuggestionsLoading && (
+                      <LoaderCircle
+                        size={16}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-muted-foreground"
+                      />
+                    )}
+                    </div>
+                    {showAddressSuggestions && (addressSuggestionsLoading || addressSuggestions.length > 0) && (
+                      <div className="relative z-50 mt-1 max-h-56 overflow-y-auto rounded-xl border border-border bg-card shadow-xl">
+                        {addressSuggestionsLoading && addressSuggestions.length === 0 && (
+                          <div className="flex items-center gap-2 px-4 py-3 text-xs text-muted-foreground">
+                            <LoaderCircle size={13} className="animate-spin" /> Đang tìm địa chỉ...
+                          </div>
+                        )}
+                        {addressSuggestions.map(suggestion => (
+                          <button
+                            key={suggestion.place_id}
+                            type="button"
+                            onMouseDown={event => event.preventDefault()}
+                            onClick={() => handleSelectAddressSuggestion(suggestion.description)}
+                            className="flex w-full items-start gap-2.5 border-b border-border/50 px-4 py-3 text-left text-sm text-foreground transition-colors last:border-b-0 hover:bg-muted"
+                          >
+                            <MapPin size={15} className="mt-0.5 shrink-0 text-primary" />
+                            <span>{suggestion.description}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   {paymentMethod === "qrCode" ? (
                     <button

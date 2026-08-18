@@ -47,6 +47,10 @@ export type UpdateCartItemPayload = {
   note?: string;
   added_topping?: string[];
   combo_selections?: ComboSelectionPayload[];
+  // Dùng khi chỉnh sửa một product đã có trong giỏ hàng.
+  new_sku?: string;
+  new_size?: string;
+  new_crust?: string;
 };
 
 // Lấy giỏ hàng

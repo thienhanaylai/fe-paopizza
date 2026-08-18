@@ -29,7 +29,7 @@ export const CartModal = () => {
     selectAllCartItems,
     clearCartSelection,
     setCheckout,
-    setEditingSku,
+    setEditingCartItem,
     setEditingComboItem,
   } = useCart();
   const { user } = useCustomerAuth();
@@ -180,7 +180,7 @@ export const CartModal = () => {
                 const comboId = resolveComboId(item.combo);
                 const combo = typeof item.combo === "object" ? item.combo : undefined;
                 const size = item.size;
-                const itemKey = `${item.sku}-${item.size}-${index}`;
+                const itemKey = `${item.item_type}-${item.sku}-${item.size}-${item.crust || ""}-${index}`;
                 const productSize = product?.variants.find(variant => variant.size === size);
                 const isUnavailable = unavailableSkuSet.has(item.sku);
                 const isSelected = isCartItemSelected(item);
@@ -278,7 +278,7 @@ export const CartModal = () => {
                                     // Truyền chính xác cart item được bấm vì combo ID và SKU cũ của guest cart đều có thể trùng.
                                     setEditingComboItem(item);
                                   } else {
-                                    setEditingSku(item.sku);
+                                    setEditingCartItem(item);
                                   }
                                   setShowCart(false);
                                 }}

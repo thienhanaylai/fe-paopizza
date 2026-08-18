@@ -54,8 +54,8 @@ export default function IndexPage() {
     setShowCart,
     checkout,
     clearCart,
-    editingSku,
-    setEditingSku,
+    editingCartItem,
+    setEditingCartItem,
     editingComboItem,
     setEditingComboItem,
   } = useCart();
@@ -80,6 +80,7 @@ export default function IndexPage() {
     toppingIds?: string[];
     note?: string;
   } | null>(null);
+  const [editProductCartItem, setEditProductCartItem] = useState<CartItem | null>(null);
 
   // Initial state for combo editing flow (passed to ComboBuilderModal)
   const [editComboSelections, setEditComboSelections] = useState<Record<number, ComboSlotSelection[]> | undefined>(undefined);
@@ -296,22 +297,30 @@ export default function IndexPage() {
 
   // Lấy số lượng cửa hàng thực tế
   useEffect(() => {
-    if (!editingSku || !menu) return;
+    if (!editingCartItem || !menu) return;
 
-    const cartItem = cart?.items.find(item => item.sku === editingSku);
+    const cartItem =
+      cart?.items.find(
+        item =>
+          item.item_type === "product" &&
+          editingCartItem.item_type === "product" &&
+          item.sku === editingCartItem.sku &&
+          item.size === editingCartItem.size &&
+          (item.crust || "") === (editingCartItem.crust || ""),
+      ) || editingCartItem;
     if (!cartItem) {
-      setEditingSku(null);
+      setEditingCartItem(null);
       return;
     }
 
     const productId = typeof cartItem.product_id === "string" ? cartItem.product_id : cartItem.product_id?._id;
     const targetProduct = menu.products.find(p => p._id === productId);
     if (!targetProduct) {
-      setEditingSku(null);
+      setEditingCartItem(null);
       return;
     }
 
-    const matchingVariant = targetProduct.variants.find(v => v.sku === editingSku) || targetProduct.variants[0];
+    const matchingVariant = targetProduct.variants.find(v => v.sku === cartItem.sku) || targetProduct.variants[0];
 
     const isPizza =
       targetProduct.category?.slug?.toLowerCase().includes("pizza") || targetProduct.name?.toLowerCase().includes("pizza");
@@ -336,9 +345,10 @@ export default function IndexPage() {
       toppingIds,
       note: customNote,
     });
+    setEditProductCartItem(cartItem);
     setProduct(targetProduct);
-    setEditingSku(null);
-  }, [editingSku, menu, cart?.items, setEditingSku]);
+    setEditingCartItem(null);
+  }, [editingCartItem, menu, cart?.items, setEditingCartItem]);
 
   // Mở modal chỉnh sửa combo từ cart
   useEffect(() => {
@@ -381,6 +391,7 @@ export default function IndexPage() {
 
   const hanldeProduct = (selectedProduct: Product) => {
     setEditProductState(null);
+    setEditProductCartItem(null);
     setProduct(selectedProduct);
   };
 
@@ -903,6 +914,7 @@ export default function IndexPage() {
           initialProduct={product}
           extraToppings={extraToppings}
           initialState={editProductState ?? undefined}
+          editCartItem={editProductCartItem}
           onClose={() => setProduct(null)}
         />
       )}

@@ -8,6 +8,7 @@ import { toast } from "sonner";
 
 import { useCustomerAuth } from "@/src/context/authCustomerContext";
 import { useCart } from "@/src/context/cartContext";
+import type { CartItem } from "@/src/context/cartContext";
 import { Textarea } from "@/src/components/ui/textarea";
 import { formatVND } from "@/src/utils/formatVND";
 import { formatCrustLabel } from "@/src/utils/formatCrustLabel";
@@ -28,6 +29,8 @@ interface ProductDetailModalProps {
     toppingIds?: string[];
     note?: string;
   };
+  /** Exact cart line being edited. This is required to distinguish variants with the same size. */
+  editCartItem?: CartItem | null;
   onClose: () => void;
 }
 
@@ -36,10 +39,11 @@ export default function ProductDetailModal({
   initialProduct,
   extraToppings,
   initialState,
+  editCartItem,
   onClose,
 }: ProductDetailModalProps) {
   const { user } = useCustomerAuth();
-  const { addToCart, fetchCart, updateQuantity, cart, cartCount, setShowCart } = useCart();
+  const { addToCart, fetchCart, updateQuantity, updateCartProduct, cart, cartCount, setShowCart } = useCart();
 
   const [isUpdating, setUpdating] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -247,6 +251,7 @@ export default function ProductDetailModal({
     (selectedVariant.discountType === "percent" || selectedVariant.discountType === "amount");
 
   const existingCartItem = useMemo(() => {
+    if (editCartItem) return editCartItem;
     if (!selectedVariant || !cart) return undefined;
     return cart.items.find(
       item =>
@@ -254,7 +259,7 @@ export default function ProductDetailModal({
         item.sku === selectedVariant.sku &&
         (isPizzaProduct ? (item.crust || "") === (selectedCrust || "") : !item.crust),
     );
-  }, [cart, isPizzaProduct, selectedCrust, selectedVariant]);
+  }, [cart, editCartItem, isPizzaProduct, selectedCrust, selectedVariant]);
 
   const isEditMode = Boolean(existingCartItem);
 
@@ -309,7 +314,7 @@ export default function ProductDetailModal({
   const handleUpdateCart = async () => {
     if (!selectedProduct || !selectedVariant) return;
     setUpdating(true);
-    const wasInCart = cart?.items.some(
+    const wasInCart = Boolean(editCartItem) || cart?.items.some(
       item =>
         item.item_type === "product" &&
         item.sku === selectedVariant.sku &&
@@ -319,30 +324,44 @@ export default function ProductDetailModal({
     const toppingNote = selectedExtraToppings.map(item => item.name).join(", ");
     const finalNote = [note.trim(), toppingNote ? `Extra topping: ${toppingNote}` : ""].filter(Boolean).join(" | ");
 
-    await addToCart({
-      userId: user?.id,
-      item_type: "product",
-      product_id: selectedProduct._id,
-      product: {
-        _id: selectedProduct._id,
-        name: selectedProduct.name,
-        variants: selectedProduct.variants.map(v => ({
-          image: { url: v.image.url },
-          sku: v.sku,
-          size: v.size,
-          price: v.price,
-          discountType: v.discountType,
-          discount: v.discount,
-        })),
-      },
-      sku: selectedVariant.sku,
-      size: selectedVariant.size,
-      crust: selectedCrust || undefined,
-      quantity: 1,
-      note: finalNote,
-      price: discountedPrice,
-      added_topping: selectedExtraToppingIds,
-    });
+    if (editCartItem) {
+      await updateCartProduct({
+        userId: user?.id,
+        item: editCartItem,
+        productId: selectedProduct._id,
+        sku: selectedVariant.sku,
+        size: selectedVariant.size,
+        crust: selectedCrust || undefined,
+        note: finalNote,
+        addedTopping: selectedExtraToppingIds,
+        price: discountedPrice,
+      });
+    } else {
+      await addToCart({
+        userId: user?.id,
+        item_type: "product",
+        product_id: selectedProduct._id,
+        product: {
+          _id: selectedProduct._id,
+          name: selectedProduct.name,
+          variants: selectedProduct.variants.map(v => ({
+            image: { url: v.image.url },
+            sku: v.sku,
+            size: v.size,
+            price: v.price,
+            discountType: v.discountType,
+            discount: v.discount,
+          })),
+        },
+        sku: selectedVariant.sku,
+        size: selectedVariant.size,
+        crust: selectedCrust || undefined,
+        quantity: 1,
+        note: finalNote,
+        price: discountedPrice,
+        added_topping: selectedExtraToppingIds,
+      });
+    }
 
     const fetchedCart = (await fetchCart(user?.id)) as
       | { items?: Array<{ sku: string; crust?: string; note?: string }> }
