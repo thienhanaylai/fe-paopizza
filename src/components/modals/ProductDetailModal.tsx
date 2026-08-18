@@ -48,7 +48,7 @@ export default function ProductDetailModal({
   const [note, setNote] = useState<string>("");
   const hasMobileCheckoutBar = cartCount > 0;
   const mobileModalHeightClass = hasMobileCheckoutBar
-    ? "max-md:h-[min(85dvh,calc(100dvh-6.5rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px)))] max-md:max-h-[min(85dvh,calc(100dvh-6.5rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px)))]"
+    ? "max-md:h-[min(90dvh,calc(100dvh-3rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px)))] max-md:max-h-[min(89dvh,calc(100dvh-4rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px)))]"
     : "max-md:h-[calc(100dvh-3rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))] max-md:max-h-[calc(100dvh-3rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))]";
 
   useModalScrollLock();
@@ -378,7 +378,7 @@ export default function ProductDetailModal({
 
   return (
     <div
-      className={`fixed inset-x-0 top-0 z-50 m-0 flex h-[100dvh] items-center justify-center overflow-hidden overscroll-none bg-black/50 pt-[max(0.5rem,env(safe-area-inset-top,0px))] pr-[max(0.5rem,env(safe-area-inset-right,0px))] pl-[max(0.5rem,env(safe-area-inset-left,0px))] sm:inset-0 sm:h-auto sm:p-4 ${
+      className={`fixed inset-x-0 top-0 z-50 m-0 flex h-[100dvh] items-start sm:items-center justify-center overflow-hidden overscroll-none bg-black/50 pt-[max(0.5rem,env(safe-area-inset-top,0px))] pr-[max(0.5rem,env(safe-area-inset-right,0px))] pl-[max(0.5rem,env(safe-area-inset-left,0px))] sm:inset-0 sm:h-auto sm:p-4 ${
         hasMobileCheckoutBar
           ? "pb-[calc(6rem+env(safe-area-inset-bottom,0px))]"
           : "pb-[calc(2.5rem+env(safe-area-inset-bottom,0px))]"
@@ -687,7 +687,7 @@ export default function ProductDetailModal({
         </div>
 
         {/* Mobile swipe hint — anchored to the modal instead of the viewport */}
-        <div className="pointer-events-none absolute left-1/2 top-[calc(100%+0.5rem)] z-[60] -translate-x-1/2 sm:hidden">
+        <div className="pointer-events-none absolute left-1/2 top-[calc(100%+0.3rem)] z-[60] -translate-x-1/2 sm:hidden">
           {products.length > 1 && (
             <p className="w-max max-w-[calc(100vw-1rem)] rounded-full bg-black/40 px-4 py-1 text-center text-[10px] font-medium text-white shadow-lg backdrop-blur-sm">
               Vuốt sang trái hoặc phải để xem sản phẩm khác
