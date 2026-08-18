@@ -24,6 +24,7 @@ export interface ComboFormSubmitPayload {
   price: number;
   rules: ComboRule[];
   imageFile?: File | null;
+  isHalfHalf?: boolean;
 }
 
 interface ComboCategory {
@@ -49,6 +50,7 @@ interface Combo {
   image?: string;
   rules?: ComboRule[];
   isActive?: boolean;
+  isHalfHalf?: boolean;
 }
 const SIZE_OPTIONS = ["S", "M", "L", "3XL", "1L", "1.5L", "330ml"];
 
@@ -115,7 +117,8 @@ export default function ComboFormModal({
     discount: number;
     pricingType: "static" | "dynamic";
     price: number;
-  }>({ discountType: "percent", discount: 0, pricingType: "static", price: 0 });
+    isHalfHalf: boolean;
+  }>({ discountType: "percent", discount: 0, pricingType: "static", price: 0, isHalfHalf: false });
   const [formImage, setFormImage] = useState<{ file: File | null; preview: string | null }>({
     file: null,
     preview: null,
@@ -141,13 +144,14 @@ export default function ComboFormModal({
         discount: editItem.discount || 0,
         pricingType: editItem.pricingType === "dynamic" ? "dynamic" : "static",
         price: editItem.price ?? 0,
+        isHalfHalf: editItem.isHalfHalf === true,
       });
       setFormImage({ file: null, preview: null });
       setComboFormRules(editItem.rules?.length ? editItem.rules.map(normalizeRuleForForm) : [createEmptyRule()]);
       setPriceInputKey(prev => prev + 1);
     } else {
       setFormData({ name: "", description: "", dateStart: "", dateEnd: "" });
-      setFormPricing({ discountType: "percent", discount: 0, pricingType: "static", price: 0 });
+      setFormPricing({ discountType: "percent", discount: 0, pricingType: "static", price: 0, isHalfHalf: false });
       setFormImage({ file: null, preview: null });
       setComboFormRules([createEmptyRule()]);
       setPriceInputKey(prev => prev + 1);
@@ -190,6 +194,7 @@ export default function ComboFormModal({
         price: formPricing.price,
         rules: comboFormRules,
         imageFile: formImage.file,
+        isHalfHalf: formPricing.isHalfHalf,
       });
     },
     [formData, formPricing, comboFormRules, formImage.file, onSubmit],
@@ -317,6 +322,18 @@ export default function ComboFormModal({
               )}
             </div>
           </div>
+
+          <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={formPricing.isHalfHalf}
+              onChange={e => setFormPricing(prev => ({ ...prev, isHalfHalf: e.target.checked }))}
+              className="h-4 w-4 rounded border-border accent-primary"
+            />
+            <span>
+              Pizza half-half <span className="text-xs text-muted-foreground">(2 nửa cùng 1 bánh — chia đôi nguyên liệu khi trừ kho)</span>
+            </span>
+          </label>
 
           <div>
             <label className="block text-sm mb-1">Ảnh combo</label>

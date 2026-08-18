@@ -21,6 +21,7 @@ export interface ComboPayload {
   pricingType: "static" | "dynamic";
   price: number;
   isActive?: boolean;
+  isHalfHalf?: boolean;
 }
 
 export interface UpdateComboPayload {
@@ -36,6 +37,7 @@ export interface UpdateComboPayload {
   pricingType?: "static" | "dynamic";
   price?: number;
   isActive?: boolean;
+  isHalfHalf?: boolean;
 }
 
 export interface PaginationInfo {

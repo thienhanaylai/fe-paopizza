@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, useEffect } from "react";
 import { Check, ChevronLeft, ChevronRight, Plus, X } from "lucide-react";
 import { toast } from "sonner";
 
@@ -70,6 +70,39 @@ function ComboBuilderContent({ combo, allProducts, initialSelections, editCartIt
   const editingComboItemRef = useRef<CartItem | null>(editCartItem || null);
   const cartSubmitLockRef = useRef(false);
 
+  // Half-half: khi mở modal (kể cả edit), ép toàn bộ slot về CÙNG 1 đế + CÙNG 1 size
+  // — lấy đế/size của slot đầu tiên đã chọn làm chuẩn
+  useEffect(() => {
+    if (!combo.isHalfHalf) return;
+    const allSelections = combo.rules.flatMap((_, idx) => comboSelections[idx] || []);
+    const firstCrust = allSelections.find(sel => sel.crust)?.crust;
+    const firstSize = allSelections.find(sel => sel.size)?.size;
+    if (!firstCrust && !firstSize) return;
+    let changed = false;
+    const next: Record<number, ComboSlotSelection[]> = {};
+    for (const [ruleIdx, selections] of Object.entries(comboSelections)) {
+      next[Number(ruleIdx)] = (selections || []).map(sel => {
+        let updated = sel;
+        if (firstCrust && sel.crust && sel.crust !== firstCrust) {
+          updated = { ...updated, crust: firstCrust };
+          changed = true;
+        }
+        if (firstSize && sel.size && sel.size !== firstSize) {
+          // Đổi size lệch → tìm variant cùng product có size chuẩn
+          const product = allProducts.find(p => p._id === sel.productId);
+          const sameSizeVariant = product?.variants.find(v => v.size === firstSize);
+          if (sameSizeVariant) {
+            updated = { ...updated, sku: sameSizeVariant.sku, size: firstSize };
+            changed = true;
+          }
+        }
+        return updated;
+      });
+    }
+    if (changed) setComboSelections(next);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [combo.isHalfHalf]);
+
   // --- Computed ---
 
   const savings = computeComboSavings(combo);
@@ -113,6 +146,27 @@ function ComboBuilderContent({ combo, allProducts, initialSelections, editCartIt
   };
 
   const displayPrice = isDynamic ? computeDynamicComboPrice() : combo.price;
+
+  // Half-half: toàn bộ các slot (nửa) phải dùng CHUNG 1 loại đế.
+  // Lấy đế của slot đầu tiên đã chọn làm đế chung, các slot sau bị khoá theo đế này.
+  const halfHalfLockedCrust = useMemo(() => {
+    if (!combo.isHalfHalf) return undefined;
+    for (const selections of Object.values(comboSelections)) {
+      const withCrust = (selections || []).find(sel => sel.crust);
+      if (withCrust?.crust) return withCrust.crust;
+    }
+    return undefined;
+  }, [combo.isHalfHalf, comboSelections]);
+
+  // Half-half: toàn bộ các slot (nửa) phải dùng CHUNG 1 size (vd M hoặc L).
+  const halfHalfLockedSize = useMemo(() => {
+    if (!combo.isHalfHalf) return undefined;
+    for (const selections of Object.values(comboSelections)) {
+      const withSize = (selections || []).find(sel => sel.size);
+      if (withSize?.size) return withSize.size;
+    }
+    return undefined;
+  }, [combo.isHalfHalf, comboSelections]);
 
   const currentSelectionKeys = useMemo(
     () => combo.rules.flatMap((_, idx) => comboSelections[idx] || []).map(selection => ({ sku: selection.sku })),
@@ -177,12 +231,34 @@ function ComboBuilderContent({ combo, allProducts, initialSelections, editCartIt
       }
       if (!variant) variant = product.variants[0];
     }
+    // Half-half: nếu đã có size chung, ưu tiên variant theo size chung
+    if (combo.isHalfHalf && halfHalfLockedSize) {
+      const sameSizeVariant = product?.variants.find(v => v.size === halfHalfLockedSize);
+      if (sameSizeVariant) {
+        variant = sameSizeVariant;
+      }
+    }
     if (!variant || !product) return;
+    const selectedSku = variant.sku;
+    // Half-half: nếu đã có đế chung, ép đế của selection mới theo đế chung (nếu variant hỗ trợ)
+    let effectiveCrust =
+      variant ? parseCrustOptions(variant.crust)[0] || undefined : undefined;
+    if (combo.isHalfHalf && halfHalfLockedCrust) {
+      const supportedCrusts = parseCrustOptions(variant?.crust);
+      if (supportedCrusts.includes(halfHalfLockedCrust)) {
+        effectiveCrust = halfHalfLockedCrust;
+      }
+    }
+    // Half-half: nếu đã có size chung nhưng sản phẩm không có variant size đó → chặn
+    if (combo.isHalfHalf && halfHalfLockedSize && variant.size !== halfHalfLockedSize) {
+      toast.error(`Combo half-half phải cùng size ${halfHalfLockedSize}. Vui lòng chọn sản phẩm có size ${halfHalfLockedSize}.`);
+      return;
+    }
     const selection: ComboSlotSelection = {
       productId: product?._id || "",
-      sku: sku,
+      sku: selectedSku,
       size: variant?.size || "",
-      crust: variant ? parseCrustOptions(variant.crust)[0] || undefined : undefined,
+      crust: effectiveCrust,
     };
 
     const currentSelections = comboSelections[ruleIndex] || [];
@@ -235,10 +311,54 @@ function ComboBuilderContent({ combo, allProducts, initialSelections, editCartIt
       if (idx >= current.length || current[idx]?.productId !== productId) {
         idx = current.findIndex(s => s.productId === productId);
       }
-      if (idx >= 0) {
-        current[idx] = { productId, sku: newSku, size: newSize, crust: newCrust };
+      if (idx < 0) return prev;
+
+      current[idx] = { productId, sku: newSku, size: newSize, crust: newCrust };
+
+      // Luôn ghi slot đã sửa vào rule hiện tại
+      const next: Record<number, ComboSlotSelection[]> = {};
+      for (const [rIdx, selections] of Object.entries(prev)) {
+        const r = Number(rIdx);
+        if (r === ruleIndex) {
+          next[r] = current;
+        } else {
+          next[r] = selections || [];
+        }
       }
-      return { ...prev, [ruleIndex]: current };
+      if (!(ruleIndex in next)) next[ruleIndex] = current;
+
+      // Half-half: đồng bộ size + đế sang MỌI slot khác (đổi ở slot nào, slot kia đổi theo)
+      if (combo.isHalfHalf) {
+        for (const [rIdx, selections] of Object.entries(next)) {
+          const r = Number(rIdx);
+          if (r === ruleIndex) continue;
+          const synced = (selections || []).map(sel => {
+            let updated = sel;
+            // Đồng bộ đế
+            if (newCrust && sel.crust !== newCrust) {
+              updated = { ...updated, crust: newCrust };
+            }
+            // Đồng bộ size (cùng product: đổi sku theo size mới)
+            if (newSize && sel.size !== newSize) {
+              const product = allProducts.find(p => p._id === sel.productId);
+              const sameSizeVariant = product?.variants.find(v => v.size === newSize);
+              if (sameSizeVariant) {
+                // Đế mới phải được size mới hỗ trợ
+                const supportedCrusts = parseCrustOptions(sameSizeVariant.crust);
+                const crust =
+                  newCrust && supportedCrusts.includes(newCrust)
+                    ? newCrust
+                    : sel.crust;
+                updated = { ...updated, sku: sameSizeVariant.sku, size: newSize, crust };
+              }
+            }
+            return updated;
+          });
+          next[r] = synced;
+        }
+      }
+
+      return next;
     });
   };
 

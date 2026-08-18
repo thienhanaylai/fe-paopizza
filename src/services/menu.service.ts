@@ -76,6 +76,7 @@ export type Combo = {
   price: number;
   isActive: boolean;
   isDeleted: boolean;
+  isHalfHalf?: boolean;
 };
 
 export type MenuComboEntry = {

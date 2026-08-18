@@ -600,12 +600,12 @@ export default function IndexPage() {
                         className="object-cover group-hover:scale-105 transition-transform duration-500"
                         onLoad={() => handleImageLoaded(combo.image || "")}
                       />
-                      {savings > 0 && (
+                      {!combo.isHalfHalf && savings > 0 && (
                         <span className="absolute top-3 left-3 px-2.5 py-1 bg-orange-500 text-white text-[11px] font-semibold rounded-full">
                           Tiết kiệm {formatVND(savings)}
                         </span>
                       )}
-                      {combo.pricingType === "dynamic" && (
+                      {!combo.isHalfHalf && combo.pricingType === "dynamic" && (
                         <span className="absolute top-3 left-3 px-2.5 py-1 bg-orange-500 text-white text-[11px] font-semibold rounded-full">
                           Giảm {combo.discountType === "percent" ? `${combo.discount} %` : `${formatVND(combo.discount)}`}
                         </span>
@@ -621,30 +621,36 @@ export default function IndexPage() {
                         ))}
                       </div>
                       <div className="flex items-center justify-between mt-auto pt-2 sm:pt-3">
-                        <div className="flex items-baseline gap-1.5 sm:gap-2">
-                          {combo.pricingType === "dynamic" ? (
-                            <>
-                              {combo.discountType === "percent" ? (
-                                <>
-                                  <span className="text-xs sm:text-sm text-muted-foreground">Giảm </span>
-                                  <span className="text-base sm:text-lg font-bold text-primary">{combo.discount} %</span>
-                                </>
-                              ) : (
-                                <>
-                                  <span className="text-xs sm:text-sm text-muted-foreground">Giảm </span>
-                                  <span className="text-base sm:text-lg font-bold text-primary">{formatVND(combo.discount)}</span>
-                                </>
-                              )}
-                            </>
-                          ) : (
-                            <>
-                              <span className="text-xs sm:text-sm text-muted-foreground line-through">
-                                {formatVND(originalPrice)}
-                              </span>
-                              <span className="text-base sm:text-lg font-bold text-primary">{formatVND(combo.price)}</span>
-                            </>
-                          )}
-                        </div>
+                        {!combo.isHalfHalf ? (
+                          <div className="flex items-baseline gap-1.5 sm:gap-2">
+                            {combo.pricingType === "dynamic" ? (
+                              <>
+                                {combo.discountType === "percent" ? (
+                                  <>
+                                    <span className="text-xs sm:text-sm text-muted-foreground">Giảm </span>
+                                    <span className="text-base sm:text-lg font-bold text-primary">{combo.discount} %</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <span className="text-xs sm:text-sm text-muted-foreground">Giảm </span>
+                                    <span className="text-base sm:text-lg font-bold text-primary">
+                                      {formatVND(combo.discount)}
+                                    </span>
+                                  </>
+                                )}
+                              </>
+                            ) : (
+                              <>
+                                <span className="text-xs sm:text-sm text-muted-foreground line-through">
+                                  {formatVND(originalPrice)}
+                                </span>
+                                <span className="text-base sm:text-lg font-bold text-primary">{formatVND(combo.price)}</span>
+                              </>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-xs sm:text-sm font-medium text-muted-foreground">2 Vị trên cùng 1 bánh</span>
+                        )}
                         <button
                           onClick={e => {
                             e.stopPropagation();
