@@ -120,7 +120,7 @@ export const CartModal = () => {
 
   const unavailableCount = unavailableSkuSet.size;
   const selectedUnavailableCount = selectedCartItems.filter(item => unavailableSkuSet.has(item.sku)).length;
-  const allItemsSelected = cartItems.length > 0 && selectedCartItems.length === cartItems.length;
+  //const allItemsSelected = cartItems.length > 0 && selectedCartItems.length === cartItems.length;
 
   if (!showCart) return null;
 
@@ -151,7 +151,6 @@ export const CartModal = () => {
                 <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-foreground">
                   <input
                     type="checkbox"
-                    checked={allItemsSelected}
                     onChange={event => {
                       if (event.target.checked) selectAllCartItems();
                       else clearCartSelection();
@@ -161,7 +160,7 @@ export const CartModal = () => {
                   Chọn tất cả
                 </label>
                 <span className="text-xs text-muted-foreground">
-                  {selectedCartItems.length}/{cartItems.length} dòng sản phẩm
+                  {selectedCartItems.length}/{cartItems.length} sản phẩm
                 </span>
               </div>
 
@@ -173,6 +172,7 @@ export const CartModal = () => {
               )}
 
               {cart.items.map((item, index) => {
+                console.log(item);
                 const product = typeof item.product_id === "string" ? null : item.product_id;
                 const productId = typeof item.product_id === "string" ? item.product_id : item.product_id?._id;
                 const isCombo = item.item_type === "combo";
@@ -212,7 +212,7 @@ export const CartModal = () => {
                 return (
                   <div
                     key={itemKey}
-                    className={`flex gap-4 border rounded-xl p-4 transition-all ${
+                    className={`flex gap-3 rounded-xl border p-3 transition-all ${
                       isUnavailable
                         ? "bg-muted/20 border-amber-300/70 opacity-60"
                         : isCombo
@@ -220,7 +220,7 @@ export const CartModal = () => {
                           : "bg-muted/30 border-border"
                     }`}
                   >
-                    <label className="flex shrink-0 cursor-pointer items-center pt-1" title="Chọn món để thanh toán">
+                    <label className="flex shrink-0 cursor-pointer items-center pt-0.5" title="Chọn món để thanh toán">
                       <input
                         type="checkbox"
                         checked={isSelected}
@@ -232,16 +232,16 @@ export const CartModal = () => {
                     <Image
                       src={isCombo ? combo?.image || "" : productSize?.image.url || ""}
                       alt={isCombo ? combo?.name || "Combo" : "Pizza"}
-                      width={80}
-                      height={80}
-                      className="w-16 h-16 rounded-lg object-cover shrink-0"
+                      width={56}
+                      height={56}
+                      className="w-14 h-14 rounded-lg object-cover shrink-0"
                     />
-                    <div className="flex-1 min-w-0">
-                      <div>
-                        <div className="flex justify-between items-start gap-2">
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <p className="text-lg font-semibold text-foreground line-clamp-2">
+                    <div className="flex-1 min-w-0 flex flex-col justify-between min-h-14">
+                      <div className="flex-1">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <p className="text-sm font-semibold text-foreground line-clamp-2">
                                 {isCombo ? combo?.name || "Combo" : product?.name || "Sản phẩm"}
                               </p>
                               {isCombo && (
@@ -251,8 +251,14 @@ export const CartModal = () => {
                               )}
                             </div>
 
+                            {!isCombo && (
+                              <p className="text-xs text-muted-foreground mt-0.5">
+                                {item.size}
+                                {item.crust ? ` - ${formatCrustLabel(item.crust)}` : ""}
+                              </p>
+                            )}
                             {isCombo && comboSelection.length > 0 && (
-                              <div className="mt-1.5 space-y-0.5">
+                              <div className="mt-1 space-y-0.5">
                                 {comboSelection.map((itemCombo, i) => (
                                   <p key={i} className="text-xs text-muted-foreground flex items-center gap-1">
                                     <span className="w-1 h-1 rounded-full bg-orange-400 shrink-0" />
@@ -262,59 +268,52 @@ export const CartModal = () => {
                                 ))}
                               </div>
                             )}
+                            {extraToppingText && <p className="text-xs text-muted-foreground mt-0.5">+ {extraToppingText}</p>}
                           </div>
-                          <button
-                            onClick={() =>
-                              removeItem({
-                                userId: user?.id,
-                                item_type: itemType,
-                                product_id: productId,
-                                combo: comboId,
-                                sku: item.sku,
-                                size: item.size,
-                                combo_selections: item.combo_selections,
-                              })
-                            }
-                            className={`shrink-0 ${
-                              isUnavailable
-                                ? "text-destructive hover:text-destructive/80"
-                                : "text-muted-foreground hover:text-destructive"
-                            }`}
-                          >
-                            <X size={16} />
-                          </button>
+                          <div className="flex shrink-0 items-center gap-0.5">
+                            {!isUnavailable && (
+                              <button
+                                onClick={() => {
+                                  if (isCombo) {
+                                    // Truyền chính xác cart item được bấm vì combo ID và SKU cũ của guest cart đều có thể trùng.
+                                    setEditingComboItem(item);
+                                  } else {
+                                    setEditingSku(item.sku);
+                                  }
+                                  setShowCart(false);
+                                }}
+                                aria-label="Chỉnh sửa món"
+                                className="p-1.5 -m-1.5 text-muted-foreground hover:text-primary transition-colors"
+                              >
+                                <PenLine size={15} />
+                              </button>
+                            )}
+                            <button
+                              onClick={() =>
+                                removeItem({
+                                  userId: user?.id,
+                                  item_type: itemType,
+                                  product_id: productId,
+                                  combo: comboId,
+                                  sku: item.sku,
+                                  size: item.size,
+                                  crust: item.crust,
+                                  combo_selections: item.combo_selections,
+                                })
+                              }
+                              aria-label="Xóa món"
+                              className={`p-1.5 -m-1.5 shrink-0 ${
+                                isUnavailable
+                                  ? "text-destructive hover:text-destructive/80"
+                                  : "text-muted-foreground hover:text-destructive"
+                              }`}
+                            >
+                              <X size={16} />
+                            </button>
+                          </div>
                         </div>
-                        {!isCombo && (
-                          <p className="text-sm text-muted-foreground mt-0.5">
-                            {item.size}
-                            {item.crust ? ` - ${formatCrustLabel(item.crust)}` : ""}
-                          </p>
-                        )}
-                        {extraToppingText && <p className="text-xs text-muted-foreground mt-0.5">+ {extraToppingText}</p>}
-                        {!isUnavailable && !isCombo && (
-                          <button
-                            onClick={() => {
-                              setEditingSku(item.sku);
-                              setShowCart(false);
-                            }}
-                            className="inline-flex items-center gap-1 text-xs text-primary mt-1 hover:underline"
-                          >
-                            <PenLine size={13} /> Chỉnh sửa
-                          </button>
-                        )}
-                        {!isUnavailable && isCombo && (
-                          <button
-                            onClick={() => {
-                              // Truyền chính xác cart item được bấm vì combo ID và SKU cũ của guest cart đều có thể trùng.
-                              setEditingComboItem(item);
-                              setShowCart(false);
-                            }}
-                            className="inline-flex items-center gap-1 text-xs text-orange-600 mt-1 hover:underline"
-                          >
-                            <PenLine size={13} /> Chỉnh sửa combo
-                          </button>
-                        )}
-                        {customNote && <p className="text-[11px] text-muted-foreground italic mt-0.5">Note: {customNote}</p>}
+
+                        {customNote && <p className="text-[11px] text-muted-foreground italic mt-1">Note: {customNote}</p>}
                         {isUnavailable && !isCombo && (
                           <p className="text-xs text-amber-700 mt-1 font-medium">Không có trong menu cửa hàng hiện tại</p>
                         )}
@@ -339,8 +338,8 @@ export const CartModal = () => {
                         )}
                       </div>
 
-                      <div className="flex items-end justify-between mt-3 gap-2">
-                        <div className="flex items-center gap-2">
+                      <div className="mt-2 pt-2 border-t border-border/60 flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1.5">
                           <button
                             onClick={() =>
                               updateQuantity({
@@ -350,17 +349,18 @@ export const CartModal = () => {
                                 combo: comboId,
                                 sku: item.sku,
                                 size: item.size,
+                                crust: item.crust,
                                 currentQty: item.quantity,
                                 change: -1,
                                 combo_selections: item.combo_selections,
                               })
                             }
                             disabled={isUnavailable}
-                            className="w-9 h-9 rounded-md border border-border bg-background flex items-center justify-center hover:bg-muted text-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                            className="w-8 h-8 rounded-md border border-border bg-background flex items-center justify-center hover:bg-muted text-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                           >
                             <Minus size={14} />
                           </button>
-                          <span className="text-base font-medium w-8 text-center text-foreground">{item.quantity}</span>
+                          <span className="text-sm font-medium w-7 text-center text-foreground">{item.quantity}</span>
                           <button
                             onClick={() =>
                               updateQuantity({
@@ -370,18 +370,19 @@ export const CartModal = () => {
                                 combo: comboId,
                                 sku: item.sku,
                                 size: item.size,
+                                crust: item.crust,
                                 currentQty: item.quantity,
                                 change: 1,
                                 combo_selections: item.combo_selections,
                               })
                             }
                             disabled={isUnavailable}
-                            className="w-9 h-9 rounded-md bg-primary text-primary-foreground flex items-center justify-center hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                            className="w-8 h-8 rounded-md bg-primary text-primary-foreground flex items-center justify-center hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                           >
                             <Plus size={14} />
                           </button>
                         </div>
-                        <p className="font-semibold text-foreground text-xl">
+                        <p className="font-bold text-foreground text-lg">
                           {formatVND(item.price * item.quantity, {
                             style: "currency",
                           })}
@@ -399,6 +400,7 @@ export const CartModal = () => {
                                 combo: comboId,
                                 sku: item.sku,
                                 size: item.size,
+                                crust: item.crust,
                                 combo_selections: item.combo_selections,
                               })
                             }

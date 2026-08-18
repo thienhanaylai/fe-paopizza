@@ -41,6 +41,7 @@ export default function ProductDetailModal({
   const { user } = useCustomerAuth();
   const { addToCart, fetchCart, updateQuantity, cart, cartCount, setShowCart } = useCart();
 
+  const [isUpdating, setUpdating] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [selectedSize, setSelectedSize] = useState<string>("");
   const [selectedCrust, setSelectedCrust] = useState<string>("");
@@ -247,8 +248,13 @@ export default function ProductDetailModal({
 
   const existingCartItem = useMemo(() => {
     if (!selectedVariant || !cart) return undefined;
-    return cart.items.find(item => item.item_type === "product" && item.sku === selectedVariant.sku);
-  }, [cart, selectedVariant]);
+    return cart.items.find(
+      item =>
+        item.item_type === "product" &&
+        item.sku === selectedVariant.sku &&
+        (isPizzaProduct ? (item.crust || "") === (selectedCrust || "") : !item.crust),
+    );
+  }, [cart, isPizzaProduct, selectedCrust, selectedVariant]);
 
   const isEditMode = Boolean(existingCartItem);
 
@@ -292,6 +298,7 @@ export default function ProductDetailModal({
       product_id: selectedProduct._id,
       sku: existingCartItem.sku,
       size: existingCartItem.size,
+      crust: existingCartItem.crust,
       currentQty: existingCartItem.quantity,
       change: 1,
     });
@@ -301,7 +308,13 @@ export default function ProductDetailModal({
 
   const handleUpdateCart = async () => {
     if (!selectedProduct || !selectedVariant) return;
-    const wasInCart = cart?.items.some(item => item.sku === selectedVariant.sku);
+    setUpdating(true);
+    const wasInCart = cart?.items.some(
+      item =>
+        item.item_type === "product" &&
+        item.sku === selectedVariant.sku &&
+        (isPizzaProduct ? (item.crust || "") === (selectedCrust || "") : !item.crust),
+    );
 
     const toppingNote = selectedExtraToppings.map(item => item.name).join(", ");
     const finalNote = [note.trim(), toppingNote ? `Extra topping: ${toppingNote}` : ""].filter(Boolean).join(" | ");
@@ -331,13 +344,21 @@ export default function ProductDetailModal({
       added_topping: selectedExtraToppingIds,
     });
 
-    const fetchedCart = (await fetchCart(user?.id)) as { items?: Array<{ sku: string; note?: string }> } | undefined | null;
-    const productInCart = fetchedCart?.items?.find(item => item.sku === selectedVariant.sku);
+    const fetchedCart = (await fetchCart(user?.id)) as
+      | { items?: Array<{ sku: string; crust?: string; note?: string }> }
+      | undefined
+      | null;
+    const productInCart = fetchedCart?.items?.find(
+      item =>
+        item.sku === selectedVariant.sku &&
+        (isPizzaProduct ? (item.crust || "") === (selectedCrust || "") : !item.crust),
+    );
     setNote(productInCart?.note || "");
     if (wasInCart) {
       onClose();
       setShowCart(true);
     }
+    setUpdating(false);
     toast.success(
       <span>
         {wasInCart ? (
@@ -622,7 +643,8 @@ export default function ProductDetailModal({
                               )}
                               <button
                                 onClick={handleUpdateCart}
-                                className="w-full flex items-center justify-between gap-2 bg-primary text-white pl-5 pr-4 py-3 rounded-xl hover:bg-primary/90 transition-colors shadow-lg shadow-primary/25"
+                                disabled={isUpdating}
+                                className={` w-full flex items-center justify-between gap-2 bg-primary text-white pl-5 pr-4 py-3 rounded-xl hover:bg-primary/90 transition-colors shadow-lg shadow-primary/25 disabled:opacity-40 disabled:cursor-not-allowed`}
                               >
                                 <span className="flex items-center gap-2">
                                   {isEditMode ? (

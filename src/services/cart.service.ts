@@ -14,7 +14,9 @@ export type AddToCartPayload = {
   product_id?: string;
   combo?: string;
   combo_selections?: ComboSelectionPayload[];
+  sku?: string;
   size: string;
+  crust?: string;
   quantity?: number;
   note?: string;
   added_topping?: string[];
@@ -29,6 +31,7 @@ export type RemoveFromCartPayload = {
   combo?: string;
   sku?: string;
   size: string;
+  crust?: string;
   combo_selections?: ComboSelectionPayload[];
 };
 
@@ -39,6 +42,7 @@ export type UpdateCartItemPayload = {
   combo?: string;
   sku?: string;
   size: string;
+  crust?: string;
   quantity?: number;
   note?: string;
   added_topping?: string[];

@@ -18,6 +18,7 @@ import {
 import { OrderHistory, OrderItemHistory, ComboSelectionPopulated } from "@/src/services/order.service";
 import { formatVND } from "@/src/utils/formatVND";
 import { formatDateTime } from "@/src/utils/formatDateTime";
+import { formatCrustLabel } from "@/src/utils/formatCrustLabel";
 
 interface OrderDetailModalProps {
   order: OrderHistory;
@@ -55,6 +56,7 @@ function ComboSelectionItem({ sel }: { sel: ComboSelectionPopulated }) {
       <span className="w-1.5 h-1.5 rounded-full bg-primary/40 shrink-0" />
       <span>{sel.product_id?.name || sel.sku}</span>
       <span className="text-[11px] opacity-70">({sel.size})</span>
+      {sel.crust && <span className="text-[11px] opacity-70">- Đế: {formatCrustLabel(sel.crust)}</span>}
       {sel.added_topping && sel.added_topping.length > 0 && (
         <span className="text-[11px] opacity-60">
           +{" "}
@@ -85,6 +87,7 @@ function OrderItemRow({ item, comboSequence }: { item: OrderItemHistory; comboSe
 
           <div className="flex items-center gap-2 mt-0.5 flex-wrap">
             {item.size && item.size !== "combo" && <span className="text-xs text-muted-foreground">Size: {item.size}</span>}
+            {item.crust && <span className="text-xs text-muted-foreground">Đế: {formatCrustLabel(item.crust)}</span>}
             {item.added_topping && item.added_topping.length > 0 && (
               <span className="text-xs text-muted-foreground">
                 + Thêm:{" "}

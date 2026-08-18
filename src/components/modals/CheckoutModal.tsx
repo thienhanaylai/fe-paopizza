@@ -465,6 +465,15 @@ export const CheckoutModal = () => {
       }
 
       // chuyển step sang bước thanh toán
+      if (paymentMethod === "cash") {
+        stopPolling();
+        setImgQr("");
+        setIsPayment(false);
+        setCheckoutStep("success");
+        setIdOrder(res._id);
+        return;
+      }
+
       setIdOrder(res._id);
       setTestime(new Date(new Date(res.createdAt).getTime() + PAYMENT_TIMEOUT_MS));
       setCheckoutStep("payment");

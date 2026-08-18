@@ -28,7 +28,7 @@ import { getRoleLabel, getRoleColor, useEmployeeAuth } from "@/src/context/authE
 import Link from "next/link";
 import Image from "next/image";
 import { getAllCategories } from "@/src/services/category.service";
-import { getAllProducts } from "@/src/services/product.service";
+import { getAllProductsActive } from "@/src/services/product.service";
 import { getAllIngredients, IngredientData } from "@/src/services/ingredient.service";
 import { toast, Toaster } from "sonner";
 import {
@@ -54,6 +54,7 @@ import type {
   ProductVariant,
   Product,
 } from "@/src/services/menu.service";
+import { formatCrustLabel } from "@/src/utils/formatCrustLabel";
 
 type OrderType = "dine_in" | "carry_out" | "delivery";
 
@@ -249,7 +250,7 @@ export default function POS() {
       try {
         setIsLoading(true);
         const { data: categories } = await getAllCategories();
-        const { data: products } = await getAllProducts();
+        const products = await getAllProductsActive();
 
         const mappedCategories: MenuCategoryUI[] = categories
           .filter(cat => cat.isActive && !cat.isDeleted)
@@ -376,24 +377,41 @@ export default function POS() {
   };
 
   const addToCart = (item: CartItem) => {
+    const normalizedItem: CartItem = {
+      ...item,
+      crust: item.item_type === "product" ? item.crust?.trim() || undefined : undefined,
+      combo_selections:
+        item.item_type === "combo"
+          ? item.combo_selections?.map(selection => ({ ...selection, crust: selection.crust?.trim() || undefined }))
+          : item.combo_selections,
+    };
+
     setCart(prev => {
       // Với combo, so khớp theo combo_id VÀ combo_selections
-      if (item.item_type === "combo" && item.combo_selections) {
+      if (normalizedItem.item_type === "combo" && normalizedItem.combo_selections) {
         const idx = prev.findIndex(
           c =>
             c.item_type === "combo" &&
-            c.combo_id === item.combo_id &&
-            areComboSelectionsEqualPos(c.combo_selections, item.combo_selections),
+            c.combo_id === normalizedItem.combo_id &&
+            areComboSelectionsEqualPos(c.combo_selections, normalizedItem.combo_selections),
         );
         if (idx >= 0) {
           const next = [...prev];
           next[idx] = { ...next[idx], quantity: next[idx].quantity + 1 };
           return next;
         }
-        return [...prev, { ...item, cart_line_id: item.cart_line_id || createCartLineId("combo"), quantity: 1, note: "" }];
+        return [
+          ...prev,
+          {
+            ...normalizedItem,
+            cart_line_id: normalizedItem.cart_line_id || createCartLineId("combo"),
+            quantity: 1,
+            note: "",
+          },
+        ];
       }
       // Keep each pizza as its own line so toppings can target one specific pizza.
-      const idx = item.is_pizza
+      const idx = normalizedItem.is_pizza
         ? -1
         : prev.findIndex(
             c => c.item_type === "product" && c.sku === item.sku && haveSameToppings(c.added_topping, item.added_topping),
@@ -403,7 +421,15 @@ export default function POS() {
         next[idx] = { ...next[idx], quantity: next[idx].quantity + 1 };
         return next;
       }
-      return [...prev, { ...item, cart_line_id: item.cart_line_id || createCartLineId("product"), quantity: 1, note: "" }];
+      return [
+        ...prev,
+        {
+          ...normalizedItem,
+          cart_line_id: normalizedItem.cart_line_id || createCartLineId("product"),
+          quantity: 1,
+          note: "",
+        },
+      ];
     });
   };
 
@@ -412,9 +438,9 @@ export default function POS() {
     if (!a && !b) return true;
     if (!a || !b) return false;
     if (a.length !== b.length) return false;
-    const aSkus = [...a.map(s => s.sku)].sort();
-    const bSkus = [...b.map(s => s.sku)].sort();
-    return aSkus.every((sku, i) => sku === bSkus[i]);
+    const aSelections = [...a.map(selection => `${selection.sku}:${selection.size}:${selection.crust || ""}`)].sort();
+    const bSelections = [...b.map(selection => `${selection.sku}:${selection.size}:${selection.crust || ""}`)].sort();
+    return aSelections.every((selection, i) => selection === bSelections[i]);
   };
 
   const getProductsForRule = (rule: ComboRule): Product[] => {
@@ -771,7 +797,7 @@ export default function POS() {
               product_id: sel.productId,
               sku: sel.sku,
               size: sel.size,
-              crust: sel.crust,
+              crust: sel.crust?.trim() || undefined,
             })),
           };
         }
@@ -781,7 +807,7 @@ export default function POS() {
           sku: item.sku,
           price: item.price,
           size: item.size ?? "",
-          crust: item.crust,
+          crust: item.crust?.trim() || undefined,
           quantity: item.quantity,
           note: item.note,
           added_topping: (item.added_topping ?? []).map(id => ({ ingredient: id, quantity: 1 })),
@@ -1246,7 +1272,8 @@ export default function POS() {
                     {cart.map(item => (
                       <div key={item.cart_line_id} className="flex justify-between gap-3 text-xs">
                         <span className="truncate text-muted-foreground">
-                          {item.quantity} × {item.name} {item.size ? `- ${item.size}` : ""}
+                          {item.quantity} × {item.name} {item.size ? `- ${item.size}` : ""}{" "}
+                          {item.crust ? `- ${formatCrustLabel(item.crust)}` : ""}
                         </span>
                         <span className="shrink-0 text-foreground">{formatVND(item.price * item.quantity)}</span>
                       </div>
@@ -1742,7 +1769,7 @@ export default function POS() {
                               base_price: matchedVariant.price,
                               quantity: 1,
                               size,
-                              crust: isPizza ? selectedCrust : undefined,
+                              crust: isPizza ? selectedCrust.trim() || undefined : undefined,
                               sku: matchedVariant.sku,
                               image: displayVariant.image.url,
                               is_pizza: isPizza,

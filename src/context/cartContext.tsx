@@ -132,6 +132,7 @@ type RemoveItemInput = {
   combo?: string;
   sku: string;
   size: string;
+  crust?: string;
   combo_selections?: ComboSelection[];
 };
 
@@ -543,6 +544,7 @@ const findLocalItemIndex = (
     size: string;
     productId?: string;
     itemType?: CartItemType;
+    crust?: string;
     comboSelections?: ComboSelection[];
   },
 ) => {
@@ -563,7 +565,7 @@ const findLocalItemIndex = (
       return true;
     }
 
-    return resolveProductId(item.product_id) === params.productId;
+    return resolveProductId(item.product_id) === params.productId && (item.crust || "") === (params.crust || "");
   });
 };
 
@@ -677,7 +679,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
             product_id: normalizedProductId,
             combo: resolvedCombo,
             combo_selections: mapComboSelectionsToPayload(item.combo_selections),
+            sku: itemType === "product" ? item.sku : undefined,
             size: item.size,
+            crust: itemType === "product" ? item.crust || undefined : undefined,
             quantity: item.quantity,
             note: item.note,
             added_topping: extractToppingIds(item.added_topping),
@@ -767,7 +771,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
       setCart(normalized);
 
       const guestCart = readGuestCart();
-      if (guestCart.items.length > 0 && mergePromptedUserRef.current !== userId) {
+      if (guestCart.items.length === 0) {
+        mergePromptedUserRef.current = null;
+        setPendingCartMerge(null);
+        setCartMergeError("");
+      } else if (mergePromptedUserRef.current !== userId) {
         mergePromptedUserRef.current = userId;
         setPendingCartMerge({
           userId,
@@ -845,6 +853,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
           item_type: itemType,
           product_id,
           size,
+          sku: itemType === "product" ? sku : undefined,
+          crust: itemType === "product" ? crust : undefined,
           quantity,
           note,
           added_topping,
@@ -892,6 +902,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         size,
         productId: product_id,
         itemType: item_type,
+        crust,
         comboSelections: combo_selections,
       });
 
@@ -937,7 +948,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const updateQuantity = useCallback(
-    async ({ userId, item_type, product_id, combo, sku, size, currentQty, change, combo_selections }: UpdateQuantityInput) => {
+    async ({ userId, item_type, product_id, combo, sku, size, crust, currentQty, change, combo_selections }: UpdateQuantityInput) => {
       const newQuantity = currentQty + change;
       const itemType: CartItemType = item_type === "combo" ? "combo" : "product";
       // Resolve combo id from current cart if not provided (API may strip it)
@@ -960,6 +971,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
               combo: resolvedComboId,
               sku,
               size,
+              crust: itemType === "product" ? crust : undefined,
               combo_selections: comboSelectionsPayload,
             });
             const normalized = normalizeCart(updatedCart);
@@ -972,6 +984,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
               combo: resolvedComboId,
               sku,
               size,
+              crust: itemType === "product" ? crust : undefined,
               quantity: newQuantity,
               combo_selections: comboSelectionsPayload,
             });
@@ -990,7 +1003,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
             return areComboSelectionsEqual(item.combo_selections, combo_selections);
           }
           if (!product_id) return true;
-          return resolveProductId(item.product_id) === product_id;
+          return resolveProductId(item.product_id) === product_id && (item.crust || "") === (crust || "");
         });
 
         if (targetIndex === -1) {
@@ -1021,7 +1034,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  const removeItem = useCallback(async ({ userId, item_type, product_id, combo, sku, size, combo_selections }: RemoveItemInput) => {
+  const removeItem = useCallback(async ({ userId, item_type, product_id, combo, sku, size, crust, combo_selections }: RemoveItemInput) => {
     const itemType: CartItemType = item_type === "combo" ? "combo" : "product";
     // Resolve combo id from current cart if not provided (API may strip it)
     let resolvedComboId = combo;
@@ -1040,6 +1053,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
           combo: resolvedComboId,
           sku,
           size,
+          crust: itemType === "product" ? crust : undefined,
           combo_selections: itemType === "combo" ? (mapComboSelectionsToPayload(combo_selections) ?? []) : undefined,
         });
         const normalized = normalizeCart(updatedCart);
@@ -1063,7 +1077,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
           return false; // remove if no product_id to compare
         }
 
-        return resolveProductId(item.product_id) !== product_id;
+        return resolveProductId(item.product_id) !== product_id || (item.crust || "") !== (crust || "");
       });
 
       const nextGuestCart: Cart = {

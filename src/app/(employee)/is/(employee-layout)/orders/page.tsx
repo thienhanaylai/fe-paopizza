@@ -34,6 +34,7 @@ import { useEmployeeAuth } from "@/src/context/authEmployeeContext";
 import { Skeleton } from "@/src/components/ui/skeleton";
 import { formatVND } from "@/src/utils/formatVND";
 import Pagination from "@/src/components/ui/Pagination";
+import { formatCrustLabel } from "@/src/utils/formatCrustLabel";
 
 const ORDER_POLLING_INTERVAL_MS = 10_000;
 
@@ -697,6 +698,11 @@ export default function Orders() {
                               <span className="text-foreground font-medium">{item.product_id?.name || item.sku}</span>
                             )}
                             <span className="text-xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{item.size}</span>
+                            {item.crust && (
+                              <span className="text-xs px-1.5 py-0.5 rounded bg-orange-50 text-orange-700">
+                                Đế: {formatCrustLabel(item.crust)}
+                              </span>
+                            )}
                           </div>
                           <span className="text-xs text-muted-foreground">x{item.quantity}</span>
                         </div>
@@ -726,7 +732,10 @@ export default function Orders() {
                             <div key={j} className="bg-muted/50 rounded p-2 space-y-1">
                               <div className="flex justify-between text-xs">
                                 <span className="text-foreground font-medium">{sel.product_id.name}</span>
-                                <span className="text-muted-foreground">{sel.size}</span>
+                                <span className="text-muted-foreground">
+                                  {sel.size}
+                                  {sel.crust ? ` - Đế: ${formatCrustLabel(sel.crust)}` : ""}
+                                </span>
                               </div>
                               {sel.added_topping && sel.added_topping.length > 0 && (
                                 <div className="pl-2">

@@ -55,6 +55,7 @@ export interface ComboSelectionPopulated {
   };
   sku: string;
   size: string;
+  crust?: string;
   added_topping?: OrderItemToppingPopulated[];
 }
 
@@ -66,6 +67,7 @@ export interface OrderItemHistory {
   };
   sku: string;
   price: number;
+  crust?: string;
   size: string;
   quantity: number;
   note?: string;
