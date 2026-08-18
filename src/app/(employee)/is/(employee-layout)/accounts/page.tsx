@@ -18,8 +18,8 @@ import {
 import { getRoleLabel, getRoleColor, getStationLabel, getStationColor } from "@/src/context/authEmployeeContext";
 import { createUser, deleteUser, getAllUser, updateUser, updateUserStatus, User } from "@/src/services/user.service";
 import { updateEmployee } from "@/src/services/employee.service";
-import { updateCustomer } from "@/src/services/customer.service";
-import { getAllStore } from "@/src/services/store.service";
+import { updateCustomer, type CustomerAddress } from "@/src/services/customer.service";
+import { getAllStore, type StoreData } from "@/src/services/store.service";
 import { useSort } from "@/src/hooks/useSort";
 import { SortableHeader } from "@/src/components/ui/SortableHeader";
 import { toast, Toaster } from "sonner";
@@ -33,6 +33,22 @@ type ActionMenuPosition = {
 };
 
 const ACTION_MENU_WIDTH = 176;
+
+type AccountFormData = {
+  role: string;
+  name: string;
+  email: string;
+  phone: string;
+  address: string;
+  listAddress: CustomerAddress[];
+  birthday: string;
+  station: string;
+  salary: number;
+  salaryType: string;
+  store_id: string;
+  username: string;
+  password: string;
+};
 
 const statusConfig: Record<boolean, { label: string; color: string }> = {
   true: { label: "Hoạt động", color: "bg-green-100 text-green-700" },
@@ -50,12 +66,13 @@ const avatarColors = [
   "bg-red-500",
 ];
 
-const createEmptyForm = () => ({
+const createEmptyForm = (): AccountFormData => ({
   role: "staff",
   name: "",
   email: "",
   phone: "",
   address: "",
+  listAddress: [],
   birthday: "",
   station: "kitchen",
   salary: 0,
@@ -83,7 +100,7 @@ export default function Accounts() {
   const [actionMenu, setActionMenu] = useState<string | null>(null);
   const [actionMenuPosition, setActionMenuPosition] = useState<ActionMenuPosition | null>(null);
   const [listUser, setListUser] = useState<User[]>();
-  const [listStore, setListStore] = useState([]);
+  const [listStore, setListStore] = useState<StoreData[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isPageLoading, setIsPageLoading] = useState(true);
 
@@ -91,7 +108,7 @@ export default function Accounts() {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
 
-  const [formData, setFormData] = useState(createEmptyForm);
+  const [formData, setFormData] = useState<AccountFormData>(createEmptyForm);
 
   const handleChange = e => {
     const { name, value } = e.target;
@@ -211,13 +228,17 @@ export default function Accounts() {
         const isCustomer = editAccount.user_type === "Customer" || editAccount.role === null || formData.role === "customer";
 
         if (isCustomer) {
+          const listAddress = formData.listAddress.map(address => ({ ...address }));
+          if (listAddress.length > 0 && !listAddress.some(address => address.isDefault)) {
+            listAddress[0].isDefault = true;
+          }
           await updateCustomer({
             user_id: editAccount._id,
             name: formData.name,
             phone: formData.phone,
-            address: formData.address,
             email: formData.email,
-          });
+            listAddress,
+          }, "employee");
           await updateUser(editAccount._id, {
             username: formData.phone,
             role: null,
@@ -440,6 +461,7 @@ export default function Accounts() {
                     onSort={toggleSort}
                     className="px-4 py-3 hidden md:table-cell"
                   />
+                  <th className="px-4 py-3 hidden lg:table-cell">Cửa hàng làm việc</th>
                   <SortableHeader
                     label="Liên hệ"
                     sortKey="ref_id.phone"
@@ -460,6 +482,14 @@ export default function Accounts() {
               <tbody>
                 {paginatedData?.map((account, i) => {
                   const st = statusConfig[account.status];
+                  const employeeStoreRef =
+                    account.user_type === "Employee"
+                      ? (account.ref_id as { store_id?: string | { _id: string; name: string } }).store_id
+                      : undefined;
+                  const employeeStoreName =
+                    typeof employeeStoreRef === "object"
+                      ? employeeStoreRef?.name
+                      : listStore.find(store => store._id === employeeStoreRef)?.name;
                   return (
                     <tr key={account._id} className="border-t border-border/50 hover:bg-muted/30">
                       <td className="px-4 py-3">
@@ -506,6 +536,15 @@ export default function Accounts() {
                         )}
                       </td>
                       <td className="px-4 py-3 hidden lg:table-cell">
+                        {account.user_type === "Employee" ? (
+                          <span className="text-xs text-foreground">
+                            {employeeStoreName || <span className="text-muted-foreground">Chưa phân công</span>}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 hidden lg:table-cell">
                         <div className="flex items-center gap-1.5 text-muted-foreground text-xs">
                           <Phone size={12} /> {account.ref_id.phone}
                         </div>
@@ -537,12 +576,33 @@ export default function Accounts() {
                                   onClick={() => {
                                     setEditAccount(account);
                                     const isCustomer = account.user_type === "Customer" || account.role === null;
+                                    const customerAddresses = isCustomer
+                                      ? Array.isArray((account.ref_id as { listAddress?: CustomerAddress[] }).listAddress)
+                                        ? ((account.ref_id as { listAddress?: CustomerAddress[] }).listAddress ?? []).map(address => ({
+                                            _id: address._id,
+                                            name: address.name || account.ref_id?.name || "",
+                                            phone: address.phone || account.ref_id?.phone || "",
+                                            address: address.address || "",
+                                            isDefault: Boolean(address.isDefault),
+                                          }))
+                                        : account.ref_id?.address
+                                          ? [
+                                              {
+                                                name: account.ref_id.name || "",
+                                                phone: account.ref_id.phone || "",
+                                                address: account.ref_id.address,
+                                                isDefault: true,
+                                              },
+                                            ]
+                                          : []
+                                      : [];
                                     setFormData({
                                       role: isCustomer ? "customer" : account.role || "staff",
                                       name: account.ref_id?.name || "",
                                       email: account.ref_id?.email || "",
                                       phone: account.ref_id?.phone || "",
                                       address: account.ref_id?.address || "",
+                                      listAddress: customerAddresses,
                                       birthday: !isCustomer ? toDateInputValue((account.ref_id as any)?.birthday) : "",
                                       station: !isCustomer ? (account.ref_id as any)?.station || "kitchen" : "kitchen",
                                       salary: !isCustomer ? (account.ref_id as any)?.salary || 0 : 0,
@@ -655,17 +715,114 @@ export default function Accounts() {
                   />
                 </div>
               </div>
-              <div>
-                <label className="block text-sm mb-1">Địa chỉ</label>
-                <input
-                  name="address"
-                  value={formData.address}
-                  onChange={handleChange}
-                  type="text"
-                  placeholder="43 Pham nhu tang, p4, q8, HCM"
-                  className="w-full px-4 py-2.5 rounded-xl border border-border bg-background focus:border-primary outline-none"
-                />
-              </div>
+              {formData.role === "customer" ? (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-sm font-medium">Danh sách địa chỉ</label>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setFormData(previous => ({
+                          ...previous,
+                          listAddress: [
+                            ...previous.listAddress,
+                            {
+                              name: previous.name,
+                              phone: previous.phone,
+                              address: "",
+                              isDefault: previous.listAddress.length === 0,
+                            },
+                          ],
+                        }))
+                      }
+                      className="text-xs font-medium text-primary hover:underline"
+                    >
+                      + Thêm địa chỉ
+                    </button>
+                  </div>
+                  {formData.listAddress.length === 0 ? (
+                    <p className="rounded-xl border border-dashed border-border px-4 py-3 text-sm text-muted-foreground">
+                      Khách hàng chưa có địa chỉ giao hàng.
+                    </p>
+                  ) : (
+                    formData.listAddress.map((address, index) => (
+                      <div key={address._id || `address-${index}`} className="space-y-2 rounded-xl border border-border p-3">
+                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                          <input
+                            value={address.name}
+                            onChange={event =>
+                              setFormData(previous => ({
+                                ...previous,
+                                listAddress: previous.listAddress.map((item, itemIndex) =>
+                                  itemIndex === index ? { ...item, name: event.target.value } : item,
+                                ),
+                              }))
+                            }
+                            placeholder="Tên người nhận"
+                            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary"
+                          />
+                          <input
+                            value={address.phone}
+                            onChange={event =>
+                              setFormData(previous => ({
+                                ...previous,
+                                listAddress: previous.listAddress.map((item, itemIndex) =>
+                                  itemIndex === index ? { ...item, phone: event.target.value } : item,
+                                ),
+                              }))
+                            }
+                            placeholder="Số điện thoại nhận hàng"
+                            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary"
+                          />
+                        </div>
+                        <input
+                          value={address.address}
+                          onChange={event =>
+                            setFormData(previous => ({
+                              ...previous,
+                              listAddress: previous.listAddress.map((item, itemIndex) =>
+                                itemIndex === index ? { ...item, address: event.target.value } : item,
+                              ),
+                            }))
+                          }
+                          placeholder="Địa chỉ giao hàng"
+                          className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary"
+                        />
+                        <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <input
+                            type="radio"
+                            name="default-customer-address"
+                            checked={address.isDefault}
+                            onChange={() =>
+                              setFormData(previous => ({
+                                ...previous,
+                                listAddress: previous.listAddress.map((item, itemIndex) => ({
+                                  ...item,
+                                  isDefault: itemIndex === index,
+                                })),
+                              }))
+                            }
+                            className="accent-primary"
+                          />
+                          Địa chỉ mặc định
+                        </label>
+                      </div>
+                    ))
+                  )}
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-sm mb-1">Địa chỉ</label>
+                  <input
+                    name="address"
+                    value={formData.address}
+                    onChange={handleChange}
+                    type="text"
+                    placeholder="43 Pham nhu tang, p4, q8, HCM"
+                    className="w-full px-4 py-2.5 rounded-xl border border-border bg-background focus:border-primary outline-none"
+                  />
+                </div>
+              )}
               <div>
                 <label className="block text-sm mb-1">Ngày sinh *</label>
                 <input

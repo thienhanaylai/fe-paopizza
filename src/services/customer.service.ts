@@ -211,7 +211,7 @@ export const setDefaultAddress = async (payload: UpdateCustomerAddressPayload, t
   }
 };
 
-export const updateCustomer = async (payload: UpdateCustomerInfo) => {
+export const updateCustomer = async (payload: UpdateCustomerInfo, typeUser: string | null = "customer") => {
   try {
     const response = await http(
       "/api/v1/customers/update",
@@ -219,7 +219,7 @@ export const updateCustomer = async (payload: UpdateCustomerInfo) => {
         method: "POST",
         body: JSON.stringify(payload),
       },
-      "customer",
+      typeUser,
     );
     return response.data;
   } catch (error) {

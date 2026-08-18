@@ -26,6 +26,13 @@ export type Customer = {
   address: string;
   _id: string;
   createdAt: string;
+  listAddress?: {
+    _id?: string;
+    name: string;
+    phone: string;
+    address: string;
+    isDefault: boolean;
+  }[];
 };
 
 export interface User {
