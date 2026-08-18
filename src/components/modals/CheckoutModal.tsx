@@ -452,8 +452,10 @@ export const CheckoutModal = () => {
       const res = result.data;
       const payment = result.payment;
 
-      //nếu là tiềm mặt thanh toán sau thì sẽ thành công luôn
-      if (res.paymentMethod === "cash") {
+      // Backend is authoritative: a zero-value order is already paid for every
+      // payment method, so it must never be sent to the QR payment step.
+      if (res.paymentStatus === "success" || Number(res.total) <= 0) {
+        stopPolling();
         setCheckoutStep("success");
         setIdOrder(res._id);
         return;

@@ -800,9 +800,17 @@ export default function POS() {
       const result = await createPosOrder(order, "");
       const res = result.data;
       const payment = result.payment;
+      // A fully discounted order is paid immediately regardless of the
+      // selected payment method. The backend decides this from the final total.
+      if (res.paymentStatus === "success" || Number(res.total) <= 0) {
+        stopPolling();
+        setLastOrderId(result.data._id);
+        setShowSuccess(true);
+        return;
+      }
       if (res.paymentMethod != "cash" && res.paymentStatus != "success") {
         setTestime(new Date(new Date(res.createdAt).getTime() + PAYMENT_TIMEOUT_MS));
-        startPolling(payment.orderId);
+        startPolling(payment?.orderId || res._id);
         setOder(result);
         setLastOrderId(result.data._id);
       }
