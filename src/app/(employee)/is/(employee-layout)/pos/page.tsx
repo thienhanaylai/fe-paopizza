@@ -210,12 +210,14 @@ export default function POS() {
   const [testtime, setTestime] = useState<Date>();
   const [storeInfo, setStoreInfo] = useState<StoreData | null>(null);
   const [isPrinting, setIsPrinting] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Extra topping is edited for the currently selected pizza cart line.
   const [toppingList, setToppingList] = useState<IngredientData[]>([]);
   const [selectedCartLineId, setSelectedCartLineId] = useState<string | null>(null);
 
   const pollingRef = useRef(null);
+  const submitLockRef = useRef(false);
   const comboCounterRef = useRef(0);
   const cartLineCounterRef = useRef(0);
   const stopPolling = () => {
@@ -744,7 +746,11 @@ export default function POS() {
   };
 
   const handleSubmit = async () => {
-    if (!canSubmit()) return;
+    if (submitLockRef.current || !canSubmit()) return;
+
+    submitLockRef.current = true;
+    setIsSubmitting(true);
+
     try {
       const emp = await getInfo();
       if (!emp?.ref_id?.store_id || !emp?._id) {
@@ -827,6 +833,9 @@ export default function POS() {
         PROMOTION_REQUIRES_POINTS: "Mã này chỉ dành cho khách hàng đã đổi điểm.",
       };
       toast.error(errorMessages[rawMessage] || "Không thể tạo đơn hàng");
+    } finally {
+      submitLockRef.current = false;
+      setIsSubmitting(false);
     }
   };
 
@@ -1958,6 +1967,7 @@ export default function POS() {
                   </div>
                   {paymentMethod === "qrCode" ? (
                     <button
+                      disabled={isSubmitting}
                       onClick={() => {
                         handleSubmit();
                       }}
@@ -1967,6 +1977,7 @@ export default function POS() {
                     </button>
                   ) : (
                     <button
+                      disabled={isSubmitting}
                       onClick={() => handleSubmit()}
                       className="w-full py-3 rounded-xl bg-primary text-white hover:bg-primary/90 transition-colors shadow-lg shadow-primary/25 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm"
                     >

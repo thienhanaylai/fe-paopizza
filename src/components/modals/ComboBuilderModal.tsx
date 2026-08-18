@@ -66,7 +66,9 @@ function ComboBuilderContent({ combo, allProducts, initialSelections, editCartIt
   const [activeSlotIndex, setActiveSlotIndex] = useState(0);
   const [mobilePanel, setMobilePanel] = useState<"products" | "summary">("products");
   const [replacingSlot, setReplacingSlot] = useState<{ ruleIdx: number; slotIdx: number } | null>(null);
+  const [isCartSubmitting, setIsCartSubmitting] = useState(false);
   const editingComboItemRef = useRef<CartItem | null>(editCartItem || null);
+  const cartSubmitLockRef = useRef(false);
 
   // --- Computed ---
 
@@ -241,7 +243,11 @@ function ComboBuilderContent({ combo, allProducts, initialSelections, editCartIt
   };
 
   const handleAddOneComboToCart = async () => {
-    if (!existingComboItem) return;
+    if (!existingComboItem || cartSubmitLockRef.current) return;
+
+    cartSubmitLockRef.current = true;
+    setIsCartSubmitting(true);
+    try {
 
     await updateQuantity({
       userId: user?.id,
@@ -255,9 +261,18 @@ function ComboBuilderContent({ combo, allProducts, initialSelections, editCartIt
     });
 
     toast.success("Đã thêm 1 combo vào giỏ hàng", { duration: 2000, position: "top-right" });
+    } finally {
+      cartSubmitLockRef.current = false;
+      setIsCartSubmitting(false);
+    }
   };
 
   const handleAddComboToCart = async () => {
+    if (cartSubmitLockRef.current) return;
+
+    cartSubmitLockRef.current = true;
+    setIsCartSubmitting(true);
+    try {
     const oldCartItem = editingComboItemRef.current;
     const oldSku = oldCartItem?.sku;
     if (oldCartItem && oldSku) {
@@ -385,6 +400,10 @@ function ComboBuilderContent({ combo, allProducts, initialSelections, editCartIt
       </span>,
       { duration: 2000, position: "top-right" },
     );
+    } finally {
+      cartSubmitLockRef.current = false;
+      setIsCartSubmitting(false);
+    }
   };
 
   return (
@@ -651,14 +670,15 @@ function ComboBuilderContent({ combo, allProducts, initialSelections, editCartIt
             {hasExistingCombo && allComboSelectionsFilled && (
               <button
                 onClick={handleAddOneComboToCart}
-                className="flex w-full items-center justify-center gap-2 rounded-xl border border-orange-500 bg-card px-4 py-3 text-orange-600 transition-colors hover:bg-orange-50"
+                disabled={isCartSubmitting}
+                className="flex w-full items-center justify-center gap-2 rounded-xl border border-orange-500 bg-card px-4 py-3 text-orange-600 transition-colors hover:bg-orange-50 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <Plus size={18} /> Thêm 1 combo vào giỏ
               </button>
             )}
             <button
               onClick={handleAddComboToCart}
-              disabled={!allComboSelectionsFilled}
+              disabled={!allComboSelectionsFilled || isCartSubmitting}
               className={`flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 shadow-lg transition-colors ${
                 allComboSelectionsFilled
                   ? "bg-orange-500 text-white shadow-orange-500/25 hover:bg-orange-600"
@@ -682,14 +702,15 @@ function ComboBuilderContent({ combo, allProducts, initialSelections, editCartIt
           {hasExistingCombo && allComboSelectionsFilled && (
             <button
               onClick={handleAddOneComboToCart}
-              className="mb-2 flex w-full items-center justify-center gap-2 rounded-xl border border-orange-500 bg-card px-4 py-3 text-sm font-semibold text-orange-600 transition-colors hover:bg-orange-50"
+              disabled={isCartSubmitting}
+              className="mb-2 flex w-full items-center justify-center gap-2 rounded-xl border border-orange-500 bg-card px-4 py-3 text-sm font-semibold text-orange-600 transition-colors hover:bg-orange-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Plus size={18} /> Thêm 1 combo vào giỏ
             </button>
           )}
           <button
             onClick={handleAddComboToCart}
-            disabled={!allComboSelectionsFilled}
+            disabled={!allComboSelectionsFilled || isCartSubmitting}
             className={`flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold shadow-lg transition-colors ${
               allComboSelectionsFilled
                 ? "bg-orange-500 text-white shadow-orange-500/25 hover:bg-orange-600"
