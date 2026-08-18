@@ -21,7 +21,13 @@ export const CartModal = () => {
     updateQuantity,
     removeItem,
     cartCount,
-    cartTotal,
+    selectedCartItems,
+    selectedCartCount,
+    selectedCartTotal,
+    isCartItemSelected,
+    setCartItemSelected,
+    selectAllCartItems,
+    clearCartSelection,
     setCheckout,
     setEditingSku,
     setEditingComboItem,
@@ -83,11 +89,6 @@ export const CartModal = () => {
   }, [selectedStoreId, showCart]);
 
   const cartItems = useMemo(() => cart?.items || [], [cart?.items]);
-  const CRUST_LABELS: Record<string, string> = {
-    thin: "Mỏng",
-    medium: "Vừa",
-    thick: "Dày",
-  };
   const isItemUnavailable = useCallback(
     (item: (typeof cartItems)[number]): boolean => {
       if (!storeMenuSkus) return false;
@@ -118,6 +119,8 @@ export const CartModal = () => {
   }, [cartItems, storeMenuSkus, isItemUnavailable]);
 
   const unavailableCount = unavailableSkuSet.size;
+  const selectedUnavailableCount = selectedCartItems.filter(item => unavailableSkuSet.has(item.sku)).length;
+  const allItemsSelected = cartItems.length > 0 && selectedCartItems.length === cartItems.length;
 
   if (!showCart) return null;
 
@@ -144,10 +147,28 @@ export const CartModal = () => {
             </div>
           ) : (
             <div className="space-y-4">
+              <div className="flex items-center justify-between rounded-xl border border-border bg-muted/20 px-3 py-2.5">
+                <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-foreground">
+                  <input
+                    type="checkbox"
+                    checked={allItemsSelected}
+                    onChange={event => {
+                      if (event.target.checked) selectAllCartItems();
+                      else clearCartSelection();
+                    }}
+                    className="h-4 w-4 accent-primary"
+                  />
+                  Chọn tất cả
+                </label>
+                <span className="text-xs text-muted-foreground">
+                  {selectedCartItems.length}/{cartItems.length} dòng sản phẩm
+                </span>
+              </div>
+
               {unavailableCount > 0 && (
                 <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                  Có {unavailableCount} món không khả dụng ở cửa hàng hiện tại. Vui lòng xóa món hoặc chọn món thay thế để tiếp
-                  tục đặt hàng.
+                  Có {unavailableCount} món không khả dụng ở cửa hàng hiện tại. Bạn có thể bỏ chọn, xóa món hoặc chọn món thay
+                  thế.
                 </div>
               )}
 
@@ -162,6 +183,7 @@ export const CartModal = () => {
                 const itemKey = `${item.sku}-${item.size}-${index}`;
                 const productSize = product?.variants.find(variant => variant.size === size);
                 const isUnavailable = unavailableSkuSet.has(item.sku);
+                const isSelected = isCartItemSelected(item);
                 const noteParts = (item.note || "")
                   .split("|")
                   .map(part => part.trim())
@@ -198,6 +220,15 @@ export const CartModal = () => {
                           : "bg-muted/30 border-border"
                     }`}
                   >
+                    <label className="flex shrink-0 cursor-pointer items-center pt-1" title="Chọn món để thanh toán">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={event => setCartItemSelected(item, event.target.checked)}
+                        className="h-4 w-4 accent-primary"
+                        aria-label={`Chọn ${isCombo ? combo?.name || "combo" : product?.name || "sản phẩm"}`}
+                      />
+                    </label>
                     <Image
                       src={isCombo ? combo?.image || "" : productSize?.image.url || ""}
                       alt={isCombo ? combo?.name || "Combo" : "Pizza"}
@@ -225,8 +256,8 @@ export const CartModal = () => {
                                 {comboSelection.map((itemCombo, i) => (
                                   <p key={i} className="text-xs text-muted-foreground flex items-center gap-1">
                                     <span className="w-1 h-1 rounded-full bg-orange-400 shrink-0" />
-                                    {itemCombo.product_id?.name} - {itemCombo.size}{" "}
-                                    {itemCombo.crust ? `- ${formatCrustLabel(itemCombo.crust)}` : ``}
+                                    {typeof itemCombo.product_id === "string" ? itemCombo.sku : itemCombo.product_id?.name} -{" "}
+                                    {itemCombo.size} {itemCombo.crust ? `- ${formatCrustLabel(itemCombo.crust)}` : ``}
                                   </p>
                                 ))}
                               </div>
@@ -351,7 +382,9 @@ export const CartModal = () => {
                           </button>
                         </div>
                         <p className="font-semibold text-foreground text-xl">
-                          {formatVND(item.price * item.quantity, { style: "currency" })}
+                          {formatVND(item.price * item.quantity, {
+                            style: "currency",
+                          })}
                         </p>
                       </div>
 
@@ -392,18 +425,23 @@ export const CartModal = () => {
 
         {cartCount > 0 && (
           <div className="border-t border-border p-5 bg-card space-y-4 shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.1)]">
+            <div className="text-xs text-muted-foreground">Đã chọn {selectedCartCount} sản phẩm</div>
             <div className="flex justify-between items-center text-foreground font-medium">
               <span className="text-muted-foreground">Tổng thanh toán:</span>
-              <span className="text-primary text-xl font-bold">{formatVND(cartTotal, { style: "currency" })}</span>
+              <span className="text-primary text-xl font-bold">{formatVND(selectedCartTotal, { style: "currency" })}</span>
             </div>
             <button
               onClick={() => {
                 setCheckout(true);
               }}
-              disabled={unavailableCount > 0}
+              disabled={selectedCartCount === 0 || selectedUnavailableCount > 0}
               className="w-full bg-primary text-primary-foreground py-3.5 rounded-xl font-medium hover:bg-primary/90 transition-all active:scale-[0.98] shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {unavailableCount > 0 ? "Xử lý món không khả dụng để tiếp tục" : "Tiến hành đặt hàng"}
+              {selectedCartCount === 0
+                ? "Vui lòng chọn món muốn mua"
+                : selectedUnavailableCount > 0
+                  ? "Bỏ chọn món không khả dụng để tiếp tục"
+                  : `Tiến hành đặt ${selectedCartCount} sản phẩm`}
             </button>
           </div>
         )}

@@ -625,7 +625,15 @@ export default function ProductDetailModal({
                                 className="w-full flex items-center justify-between gap-2 bg-primary text-white pl-5 pr-4 py-3 rounded-xl hover:bg-primary/90 transition-colors shadow-lg shadow-primary/25"
                               >
                                 <span className="flex items-center gap-2">
-                                  <SquarePen size={18} /> {isEditMode ? "Cập nhật giỏ hàng" : "Thêm vào giỏ"}
+                                  {isEditMode ? (
+                                    <>
+                                      <SquarePen size={18} /> Cập nhật giỏ hàng
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Plus size={18} /> Thêm vào giỏ
+                                    </>
+                                  )}
                                 </span>
                                 <span className="flex items-center gap-2">
                                   {hasDiscount && (

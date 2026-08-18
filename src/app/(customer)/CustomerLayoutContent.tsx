@@ -8,11 +8,12 @@ import { CartModal } from "@/src/components/modals/CartModal";
 import { useEffect } from "react";
 import { useCustomerAuth } from "@/src/context/authCustomerContext";
 import { CheckoutModal } from "@/src/components/modals/CheckoutModal";
+import { CartMergeModal } from "@/src/components/modals/CartMergeModal";
 import { Toaster } from "sonner";
 
 export default function CustomerLayoutContent({ children }: { children: React.ReactNode }) {
   const { authMode, user, setAuthMode } = useCustomerAuth();
-  const { showCart, fetchCart, checkout } = useCart();
+  const { showCart, fetchCart, checkout, pendingCartMerge } = useCart();
 
   useEffect(() => {
     fetchCart(user?.id);
@@ -34,6 +35,7 @@ export default function CustomerLayoutContent({ children }: { children: React.Re
       {authMode && <AuthModal />}
       {showCart && <CartModal />}
       {checkout && <CheckoutModal />}
+      {pendingCartMerge && <CartMergeModal />}
       <Toaster position="top-right" richColors />
     </>
   );

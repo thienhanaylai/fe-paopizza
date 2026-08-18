@@ -91,7 +91,7 @@ export function CountdownTimer({ expiresAt, onExpire }: { expiresAt?: Date; onEx
 export const CheckoutModal = () => {
   useModalScrollLock();
 
-  const { cart, cartTotal, setCheckout, fetchCart, clearCart } = useCart();
+  const { selectedCartItems, selectedCartTotal, setCheckout, fetchCart, removeSelectedItems } = useCart();
   const { user, getInfo } = useCustomerAuth();
   const [checkoutStep, setCheckoutStep] = useState<CheckoutStep>("info");
   const [listStore, setListStore] = useState<StoreData[]>();
@@ -302,9 +302,9 @@ export const CheckoutModal = () => {
     if (!user?.id) return;
     const fetchAddresses = async () => {
       try {
-        const info = await getInfo();
-        if (info?._id) {
-          const addresses = await getCustomerAddresses(info._id, "customer");
+        await getInfo();
+        if (user.id) {
+          const addresses = await getCustomerAddresses(user.id, "customer");
           setSavedAddresses(addresses || []);
           const defaultAddr = (addresses || []).find((a: CustomerAddress) => a.isDefault);
           if (defaultAddr && !custName && !custPhone) {
@@ -352,7 +352,7 @@ export const CheckoutModal = () => {
     setIsPayment(false);
     setFieldErrors({});
     resetAddressSuggestions();
-    await clearCart(user?.id);
+    await removeSelectedItems(user?.id);
   };
 
   const handleApplyPromo = async () => {
@@ -363,7 +363,7 @@ export const CheckoutModal = () => {
     setIsApplyingPromo(true);
     setPromoError("");
     try {
-      const result = await applyPromoCode(promoCode, cartTotal, storeId);
+      const result = await applyPromoCode(promoCode, selectedCartTotal, storeId);
       if (result.valid) {
         setAppliedPromo(result);
         setPromoError("");
@@ -393,6 +393,11 @@ export const CheckoutModal = () => {
   const hanldeSubmit = async () => {
     if (isSubmitting) return;
 
+    if (!selectedCartItems.length) {
+      toast.warning("Vui lòng chọn ít nhất một sản phẩm trong giỏ hàng!");
+      return;
+    }
+
     if (!validateCheckoutInfo()) {
       setCheckoutStep("info");
       toast.warning("Vui lòng kiểm tra lại thông tin nhận hàng!");
@@ -417,32 +422,30 @@ export const CheckoutModal = () => {
           address: custAddress.trim(),
         },
         store_id: currentStoreId,
-        items: cart
-          ? cart?.items?.map(cartItem => ({
-              ...cartItem,
-              product_id: typeof cartItem.product_id === "string" ? cartItem.product_id : cartItem.product_id?._id,
-              combo_id: typeof cartItem.combo === "string" ? cartItem.combo : (cartItem.combo as { _id: string })?._id,
-              added_topping: Array.isArray(cartItem.added_topping)
-                ? cartItem.added_topping.map(topping => ({
-                    ingredient: typeof topping === "string" ? topping : topping._id,
-                    quantity: 1,
-                  }))
-                : [],
-              combo_selections: Array.isArray(cartItem.combo_selections)
-                ? cartItem.combo_selections.map(selection => ({
-                    ...selection,
-                    product_id: typeof selection.product_id === "string" ? selection.product_id : selection.product_id?._id,
-                    crust: selection.crust,
-                    added_topping: Array.isArray(selection.added_topping)
-                      ? selection.added_topping.map(topping => ({
-                          ingredient: typeof topping === "string" ? topping : topping._id,
-                          quantity: 1,
-                        }))
-                      : [],
-                  }))
-                : [],
-            }))
-          : [],
+        items: selectedCartItems.map(cartItem => ({
+          ...cartItem,
+          product_id: typeof cartItem.product_id === "string" ? cartItem.product_id : cartItem.product_id?._id,
+          combo_id: typeof cartItem.combo === "string" ? cartItem.combo : (cartItem.combo as { _id: string })?._id,
+          added_topping: Array.isArray(cartItem.added_topping)
+            ? cartItem.added_topping.map(topping => ({
+                ingredient: typeof topping === "string" ? topping : topping._id,
+                quantity: 1,
+              }))
+            : [],
+          combo_selections: Array.isArray(cartItem.combo_selections)
+            ? cartItem.combo_selections.map(selection => ({
+                ...selection,
+                product_id: typeof selection.product_id === "string" ? selection.product_id : selection.product_id?._id,
+                crust: selection.crust,
+                added_topping: Array.isArray(selection.added_topping)
+                  ? selection.added_topping.map(topping => ({
+                      ingredient: typeof topping === "string" ? topping : topping._id,
+                      quantity: 1,
+                    }))
+                  : [],
+              }))
+            : [],
+        })),
         note: custNote,
         promotion_code: appliedPromo?.valid ? appliedPromo.code : undefined,
         discount_amount: appliedPromo?.valid ? discountAmount : 0,
@@ -511,8 +514,8 @@ export const CheckoutModal = () => {
     }
   };
 
-  const deliveryFee = calculateDeliveryFee(orderMethod, cartTotal);
-  const grandTotal = Math.max(0, cartTotal + deliveryFee - discountAmount);
+  const deliveryFee = calculateDeliveryFee(orderMethod, selectedCartTotal);
+  const grandTotal = Math.max(0, selectedCartTotal + deliveryFee - discountAmount);
 
   const paymentOptions: { key: PaymentMethod; label: string; icon: React.ReactNode; desc: string }[] = [
     { key: "cash", label: "Tiền mặt", icon: <Banknote size={20} />, desc: "Thanh toán khi nhận hàng" },
@@ -977,7 +980,7 @@ export const CheckoutModal = () => {
                   <div className="bg-muted/50 rounded-xl p-4 space-y-2">
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Tạm tính:</span>
-                      <span className="text-foreground">{formatVND(cartTotal)}</span>
+                      <span className="text-foreground">{formatVND(selectedCartTotal)}</span>
                     </div>
                     {deliveryFee > 0 && (
                       <div className="flex justify-between text-sm">
@@ -1057,7 +1060,7 @@ export const CheckoutModal = () => {
                   <div className="bg-muted/50 rounded-xl p-4 space-y-2">
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Tạm tính:</span>
-                      <span className="text-foreground">{formatVND(cartTotal)}</span>
+                      <span className="text-foreground">{formatVND(selectedCartTotal)}</span>
                     </div>
                     {deliveryFee > 0 && (
                       <div className="flex justify-between text-sm">

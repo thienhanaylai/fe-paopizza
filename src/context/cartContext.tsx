@@ -90,6 +90,12 @@ export type Cart = {
   items: CartItem[];
 };
 
+export type CartMergePrompt = {
+  userId: string;
+  guestItemCount: number;
+  serverItemCount: number;
+};
+
 type AddToCartInput = Omit<AddToCartPayload, "userId"> & {
   userId?: string;
   product?: ProductPopulated;
@@ -140,8 +146,21 @@ interface CartContextType {
   removeItem: (payload: RemoveItemInput) => Promise<void>;
   addToCart: (payload: AddToCartInput) => Promise<void>;
   clearCart: (userId?: string) => Promise<void>;
+  removeSelectedItems: (userId?: string) => Promise<void>;
   cartCount: number;
   cartTotal: number;
+  selectedCartItems: CartItem[];
+  selectedCartCount: number;
+  selectedCartTotal: number;
+  isCartItemSelected: (item: CartItem) => boolean;
+  setCartItemSelected: (item: CartItem, selected: boolean) => void;
+  selectAllCartItems: () => void;
+  clearCartSelection: () => void;
+  pendingCartMerge: CartMergePrompt | null;
+  isMergingCart: boolean;
+  cartMergeError: string;
+  confirmCartMerge: () => Promise<void>;
+  dismissCartMerge: () => void;
   editingSku: string | null;
   setEditingSku: (sku: string | null) => void;
   editingComboItem: CartItem | null;
@@ -164,6 +183,26 @@ const resolveProductId = (product: string | ProductPopulated | undefined): strin
 export const resolveComboId = (combo: string | { _id: string } | undefined): string | undefined => {
   if (!combo) return undefined;
   return typeof combo === "string" ? combo : combo._id;
+};
+
+const resolveToppingId = (topping: ToppingRef): string => (typeof topping === "string" ? topping : topping._id);
+
+export const getCartItemKey = (item: CartItem): string => {
+  const itemId = item.item_type === "combo" ? resolveComboId(item.combo) || "combo" : resolveProductId(item.product_id) || "product";
+  const selectionSignature = (item.combo_selections || [])
+    .map(selection =>
+      [
+        resolveProductId(selection.product_id) || "",
+        selection.sku,
+        selection.size,
+        selection.crust || "",
+        (selection.added_topping || []).map(resolveToppingId).sort().join(","),
+      ].join(":"),
+    )
+    .sort()
+    .join(";");
+
+  return [item.item_type, itemId, item.sku, item.size, item.crust || "", selectionSignature].join("|");
 };
 
 const normalizeProduct = (product: unknown): string | ProductPopulated | undefined => {
@@ -229,9 +268,7 @@ const normalizeTopping = (topping: unknown): ToppingRef | null => {
   // Hỗ trợ format từ API: { ingredient: { _id, name, price, ... }, quantity }
   const raw = topping as Record<string, unknown>;
   const ingredientData =
-    raw.ingredient && typeof raw.ingredient === "object" && raw.ingredient !== null
-      ? (raw.ingredient as Record<string, unknown>)
-      : raw;
+    raw.ingredient && typeof raw.ingredient === "object" && raw.ingredient !== null ? (raw.ingredient as Record<string, unknown>) : raw;
 
   const source = ingredientData as Partial<IngredientTopping>;
   if (typeof source._id !== "string") {
@@ -296,9 +333,7 @@ const normalizeComboSelection = (selection: unknown): ComboSelection | null => {
     size: source.size,
     crust: typeof source.crust === "string" ? source.crust : undefined,
     added_topping: Array.isArray(source.added_topping)
-      ? source.added_topping
-          .map(topping => normalizeTopping(topping))
-          .filter((topping): topping is ToppingRef => topping !== null)
+      ? source.added_topping.map(topping => normalizeTopping(topping)).filter((topping): topping is ToppingRef => topping !== null)
       : [],
   };
 };
@@ -307,7 +342,11 @@ const normalizeComboSelection = (selection: unknown): ComboSelection | null => {
 
 const computeComboPriceFromSelections = (
   selections: ComboSelection[],
-  pricingMeta?: { pricingType?: "static" | "dynamic"; discountType?: "percent" | "amount"; discount?: number },
+  pricingMeta?: {
+    pricingType?: "static" | "dynamic";
+    discountType?: "percent" | "amount";
+    discount?: number;
+  },
 ): number | null => {
   if (!selections || selections.length === 0) return null;
 
@@ -499,7 +538,13 @@ export const areComboSelectionsEqual = <T extends { sku: string }>(a?: T[], b?: 
 
 const findLocalItemIndex = (
   items: CartItem[],
-  params: { sku: string; size: string; productId?: string; itemType?: CartItemType; comboSelections?: ComboSelection[] },
+  params: {
+    sku: string;
+    size: string;
+    productId?: string;
+    itemType?: CartItemType;
+    comboSelections?: ComboSelection[];
+  },
 ) => {
   return items.findIndex(item => {
     if (item.sku !== params.sku || item.size !== params.size) {
@@ -571,8 +616,7 @@ const mergeComboDataFromPrevCart = (normalized: Cart, prevCart: Cart | null): Ca
       );
       if (!prevItem) return item;
       // Preserve combo info (including pricing metadata)
-      const comboMerged =
-        prevItem.combo && typeof prevItem.combo === "object" && prevItem.combo !== null ? prevItem.combo : item.combo;
+      const comboMerged = prevItem.combo && typeof prevItem.combo === "object" && prevItem.combo !== null ? prevItem.combo : item.combo;
       // Preserve price if API returned 0 but we previously had a valid price
       const priceMerged = item.price === 0 && prevItem.price > 0 ? prevItem.price : item.price;
       return { ...item, combo: comboMerged, price: priceMerged };
@@ -586,15 +630,20 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [checkout, setCheckout] = useState(false);
   const [editingSku, setEditingSku] = useState<string | null>(null);
   const [editingComboItem, setEditingComboItem] = useState<CartItem | null>(null);
+  const [excludedCartItemKeys, setExcludedCartItemKeys] = useState<Set<string>>(new Set());
+  const [pendingCartMerge, setPendingCartMerge] = useState<CartMergePrompt | null>(null);
+  const [isMergingCart, setIsMergingCart] = useState(false);
+  const [cartMergeError, setCartMergeError] = useState("");
   const syncGuestCartPromiseRef = useRef<Promise<boolean> | null>(null);
   const cartRef = useRef<Cart | null>(null);
+  const cartOwnerRef = useRef<string | null>(null);
+  const mergePromptedUserRef = useRef<string | null>(null);
 
   cartRef.current = cart;
 
   const syncGuestCartToServer = useCallback(async (userId: string) => {
     if (syncGuestCartPromiseRef.current) {
-      await syncGuestCartPromiseRef.current;
-      return;
+      return await syncGuestCartPromiseRef.current;
     }
 
     syncGuestCartPromiseRef.current = (async () => {
@@ -633,6 +682,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
             note: item.note,
             added_topping: extractToppingIds(item.added_topping),
             price: itemType === "combo" ? item.price : undefined,
+            merge: true,
           });
         } catch {
           hasFailure = true;
@@ -648,73 +698,126 @@ export function CartProvider({ children }: { children: ReactNode }) {
     })();
 
     try {
-      await syncGuestCartPromiseRef.current;
+      return await syncGuestCartPromiseRef.current;
     } finally {
       syncGuestCartPromiseRef.current = null;
     }
   }, []);
 
-  const fetchCart = useCallback(
-    async (userId?: string) => {
-      if (!userId) {
-        const guestCart = readGuestCart();
-        setCart(guestCart);
-        return guestCart;
+  const fetchCart = useCallback(async (userId?: string) => {
+    if (!userId) {
+      if (cartOwnerRef.current !== "guest") {
+        cartOwnerRef.current = "guest";
+        setExcludedCartItemKeys(new Set());
       }
+      mergePromptedUserRef.current = null;
+      setPendingCartMerge(null);
+      setCartMergeError("");
+      const guestCart = readGuestCart();
+      cartRef.current = guestCart;
+      setCart(guestCart);
+      return guestCart;
+    }
 
-      try {
-        const prevCart = cartRef.current;
-        // Khi đăng nhập: xoá giỏ hàng guest ở localStorage, không gộp vào cart server
-        const emptyGuestCart = createEmptyGuestCart();
-        persistGuestCart(emptyGuestCart);
-        const data = await getCart(userId);
+    try {
+      if (cartOwnerRef.current !== userId) {
+        cartOwnerRef.current = userId;
+        setExcludedCartItemKeys(new Set());
+      }
+      const prevCart = cartRef.current;
+      const data = await getCart(userId);
 
-        const normalized = data
-          ? normalizeCart(data)
-          : {
-              _id: undefined,
-              user_id: userId,
-              items: [],
-            };
+      const normalized = data
+        ? normalizeCart(data)
+        : {
+            _id: undefined,
+            user_id: userId,
+            items: [],
+          };
 
-        if (prevCart) {
-          normalized.items = normalized.items.map(item => {
-            if (item.item_type === "combo") {
-              // Match by combo ID + selections for more reliable identification
-              const itemComboId = resolveComboId(item.combo);
-              const prevItem = prevCart.items.find(
-                p =>
-                  p.item_type === "combo" &&
-                  resolveComboId(p.combo) === itemComboId &&
-                  areComboSelectionsEqual(p.combo_selections, item.combo_selections),
-              );
-              if (prevItem) {
-                // Preserve combo info (including pricing metadata) from previous cart state
-                const comboFromPrev =
-                  prevItem.combo && typeof prevItem.combo === "object" && prevItem.combo !== null
-                    ? prevItem.combo
-                    : resolveComboId(item.combo)
-                      ? item.combo
-                      : prevItem.combo;
-                // Preserve price if API returned 0 but we previously had a valid price
-                const priceToKeep = item.price === 0 && prevItem.price > 0 ? prevItem.price : item.price;
-                return { ...item, combo: comboFromPrev, price: priceToKeep };
-              }
+      if (prevCart) {
+        normalized.items = normalized.items.map(item => {
+          if (item.item_type === "combo") {
+            // Match by combo ID + selections for more reliable identification
+            const itemComboId = resolveComboId(item.combo);
+            const prevItem = prevCart.items.find(
+              p =>
+                p.item_type === "combo" &&
+                resolveComboId(p.combo) === itemComboId &&
+                areComboSelectionsEqual(p.combo_selections, item.combo_selections),
+            );
+            if (prevItem) {
+              // Preserve combo info (including pricing metadata) from previous cart state
+              const comboFromPrev =
+                prevItem.combo && typeof prevItem.combo === "object" && prevItem.combo !== null
+                  ? prevItem.combo
+                  : resolveComboId(item.combo)
+                    ? item.combo
+                    : prevItem.combo;
+              // Preserve price if API returned 0 but we previously had a valid price
+              const priceToKeep = item.price === 0 && prevItem.price > 0 ? prevItem.price : item.price;
+              return { ...item, combo: comboFromPrev, price: priceToKeep };
             }
-            return item;
-          });
-        }
-
-        cartRef.current = normalized;
-        setCart(normalized);
-        return normalized;
-      } catch (error) {
-        console.error("Lỗi khi tải giỏ hàng:", error);
-        return null;
+          }
+          return item;
+        });
       }
-    },
-    [syncGuestCartToServer],
-  );
+
+      cartRef.current = normalized;
+      setCart(normalized);
+
+      const guestCart = readGuestCart();
+      if (guestCart.items.length > 0 && mergePromptedUserRef.current !== userId) {
+        mergePromptedUserRef.current = userId;
+        setPendingCartMerge({
+          userId,
+          guestItemCount: guestCart.items.reduce((total, item) => total + item.quantity, 0),
+          serverItemCount: normalized.items.reduce((total, item) => total + item.quantity, 0),
+        });
+        setCartMergeError("");
+      }
+
+      return normalized;
+    } catch (error) {
+      console.error("Lỗi khi tải giỏ hàng:", error);
+      return null;
+    }
+  }, []);
+
+  const dismissCartMerge = useCallback(() => {
+    setPendingCartMerge(null);
+    setCartMergeError("");
+  }, []);
+
+  const confirmCartMerge = useCallback(async () => {
+    if (!pendingCartMerge || isMergingCart) return;
+
+    setIsMergingCart(true);
+    setCartMergeError("");
+
+    try {
+      const merged = await syncGuestCartToServer(pendingCartMerge.userId);
+      if (!merged) {
+        setCartMergeError("Một số món không thể gộp. Giỏ trên thiết bị vẫn được giữ để bạn thử lại.");
+        return;
+      }
+
+      const data = await getCart(pendingCartMerge.userId);
+      if (!data) {
+        throw new Error("Không thể tải lại giỏ hàng sau khi gộp.");
+      }
+
+      const normalized = normalizeCart(data);
+      cartRef.current = normalized;
+      setCart(normalized);
+      setExcludedCartItemKeys(new Set());
+      setPendingCartMerge(null);
+    } catch (error) {
+      setCartMergeError(error instanceof Error ? error.message : "Không thể gộp giỏ hàng. Vui lòng thử lại.");
+    } finally {
+      setIsMergingCart(false);
+    }
+  }, [isMergingCart, pendingCartMerge, syncGuestCartToServer]);
 
   const addToCart = useCallback(async (payload: AddToCartInput) => {
     const {
@@ -770,8 +873,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
               if (itemComboId !== comboId) return item;
               if (!areComboSelectionsEqual(item.combo_selections, combo_selections)) return item;
               // Preserve combo pricing metadata
-              const preservedCombo =
-                builtCombo ?? (typeof item.combo === "object" && item.combo !== null ? { ...item.combo } : comboId);
+              const preservedCombo = builtCombo ?? (typeof item.combo === "object" && item.combo !== null ? { ...item.combo } : comboId);
               // Preserve price if API returned 0 but we have a valid computed price
               const preservedPrice = typeof price === "number" && price > 0 && item.price === 0 ? price : item.price;
               return { ...item, combo: preservedCombo, price: preservedPrice };
@@ -844,8 +946,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         const cartItem = cartRef.current?.items.find(i => i.sku === sku && i.item_type === "combo" && resolveComboId(i.combo));
         resolvedComboId = resolveComboId(cartItem?.combo);
       }
-      const canUseServerMutation =
-        !!userId && ((itemType === "combo" && !!resolvedComboId) || (itemType === "product" && !!product_id));
+      const canUseServerMutation = !!userId && ((itemType === "combo" && !!resolvedComboId) || (itemType === "product" && !!product_id));
 
       try {
         if (canUseServerMutation) {
@@ -920,91 +1021,156 @@ export function CartProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  const removeItem = useCallback(
-    async ({ userId, item_type, product_id, combo, sku, size, combo_selections }: RemoveItemInput) => {
-      const itemType: CartItemType = item_type === "combo" ? "combo" : "product";
-      // Resolve combo id from current cart if not provided (API may strip it)
-      let resolvedComboId = combo;
-      if (itemType === "combo" && !resolvedComboId && userId) {
-        const cartItem = cartRef.current?.items.find(i => i.sku === sku && i.item_type === "combo" && resolveComboId(i.combo));
-        resolvedComboId = resolveComboId(cartItem?.combo);
-      }
-      const canUseServerMutation =
-        !!userId && ((itemType === "combo" && !!resolvedComboId) || (itemType === "product" && !!product_id));
+  const removeItem = useCallback(async ({ userId, item_type, product_id, combo, sku, size, combo_selections }: RemoveItemInput) => {
+    const itemType: CartItemType = item_type === "combo" ? "combo" : "product";
+    // Resolve combo id from current cart if not provided (API may strip it)
+    let resolvedComboId = combo;
+    if (itemType === "combo" && !resolvedComboId && userId) {
+      const cartItem = cartRef.current?.items.find(i => i.sku === sku && i.item_type === "combo" && resolveComboId(i.combo));
+      resolvedComboId = resolveComboId(cartItem?.combo);
+    }
+    const canUseServerMutation = !!userId && ((itemType === "combo" && !!resolvedComboId) || (itemType === "product" && !!product_id));
 
-      try {
-        if (canUseServerMutation) {
-          const updatedCart = await removeFromCartApi({
-            userId,
-            item_type: itemType,
-            product_id,
-            combo: resolvedComboId,
-            sku,
-            size,
-            combo_selections: itemType === "combo" ? (mapComboSelectionsToPayload(combo_selections) ?? []) : undefined,
-          });
-          const normalized = normalizeCart(updatedCart);
-          cartRef.current = mergeComboDataFromPrevCart(normalized, cartRef.current);
-          setCart(cartRef.current);
-          return;
+    try {
+      if (canUseServerMutation) {
+        const updatedCart = await removeFromCartApi({
+          userId,
+          item_type: itemType,
+          product_id,
+          combo: resolvedComboId,
+          sku,
+          size,
+          combo_selections: itemType === "combo" ? (mapComboSelectionsToPayload(combo_selections) ?? []) : undefined,
+        });
+        const normalized = normalizeCart(updatedCart);
+        cartRef.current = mergeComboDataFromPrevCart(normalized, cartRef.current);
+        setCart(cartRef.current);
+        return;
+      }
+
+      const currentGuestCart = readGuestCart();
+      const nextItems = currentGuestCart.items.filter(item => {
+        if (item.sku !== sku || item.size !== size) {
+          return true; // keep items that don't match sku/size
         }
 
-        const currentGuestCart = readGuestCart();
-        const nextItems = currentGuestCart.items.filter(item => {
-          if (item.sku !== sku || item.size !== size) {
-            return true; // keep items that don't match sku/size
-          }
+        // Combo: chỉ xoá item có combo_selections khớp
+        if (item.item_type === "combo" || item_type === "combo") {
+          return !areComboSelectionsEqual(item.combo_selections, combo_selections);
+        }
 
-          // Combo: chỉ xoá item có combo_selections khớp
-          if (item.item_type === "combo" || item_type === "combo") {
-            return !areComboSelectionsEqual(item.combo_selections, combo_selections);
-          }
+        if (!product_id) {
+          return false; // remove if no product_id to compare
+        }
 
-          if (!product_id) {
-            return false; // remove if no product_id to compare
-          }
+        return resolveProductId(item.product_id) !== product_id;
+      });
 
-          return resolveProductId(item.product_id) !== product_id;
-        });
+      const nextGuestCart: Cart = {
+        _id: "guest-cart",
+        user_id: "guest",
+        items: nextItems,
+      };
 
-        const nextGuestCart: Cart = {
-          _id: "guest-cart",
-          user_id: "guest",
-          items: nextItems,
-        };
-
-        persistGuestCart(nextGuestCart);
-        setCart(nextGuestCart);
-      } catch (error) {
-        console.error("Lỗi xóa sản phẩm:", error);
-      }
-    },
-    [],
-  );
+      persistGuestCart(nextGuestCart);
+      setCart(nextGuestCart);
+    } catch (error) {
+      console.error("Lỗi xóa sản phẩm:", error);
+    }
+  }, []);
 
   const clearCart = useCallback(async (userId?: string) => {
     try {
       if (userId) {
         const updatedCart = await clearCartApi(userId);
-        setCart(
-          updatedCart
-            ? normalizeCart(updatedCart)
-            : {
-                _id: undefined,
-                user_id: userId,
-                items: [],
-              },
-        );
+        const normalized = updatedCart
+          ? normalizeCart(updatedCart)
+          : {
+              _id: undefined,
+              user_id: userId,
+              items: [],
+            };
+        cartRef.current = normalized;
+        setCart(normalized);
+        setExcludedCartItemKeys(new Set());
         return;
       }
 
       const emptyGuestCart = createEmptyGuestCart();
       persistGuestCart(emptyGuestCart);
+      cartRef.current = emptyGuestCart;
       setCart(emptyGuestCart);
+      setExcludedCartItemKeys(new Set());
     } catch (error) {
       console.error("Lỗi xóa giỏ hàng:", error);
     }
   }, []);
+
+  const selectedCartItems = useMemo(
+    () => (cart?.items || []).filter(item => !excludedCartItemKeys.has(getCartItemKey(item))),
+    [cart?.items, excludedCartItemKeys],
+  );
+
+  const isCartItemSelected = useCallback((item: CartItem) => !excludedCartItemKeys.has(getCartItemKey(item)), [excludedCartItemKeys]);
+
+  const setCartItemSelected = useCallback((item: CartItem, selected: boolean) => {
+    const key = getCartItemKey(item);
+    setExcludedCartItemKeys(previous => {
+      const next = new Set(previous);
+      if (selected) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }, []);
+
+  const selectAllCartItems = useCallback(() => {
+    setExcludedCartItemKeys(new Set());
+  }, []);
+
+  const clearCartSelection = useCallback(() => {
+    setExcludedCartItemKeys(new Set((cartRef.current?.items || []).map(getCartItemKey)));
+  }, []);
+
+  const removeSelectedItems = useCallback(
+    async (userId?: string) => {
+      const itemsToRemove = selectedCartItems;
+      if (!itemsToRemove.length) return;
+
+      if (userId) {
+        let latestCart: unknown = null;
+
+        for (const item of itemsToRemove) {
+          const itemType: CartItemType = item.item_type === "combo" ? "combo" : "product";
+          latestCart = await removeFromCartApi({
+            userId,
+            item_type: itemType,
+            product_id: resolveProductId(item.product_id),
+            combo: resolveComboId(item.combo),
+            sku: item.sku,
+            size: item.size,
+            combo_selections: itemType === "combo" ? (mapComboSelectionsToPayload(item.combo_selections) ?? []) : undefined,
+          });
+        }
+
+        const normalized = normalizeCart(latestCart);
+        cartRef.current = normalized;
+        setCart(normalized);
+      } else {
+        const selectedKeys = new Set(itemsToRemove.map(getCartItemKey));
+        const currentGuestCart = readGuestCart();
+        const nextGuestCart: Cart = {
+          ...currentGuestCart,
+          items: currentGuestCart.items.filter(item => !selectedKeys.has(getCartItemKey(item))),
+        };
+        persistGuestCart(nextGuestCart);
+        cartRef.current = nextGuestCart;
+        setCart(nextGuestCart);
+      }
+
+      setExcludedCartItemKeys(new Set());
+    },
+    [selectedCartItems],
+  );
 
   const { cartCount, cartTotal } = useMemo(() => {
     if (!cart || !cart.items) return { cartCount: 0, cartTotal: 0 };
@@ -1017,6 +1183,18 @@ export function CartProvider({ children }: { children: ReactNode }) {
     );
   }, [cart]);
 
+  const { selectedCartCount, selectedCartTotal } = useMemo(
+    () =>
+      selectedCartItems.reduce(
+        (totals, item) => ({
+          selectedCartCount: totals.selectedCartCount + item.quantity,
+          selectedCartTotal: totals.selectedCartTotal + item.price * item.quantity,
+        }),
+        { selectedCartCount: 0, selectedCartTotal: 0 },
+      ),
+    [selectedCartItems],
+  );
+
   const value = useMemo(
     () => ({
       cart,
@@ -1027,8 +1205,21 @@ export function CartProvider({ children }: { children: ReactNode }) {
       removeItem,
       addToCart,
       clearCart,
+      removeSelectedItems,
       cartCount,
       cartTotal,
+      selectedCartItems,
+      selectedCartCount,
+      selectedCartTotal,
+      isCartItemSelected,
+      setCartItemSelected,
+      selectAllCartItems,
+      clearCartSelection,
+      pendingCartMerge,
+      isMergingCart,
+      cartMergeError,
+      confirmCartMerge,
+      dismissCartMerge,
       editingSku,
       setEditingSku,
       editingComboItem,
@@ -1045,8 +1236,21 @@ export function CartProvider({ children }: { children: ReactNode }) {
       removeItem,
       addToCart,
       clearCart,
+      removeSelectedItems,
       cartCount,
       cartTotal,
+      selectedCartItems,
+      selectedCartCount,
+      selectedCartTotal,
+      isCartItemSelected,
+      setCartItemSelected,
+      selectAllCartItems,
+      clearCartSelection,
+      pendingCartMerge,
+      isMergingCart,
+      cartMergeError,
+      confirmCartMerge,
+      dismissCartMerge,
       editingSku,
       editingComboItem,
     ],
