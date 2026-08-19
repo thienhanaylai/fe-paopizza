@@ -28,11 +28,16 @@ export interface PaginationInfo {
   totalPages: number;
 }
 
-export const getAllStore = async (page?: number, limit?: number) => {
+export const getAllStore = async (
+  page?: number,
+  limit?: number,
+  options?: { includeClosed?: boolean },
+) => {
   try {
     const params = new URLSearchParams();
     if (page) params.append("page", String(page));
     params.append("limit", String(limit || 1000));
+    if (options?.includeClosed) params.append("includeClosed", "true");
 
     const response = await http(`/api/v1/stores?${params.toString()}`, {
       method: "GET",

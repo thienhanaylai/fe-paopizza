@@ -35,7 +35,7 @@ import StoreLocationPicker from "@/src/components/layouts/StoreLocationPicker";
 
 const statusConfig = {
   active: { label: "Hoạt động", color: "bg-green-100 text-green-700", icon: <CheckCircle2 size={14} /> },
-  close: { label: "Tạm đóng", color: "bg-red-100 text-red-700", icon: <XCircle size={14} /> },
+  close: { label: "Đã đóng cửa", color: "bg-red-100 text-red-700", icon: <XCircle size={14} /> },
   maintenance: { label: "Đang sửa chữa", color: "bg-yellow-100 text-yellow-700", icon: <Settings size={14} /> },
 };
 
@@ -110,7 +110,7 @@ export default function Stores() {
       : managerOptions;
 
   const fecthdata = async () => {
-    const { data: res } = await getAllStore();
+    const { data: res } = await getAllStore(undefined, undefined, { includeClosed: true });
     const listManager = await getEmployeeByRole("manager");
 
     const totalRev = await getRevenue(getMonthRange().start, getMonthRange().end, "", "", "", "");
